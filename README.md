@@ -1,43 +1,25 @@
 # Story Computing Machine website
 
-A static library for the published Story Computing Machine stories and artwork. Claude designed the **Index Engine** concept: a chronological Three.js drum of story cards connected to a searchable HTML index. The site includes 195 reader pages, an artwork gallery with 2,091 entries, selected illustrated scenes, and links to the published graphic-novel PDFs. The complete index works without WebGL or JavaScript; the 3D view is an enhancement for exploring it.
+A small, static [story library and artwork gallery](https://boundlessstudio.github.io/storytelling-machine/) published with GitHub Pages. The [source repository](https://github.com/BoundlessStudio/story-computing-machine) owns the writing and artwork; this repository owns the public presentation.
 
-The [story repository](https://github.com/BoundlessStudio/story-computing-machine) owns the writing and art. This repository owns presentation. `content/` is a pinned copy of the last publication snapshots before the story repository retired its Pages machinery in [the editorial-workshop cleanup](https://github.com/BoundlessStudio/story-computing-machine/commit/16ad4fc683f907d0267fae2a7872a72340cd7688). The pinned source commit is recorded in `content/source.json`. Published images and PDFs use their content hashes on `art.rgbknights.com`, keeping this website small while preserving the selected media bytes.
+The site retains 195 story readers from the pinned `content/catalog.json` publication snapshot. The gallery and every current cover, illustration, and comic download URL come from the [Cloudflare R2 art index](https://art.rgbknights.com/manifests/story-computing-machine-art-v1.json). At build time, `scripts/build.py` fetches that index, validates its source paths and content-addressed URLs, and makes a static `art.json`. The checked-in `content/media-index.json` is the verified initial index snapshot and keeps Pages builds possible while the source repository's index workflow is being merged or if the media host is temporarily unavailable. `media-source.json` in the built site records whether the public or snapshot index was used.
+
+The index contains art and PDF URLs, not story prose. New stories need a deliberate prose import into `content/catalog.json` before they get library readers; artwork for stories not yet in that catalog links to its source package. The old snapshot files in `content/` also supply captions and matching optimized gallery thumbnails where their source hashes still agree with the new index. Supplied reference images and excluded paintings do not appear in the index or gallery.
 
 ## Run locally
 
 ```powershell
-npm ci
-npm run build:engine
 python -m pip install -r requirements.txt
+python -m unittest discover -s tests -p 'test_*.py'
 python scripts/build.py --output _site --base-path / --site-url http://127.0.0.1:8765
 cd _site
 python -m http.server 8765
 ```
 
-Open <http://127.0.0.1:8765/>. Artwork needs an internet connection to the public media host.
+Open <http://127.0.0.1:8765/>. Use `--offline` to build from the checked-in index snapshot. Artwork needs an internet connection to the public media host.
 
 ## Deploy
 
-The Pages workflow builds on pull requests and deploys when `main` changes. In this repository's GitHub settings, choose **GitHub Actions** as the Pages build source. The default URL is `https://boundlessstudio.github.io/storytelling-machine/`.
+The Pages workflow builds on pull requests and deploys on `main`, manual dispatch, or its daily refresh. The repository's Pages build source must be **GitHub Actions**. The default URL is <https://boundlessstudio.github.io/storytelling-machine/>.
 
-For a custom domain, set repository Actions variables `SITE_ORIGIN` to the HTTPS origin (for example, `https://stories.example.com`) and `SITE_BASE_PATH` to `/`. Add the domain in GitHub Pages settings and point DNS to GitHub Pages. `MEDIA_ORIGIN` defaults to `https://art.rgbknights.com` and can be changed if the media host moves.
-
-## Content updates
-
-The initial migration can be reproduced from the preserved pre-cleanup revision:
-
-```powershell
-python scripts/sync_content.py --repository ../story-computing-machine --revision d9c6d2939e675c685225daf9d305e02f5675414e
-python scripts/build.py
-```
-
-`sync_content.py` only accepts revisions containing the former `pages/` publication snapshots. Current `story-computing-machine/main` has no such snapshots. New stories and changes to existing stories need an explicit publishing import from that editorial repository before they appear here; a rebuild alone intentionally keeps the pinned publication unchanged. Preserve the published prompt wording and selected art when implementing that import.
-
-## Checks
-
-```powershell
-python -m unittest discover -s tests -p 'test_*.py'
-```
-
-The build emits static HTML, CSS, JavaScript, `art.json`, `sitemap.xml`, and redirects for former `stories/<slug>.html` links. Three.js is pinned in `package-lock.json` and bundled into `static/engine.js` with esbuild before the Python site build. GitHub Actions runs both steps and deploys the result to the same default GitHub Pages URL. No runtime server or browser framework is required.
+For a custom domain, set Actions variables `SITE_ORIGIN` to its HTTPS origin and `SITE_BASE_PATH` to `/`, then configure the domain in GitHub Pages. `MEDIA_INDEX_URL` can override the R2 index endpoint. No Node or Three.js build is needed.
