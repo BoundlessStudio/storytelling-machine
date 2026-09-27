@@ -116,13 +116,29 @@ def story_card(story: dict, cover: str, base: str, *, featured: bool = False) ->
 
 def build_index(stories: list[dict], covers: dict[str, str], base: str, site_url: str) -> str:
     latest = stories[0]
-    featured = story_card(latest, covers[latest["cover"]], base, featured=True)
-    cards = "\n".join(story_card(s, covers[s["cover"]], base) for s in stories)
-    body = f"""<section class="hero wrap"><div class="hero-intro"><span class="eyebrow">A shared universe of stories</span><h1>Many lives.<br><em>One boundless world.</em></h1><p>Find a story, follow a character, or wander through the artwork that brings this world into view.</p><div class="hero-actions"><a class="button button-primary" href="#library">Explore the library</a><a class="button button-quiet" href="{base}art/">Browse artwork ↗</a></div></div><div class="hero-feature"><span class="eyebrow">Latest story</span>{featured}</div></section>
-    <section class="library-section wrap" id="library"><div class="section-heading"><div><span class="eyebrow">The library</span><h2>Choose your next story</h2></div><span class="section-count">{len(stories)} stories</span></div>
-      <div class="library-controls"><label class="search-field"><span class="sr-only">Search stories</span><span aria-hidden="true">⌕</span><input id="story-search" type="search" placeholder="Search titles and prompts" autocomplete="off"></label><label class="select-field">Audience <select id="rating-filter"><option value="all">All ratings</option><option value="PG">PG</option><option value="YA">YA</option><option value="R+">R+</option></select></label><label class="select-field">Sort <select id="story-sort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="title">Title A–Z</option></select></label></div>
-      <p class="results-label" id="story-results" role="status" aria-live="polite"></p><div class="story-grid" id="story-grid">{cards}</div><p class="empty-state" id="story-empty" hidden>No stories match those filters.</p>
-    </section>"""
+    rows = []
+    current_month = None
+    for index, story in enumerate(stories):
+        month = story["created"][:7]
+        if month != current_month:
+            current_month = month
+            rows.append(f'<h3 class="index-month" data-index-month>{esc(month)}</h3>')
+        excerpt = story["prompt"].strip().replace("\n", " ")
+        if len(excerpt) > 210:
+            excerpt = excerpt[:207].rsplit(" ", 1)[0] + "…"
+        rows.append(
+            f'<a class="index-entry" href="{base}stories/{esc(story["slug"])}/" '
+            f'data-story-entry data-index="{index}" data-slug="{esc(story["slug"])}" '
+            f'data-title="{esc(story["title"])}" data-created="{esc(story["created"])}" '
+            f'data-rating="{esc(story["rating"])}" data-search="{esc((story["title"] + " " + story["prompt"]).casefold())}" '
+            f'data-cover="{esc(covers[story["cover"]])}" data-excerpt="{esc(excerpt)}">'
+            f'<span class="index-number">{index + 1:03d}</span><span class="index-title">{esc(story["title"])}</span>'
+            f'<span class="index-rating">{esc(story["rating"])}</span></a>'
+        )
+    body = f"""<section class="atlas-intro wrap"><div><span class="eyebrow">The Story Computing Machine / Vol. 01</span><h1>Turn the index.<br><em>Find a world.</em></h1></div><div class="atlas-intro-side"><p>Every story has a place in the machine. Turn through the archive, pull a card, and see where it leads.</p><div class="atlas-intro-links"><a href="{base}art/">Explore the artwork <span aria-hidden="true">↗</span></a><span>{len(stories)} stories · One shared universe</span></div></div></section>
+    <section class="atlas-layout" id="library" aria-label="Story index"><div class="atlas-rail"><div class="atlas-rail-head"><span class="eyebrow">Index / newest to oldest</span><div class="atlas-controls"><label class="atlas-search"><span class="sr-only">Search stories</span><span aria-hidden="true">⌕</span><input id="story-search" type="search" placeholder="Search titles and prompts" autocomplete="off"></label><label class="select-field">Audience <select id="rating-filter"><option value="all">All ratings</option><option value="PG">PG</option><option value="YA">YA</option><option value="R+">R+</option></select></label></div><div class="atlas-actions"><button id="random-story" class="button button-primary" type="button">✦ Pull a card</button><button id="view-toggle" class="button button-quiet" type="button" aria-pressed="false">Flat view</button></div><p class="results-label" id="story-results" role="status" aria-live="polite">{len(stories)} stories</p></div><div class="atlas-index" id="atlas-index" aria-label="Stories by date">{''.join(rows)}</div><p class="empty-state" id="story-empty" hidden>No stories match those filters.</p></div>
+    <div class="atlas-stage" id="atlas-stage"><div class="atlas-stage-top"><span>THE INDEX ENGINE</span><span id="atlas-position">001 / {len(stories):03d}</span></div><div class="atlas-scene" id="atlas-scene" aria-hidden="true"><div class="atlas-no-webgl"><span class="engine-seal" aria-hidden="true">✦</span><p>The story index is ready to explore.</p></div></div><div class="atlas-instructions" id="atlas-instructions">Drag or scroll to turn the index <span aria-hidden="true">↕</span></div><div class="atlas-turn-controls" aria-label="Turn the story index"><button type="button" id="atlas-newer" aria-label="Newer story">↑</button><button type="button" id="atlas-older" aria-label="Older story">↓</button></div><div class="atlas-detail" id="atlas-detail" aria-live="polite"><img id="atlas-cover" src="{esc(covers[latest['cover']])}" alt="Cover for {esc(latest['title'])}" width="96" height="145"><div class="atlas-detail-copy"><span class="atlas-detail-kicker" id="atlas-detail-kicker">CARD 001 · {esc(latest['created'])} · {esc(latest['rating'])}</span><h2 id="atlas-detail-title">{esc(latest['title'])}</h2><p id="atlas-detail-excerpt">{esc(latest['prompt'].strip().replace(chr(10), ' ')[:210])}</p><div class="atlas-detail-links"><a class="button button-primary" id="atlas-read" href="{base}stories/{esc(latest['slug'])}/">Read the story ↗</a><a class="text-link" id="atlas-art" href="{base}art/?story={quote(latest['slug'])}">See its artwork</a></div></div></div><div class="atlas-stage-bottom"><span id="atlas-archive-code">SCM — ARCHIVE / 001</span><a href="{base}art/">Continue to the gallery ↓</a></div></div></section>
+    <section class="atlas-after wrap"><span class="eyebrow">Beyond the index</span><h2>Follow the images.</h2><p>The gallery holds character studies, landscapes, interiors, covers, and illustrated scenes from across the collection.</p><a class="button button-quiet" href="{base}art/">Enter the artwork gallery ↗</a></section>"""
     return shell(
         title="Library", description="Explore shared-universe short stories and their artwork.",
         body=body, active="Library", base=base, site_url=site_url,
@@ -169,7 +185,7 @@ def build_story(
         f'<a class="button button-quiet" href="{esc(comic["url"])}" target="_blank" rel="noopener">Download comic PDF ↗</a>'
         if comic else ""
     )
-    body = f"""<div class="reader-wrap wrap"><a class="back-link" href="{base}">← All stories</a>
+    body = f"""<div class="reader-wrap wrap"><a class="back-link" href="{base}?card={quote(slug)}">← Return to the index</a>
       <div class="reader-head"><div><span class="eyebrow">A story from the shared universe</span><h1>{esc(story['title'])}</h1><div class="story-meta"><span>{esc(story['created'])}</span><span class="meta-dot">•</span><span>{esc(story['rating'])}</span></div></div><img src="{esc(covers[story['cover']])}" alt="Cover for {esc(story['title'])}" class="reader-cover"></div>
       <div class="reader-layout"><div class="reader-main"><aside class="prompt-box"><h2>Writing prompt</h2>{prompt_markup(story['prompt'])}</aside><article class="prose">{prose_markup(story['body'], story['title'])}</article><div class="reader-end"><span class="end-mark" aria-hidden="true">✦</span><p>End of story</p>{comic_markup}</div><nav class="reader-neighbors" aria-label="More stories">{''.join(neighbors)}</nav></div>
       <aside class="reader-side"><span class="eyebrow">In this story</span><p>Explore visual references for the people and places in {esc(story['title'])}.</p><a class="text-link" href="{base}art/?story={quote(slug)}">View its artwork ↗</a></aside></div>
@@ -266,6 +282,7 @@ def build(output: Path, base: str, site_url: str, media_url: str) -> None:
     (output / "stories").mkdir()
     shutil.copy2(STATIC / "styles.css", output / "styles.css")
     shutil.copy2(STATIC / "app.js", output / "app.js")
+    shutil.copy2(STATIC / "engine.js", output / "engine.js")
     shutil.copy2(STATIC / "favicon.svg", output / "favicon.svg")
     (output / "index.html").write_text(build_index(stories, covers, base, site_url), encoding="utf-8")
     (output / "art" / "index.html").write_text(build_art_page(len(art), len(stories), base, site_url), encoding="utf-8")

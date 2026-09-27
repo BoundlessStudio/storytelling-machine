@@ -1,12 +1,14 @@
 # Story Computing Machine website
 
-A static library for the published Story Computing Machine stories and artwork. The site includes a searchable story index, 195 reader pages, an artwork gallery, selected illustrated scenes, and links to the published graphic-novel PDFs.
+A static library for the published Story Computing Machine stories and artwork. Claude designed the **Index Engine** concept: a chronological Three.js drum of story cards connected to a searchable HTML index. The site includes 195 reader pages, an artwork gallery with 2,091 entries, selected illustrated scenes, and links to the published graphic-novel PDFs. The complete index works without WebGL or JavaScript; the 3D view is an enhancement for exploring it.
 
 The [story repository](https://github.com/BoundlessStudio/story-computing-machine) owns the writing and art. This repository owns presentation. `content/` is a pinned copy of the last publication snapshots before the story repository retired its Pages machinery in [the editorial-workshop cleanup](https://github.com/BoundlessStudio/story-computing-machine/commit/16ad4fc683f907d0267fae2a7872a72340cd7688). The pinned source commit is recorded in `content/source.json`. Published images and PDFs use their content hashes on `art.rgbknights.com`, keeping this website small while preserving the selected media bytes.
 
 ## Run locally
 
 ```powershell
+npm ci
+npm run build:engine
 python -m pip install -r requirements.txt
 python scripts/build.py --output _site --base-path / --site-url http://127.0.0.1:8765
 cd _site
@@ -38,4 +40,4 @@ python scripts/build.py
 python -m unittest discover -s tests -p 'test_*.py'
 ```
 
-The build emits static HTML, CSS, JavaScript, `art.json`, `sitemap.xml`, and redirects for former `stories/<slug>.html` links. No runtime server or browser framework is required.
+The build emits static HTML, CSS, JavaScript, `art.json`, `sitemap.xml`, and redirects for former `stories/<slug>.html` links. Three.js is pinned in `package-lock.json` and bundled into `static/engine.js` with esbuild before the Python site build. GitHub Actions runs both steps and deploys the result to the same default GitHub Pages URL. No runtime server or browser framework is required.
