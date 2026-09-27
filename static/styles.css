@@ -38,9 +38,8 @@ button{cursor:pointer}
 .empty{padding:3rem 0;color:var(--muted)}
 .story-grid,.art-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.5rem}
 .story-card,.art-card{min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 2px 8px #24362808}
-.story-cover{display:block;background:#e2e0d6;aspect-ratio:2/3;overflow:hidden}
-.story-cover img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .25s}
-.story-card:hover .story-cover img{transform:scale(1.025)}
+.story-cover{display:block;background:#e2e0d6;aspect-ratio:9/16}
+.story-cover img{display:block;width:100%;height:100%;object-fit:contain}
 .card-copy{padding:1rem 1.05rem 1.15rem}
 .card-copy h2{font-family:Georgia,serif;font-size:1.25rem;line-height:1.25;font-weight:500;margin:.35rem 0 .65rem}
 .card-copy h2 a{color:var(--ink);text-decoration:none}
