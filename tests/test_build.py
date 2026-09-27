@@ -27,7 +27,11 @@ class SiteBuildTests(unittest.TestCase):
             for item in artwork:
                 self.assertTrue((output / item["reader"].removeprefix("/storytelling-machine/") / "index.html").is_file())
                 self.assertTrue(item["full"].startswith("https://art.example.org/assets/"))
-            self.assertIn("/storytelling-machine/styles.css", (output / "index.html").read_text(encoding="utf-8"))
+            homepage = (output / "index.html").read_text(encoding="utf-8")
+            self.assertIn("/storytelling-machine/styles.css", homepage)
+            self.assertEqual(homepage.count("data-story-entry"), len(catalog["stories"]))
+            self.assertIn('id="atlas-scene"', homepage)
+            self.assertTrue((output / "engine.js").is_file())
 
     def test_untrusted_prompt_text_is_escaped(self) -> None:
         self.assertIn("&lt;script&gt;", prompt_markup("<script>"))
