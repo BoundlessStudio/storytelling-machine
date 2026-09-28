@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 from urllib.error import HTTPError
 
-from scripts.build import (CONTENT, STATIC, asset_url, build, load_media_index, make_art,
+from scripts.build import (CONTENT, ICON_VERSION, STATIC, asset_url, build, load_media_index, make_art,
                            prompt_markup, prose_markup, validate_media_index)
 
 
@@ -108,7 +108,7 @@ class SiteBuildTests(unittest.TestCase):
             self.assertIn('<meta name="twitter:card" content="summary_large_image">', homepage)
             self.assertIn('content="https://example.org/storytelling-machine/social-card.jpg"', homepage)
             self.assertIn('content="https://example.org/storytelling-machine/"', homepage)
-            self.assertIn('href="/storytelling-machine/apple-touch-icon.png"', homepage)
+            self.assertIn(f'href="/storytelling-machine/apple-touch-icon.png?v={ICON_VERSION}"', homepage)
             self.assertIn('Explore original fiction and artwork', library)
             self.assertIn('content="https://example.org/storytelling-machine/social-card.jpg"', library)
             self.assertTrue((output / "social-card.jpg").is_file())
