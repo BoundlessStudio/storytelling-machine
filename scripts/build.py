@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTENT = ROOT / "content"
 STATIC = ROOT / "static"
 CSS_VERSION = sha256((STATIC / "styles.css").read_bytes()).hexdigest()[:12]
+ICON_VERSION = sha256((STATIC / "favicon.svg").read_bytes()).hexdigest()[:12]
 JS_VERSION = sha256((STATIC / "app.js").read_bytes()).hexdigest()[:12]
 COVER_JS_VERSION = sha256((STATIC / "book-scroll.js").read_bytes()).hexdigest()[:12]
 BACK_COVER_VERSION = sha256((STATIC / "book-back-cover-9x16.png").read_bytes()).hexdigest()[:12]
@@ -134,9 +135,9 @@ def shell(title: str, description: str, body: str, active: str, base: str,
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{esc(page_title)}">
 <meta name="twitter:description" content="{esc(description)}"><meta name="twitter:image" content="{esc(preview_image)}">
 <meta name="twitter:image:alt" content="{esc(preview_alt)}">
-<link rel="canonical" href="{esc(canonical)}"><link rel="icon" type="image/svg+xml" href="{base}favicon.svg">
-<link rel="icon" type="image/png" sizes="32x32" href="{base}favicon-32.png">
-<link rel="apple-touch-icon" sizes="180x180" href="{base}apple-touch-icon.png">
+<link rel="canonical" href="{esc(canonical)}"><link rel="icon" type="image/svg+xml" href="{base}favicon.svg?v={ICON_VERSION}">
+<link rel="icon" type="image/png" sizes="32x32" href="{base}favicon-32.png?v={ICON_VERSION}">
+<link rel="apple-touch-icon" sizes="180x180" href="{base}apple-touch-icon.png?v={ICON_VERSION}">
 <link rel="stylesheet" href="{base}styles.css?v={CSS_VERSION}"><script defer src="{base}app.js?v={JS_VERSION}"></script>
 <title>{esc(page_title)}</title></head><body{body_class}>
 <a class="skip-link" href="#main">Skip to content</a>
