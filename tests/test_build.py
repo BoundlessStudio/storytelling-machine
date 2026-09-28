@@ -76,6 +76,8 @@ class SiteBuildTests(unittest.TestCase):
             self.assertIn('class="scroll-end" id="about"', homepage)
             self.assertNotIn('class="project-details"', homepage)
             self.assertIn('id="scroll-details" hidden', homepage)
+            self.assertNotIn('id="scroll-count"', homepage)
+            self.assertNotIn('id="scroll-title"', homepage)
             self.assertNotIn('<button', homepage)
             self.assertNotIn('Scroll right', homepage)
             self.assertNotIn('The collection</span>', homepage)

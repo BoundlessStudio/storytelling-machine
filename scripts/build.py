@@ -259,7 +259,7 @@ def build_scroll_home(base: str, site_url: str, stories: list[dict], covers: dic
 </div>
 <div class="scroll-intro" id="scroll-intro"><p class="scroll-intro-kicker">Story Computing Machine</p><h1>A world in every page.</h1></div>
 <section class="scroll-end" id="about" aria-labelledby="about-heading" hidden><p class="scroll-end-kicker">About the project</p><h2 id="about-heading">Stories begin with a spark.<br><em>Then they become worlds.</em></h2><p class="scroll-end-lede">Story Computing Machine is a growing collection of original fiction and artwork. Each story begins with a writing prompt and grows into its own world, with a cover to open the door.</p><p class="scroll-end-meta"><strong>{len(stories)}</strong> stories <span aria-hidden="true">·</span> four audience ratings</p><div class="scroll-end-links"><a href="{base}library/">Enter the library ↗</a><a href="{base}art/">Explore the artwork ↗</a></div><p class="scroll-end-source">Curious how it is made? <a href="{SOURCE_REPO}">Explore the story source ↗</a></p></section>
-<div class="scroll-bottom" id="scroll-details" hidden><div class="scroll-story" aria-live="polite"><p id="scroll-count"></p><h2 id="scroll-title"></h2></div><div class="scroll-actions"><a id="scroll-read" href="{base}library/" hidden>Read the story <span aria-hidden="true">↗</span></a></div></div>
+<div class="scroll-bottom" id="scroll-details" hidden><div class="scroll-actions"><a id="scroll-read" href="{base}library/" hidden>Read the story <span aria-hidden="true">↗</span></a></div></div>
 </div></section>
 <script defer src="{base}book-scroll.js?v={COVER_JS_VERSION}"></script>"""
     return shell("Discover", "Open a book of original story covers and explore the Story Computing Machine project.", body,

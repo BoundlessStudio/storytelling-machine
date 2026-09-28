@@ -12,8 +12,6 @@
   const front = document.getElementById('scroll-turn-front');
   const ending = document.getElementById('scroll-ending');
   const endingFront = document.getElementById('scroll-ending-front');
-  const title = document.getElementById('scroll-title');
-  const count = document.getElementById('scroll-count');
   const details = document.getElementById('scroll-details');
   const read = document.getElementById('scroll-read');
   const ambient = document.getElementById('scroll-ambient-image');
@@ -68,8 +66,6 @@
     activeIndex = index;
     const story = stories[index];
     setPrompt(story, animatePrompt && previousIndex >= 0);
-    count.textContent = `${String(index + 1).padStart(2, '0')} / ${String(stories.length).padStart(2, '0')}  ·  ${story.rating}`;
-    title.textContent = story.title;
     read.href = story.url;
     read.hidden = false;
     details.hidden = false;
