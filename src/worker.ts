@@ -95,10 +95,16 @@ export default {
       key: env.OPENROUTER_API_KEY,
       chatModel: env.CHAT_MODEL || 'openai/gpt-5-mini',
     };
+    let rating: ReturnType<typeof validateRating>;
+    let turns: ReturnType<typeof validateTurns>;
     try {
       const payload = await readPayload(request);
-      const rating = validateRating(payload.rating);
-      const turns = validateTurns(payload.turns);
+      rating = validateRating(payload.rating);
+      turns = validateTurns(payload.turns);
+    } catch {
+      return json({ error: 'Please check your answers and try again.' }, 400);
+    }
+    try {
       if (url.pathname === '/api/guide/question') {
         if (turns.length >= 4) return json({ error: 'The guide is ready to recommend stories.' }, 400);
         return json({ question: await askQuestion(config, rating, turns) });
@@ -110,10 +116,6 @@ export default {
       return json({ error: 'Not found' }, 404);
     } catch (error) {
       console.warn('Story guide request failed:', error instanceof Error ? error.message : String(error));
-      if (error instanceof SyntaxError || (error instanceof Error &&
-          /^(Invalid|Choose|Send|Conversation|Answer)/.test(error.message))) {
-        return json({ error: 'Please check your answers and try again.' }, 400);
-      }
       return json({ error: 'The guide is unavailable right now. Please try again or browse the library.' }, 503);
     }
   },

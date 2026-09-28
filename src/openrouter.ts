@@ -11,23 +11,34 @@ async function openRouterJson(url: string, key: string, body: unknown): Promise<
     signal: AbortSignal.timeout(90_000),
   });
   if (!response.ok) throw new Error(`OpenRouter returned ${response.status}`);
-  return response.json();
+  try {
+    return await response.json();
+  } catch {
+    throw new Error('Invalid OpenRouter response');
+  }
 }
 
 export async function chatJson(
   config: OpenRouterConfig, system: string, user: string,
   name: string, schema: Record<string, unknown>, maxTokens = 800,
 ): Promise<any> {
-  const data = await openRouterJson('https://openrouter.ai/api/v1/chat/completions', config.key, {
-    model: config.chatModel,
-    messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-    response_format: { type: 'json_schema', json_schema: { name, strict: true, schema } },
-    provider: { require_parameters: true },
-    max_completion_tokens: maxTokens,
-  });
-  const content = data?.choices?.[0]?.message?.content;
-  if (typeof content !== 'string') throw new Error('Invalid model response');
-  return JSON.parse(content);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const data = await openRouterJson('https://openrouter.ai/api/v1/chat/completions', config.key, {
+      model: config.chatModel,
+      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+      response_format: { type: 'json_schema', json_schema: { name, strict: true, schema } },
+      provider: { require_parameters: true },
+      max_completion_tokens: maxTokens * (attempt + 1),
+    });
+    const content = data?.choices?.[0]?.message?.content;
+    if (typeof content !== 'string') continue;
+    try {
+      return JSON.parse(content);
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error;
+    }
+  }
+  throw new Error('Invalid model JSON');
 }
 
 export async function askQuestion(config: OpenRouterConfig, rating: string, turns: Turn[]): Promise<string> {
