@@ -29,8 +29,8 @@ jobs:
       - run: python -m unittest discover -s tests -p 'test_*.py'
       - name: Build site
         env:
-          SITE_ORIGIN: ${{ vars.SITE_ORIGIN || 'https://boundlessstudio.github.io' }}
-          SITE_BASE_PATH: ${{ vars.SITE_BASE_PATH || '/storytelling-machine/' }}
+          SITE_ORIGIN: ${{ vars.SITE_ORIGIN || 'https://stories.rgbknights.com' }}
+          SITE_BASE_PATH: ${{ vars.SITE_BASE_PATH || '/' }}
           MEDIA_INDEX_URL: ${{ vars.MEDIA_INDEX_URL || 'https://art.rgbknights.com/manifests/story-computing-machine-art-v1.json' }}
         run: >-
           python scripts/build.py --output _site
