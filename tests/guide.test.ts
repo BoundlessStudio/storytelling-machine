@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import worker, { type Env } from '../src/worker';
+import { chatJson } from '../src/openrouter';
 import { makeMatches, pickCandidateSlugs } from '../src/recommend';
 import { validateTurns, type GuideStory } from '../src/shared';
 
@@ -98,6 +99,48 @@ test('Worker rate limit blocks AI calls', async () => {
 test('model failure returns a library-safe error instead of unchecked matches', async () => {
   const oldFetch = globalThis.fetch;
   globalThis.fetch = (async () => { throw new Error('Upstream failed'); }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request('https://stories.example/api/guide/matches', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rating: 'PG', turns: [
+        { question: 'Mood?', answer: 'Quiet' }, { question: 'Pace?', answer: 'Slow' },
+      ] }),
+    }), {
+      ASSETS: { fetch: async () => new Response(JSON.stringify(catalog)) },
+      GUIDE_LIMIT: { limit: async () => ({ success: true }) },
+      OPENROUTER_API_KEY: 'test-key',
+    });
+    assert.equal(response.status, 503);
+    assert.match(await response.text(), /browse the library/i);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test('malformed model JSON is retried once with a larger token budget', async () => {
+  const oldFetch = globalThis.fetch;
+  const budgets: number[] = [];
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    budgets.push(JSON.parse(String(init?.body)).max_completion_tokens);
+    const content = budgets.length === 1 ? '{"question":' : '{"question":"What kind of story appeals to you?"}';
+    return new Response(JSON.stringify({ choices: [{ message: { content } }] }),
+      { headers: { 'Content-Type': 'application/json' } });
+  }) as typeof fetch;
+  try {
+    const result = await chatJson({ key: 'test-key', chatModel: 'test-model' }, 'Ask', '{}',
+      'test_question', { type: 'object' }, 500);
+    assert.equal(result.question, 'What kind of story appeals to you?');
+    assert.deepEqual(budgets, [500, 1000]);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test('repeated malformed model JSON is treated as service failure', async () => {
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    choices: [{ message: { content: '{"slugs":' } }],
+  }), { headers: { 'Content-Type': 'application/json' } })) as typeof fetch;
   try {
     const response = await worker.fetch(new Request('https://stories.example/api/guide/matches', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
