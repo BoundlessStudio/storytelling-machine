@@ -41,6 +41,7 @@
   const results = document.getElementById('art-results');
   const grid = document.getElementById('art-grid');
   const empty = document.getElementById('art-empty');
+  const sentinel = document.getElementById('art-sentinel');
   const more = document.getElementById('art-more');
   const dialog = document.getElementById('art-dialog');
   const dialogImage = document.getElementById('dialog-image');
@@ -99,8 +100,17 @@
       fragment.append(button);
     }
     grid.append(fragment);
-    more.hidden = shown >= matches.length;
+    const hasMore = shown < matches.length;
+    sentinel.hidden = !observer || !hasMore;
+    more.hidden = !!observer || !hasMore;
   }
+
+  const observer = 'IntersectionObserver' in window
+    ? new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) addArt();
+    }, { rootMargin: '700px 0px' })
+    : null;
+  if (observer) observer.observe(sentinel);
 
   function filterArt(updateUrl = true) {
     const query = search.value.trim().toLocaleLowerCase();

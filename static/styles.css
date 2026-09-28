@@ -54,6 +54,7 @@ button{cursor:pointer}
 .art-copy small{display:block;color:var(--muted);margin-top:.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .button{display:block;margin:2rem auto 0;padding:.7rem 1.35rem;background:var(--surface);color:var(--accent);border:1px solid var(--accent);border-radius:7px;font-weight:700}
 .button:hover{background:var(--accent-soft)}
+.art-sentinel{height:1px}
 .reader{padding-top:2.2rem}
 .back-link{font-size:.9rem;font-weight:650;text-decoration:none}
 .reader-header{display:flex;justify-content:space-between;align-items:flex-start;gap:2.5rem;padding:2rem 0;border-bottom:1px solid var(--line)}
