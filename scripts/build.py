@@ -22,6 +22,8 @@ CONTENT = ROOT / "content"
 STATIC = ROOT / "static"
 CSS_VERSION = sha256((STATIC / "styles.css").read_bytes()).hexdigest()[:12]
 JS_VERSION = sha256((STATIC / "app.js").read_bytes()).hexdigest()[:12]
+COVER_JS_VERSION = sha256((STATIC / "book-scroll.js").read_bytes()).hexdigest()[:12]
+BACK_COVER_VERSION = sha256((STATIC / "book-back-cover-9x16.png").read_bytes()).hexdigest()[:12]
 SOURCE_REPO = "https://github.com/BoundlessStudio/story-computing-machine"
 DEFAULT_SITE_URL = "https://stories.rgbknights.com"
 DEFAULT_INDEX_URL = "https://art.rgbknights.com/manifests/story-computing-machine-art-v1.json"
@@ -99,7 +101,8 @@ def esc(value: object) -> str:
 
 
 def shell(title: str, description: str, body: str, active: str, base: str,
-          site_url: str, page_path: str = "", image: str | None = None) -> str:
+          site_url: str, page_path: str = "", image: str | None = None,
+          immersive: bool = False) -> str:
     canonical = site_url.rstrip("/") + base + page_path
     page_title = f"{title} · Story Computing Machine"
     preview_image = image or site_url.rstrip("/") + base + "social-card.jpg"
@@ -113,6 +116,14 @@ def shell(title: str, description: str, body: str, active: str, base: str,
             for label, path in (("Discover", ""), ("Library", "library/"), ("Gallery", "art/"))
         )
     )
+    if immersive:
+        header = f'<header class="immersive-header"><a class="immersive-mark" href="{base}" aria-label="Story Computing Machine home">✦ <span>Story Computing Machine</span></a><nav aria-label="Main navigation"><a href="{base}library/">Library</a><a href="{base}art/">Gallery</a></nav></header>'
+        footer = ""
+        body_class = ' class="immersive-body"'
+    else:
+        header = f'<header class="site-header"><div class="wrap header-inner"><a class="wordmark" href="{base}" aria-label="Story Computing Machine home">✦ <span class="wordmark-long">Story Computing Machine</span><span class="wordmark-short">Story Machine</span></a><nav aria-label="Main navigation">{nav}</nav></div></header>'
+        footer = f'<footer class="site-footer"><div class="wrap"><span>Story Computing Machine</span><a href="{SOURCE_REPO}">Story source ↗</a></div></footer>'
+        body_class = ""
     return f"""<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="{esc(description)}">
@@ -127,11 +138,11 @@ def shell(title: str, description: str, body: str, active: str, base: str,
 <link rel="icon" type="image/png" sizes="32x32" href="{base}favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="{base}apple-touch-icon.png">
 <link rel="stylesheet" href="{base}styles.css?v={CSS_VERSION}"><script defer src="{base}app.js?v={JS_VERSION}"></script>
-<title>{esc(page_title)}</title></head><body>
+<title>{esc(page_title)}</title></head><body{body_class}>
 <a class="skip-link" href="#main">Skip to content</a>
-<header class="site-header"><div class="wrap header-inner"><a class="wordmark" href="{base}" aria-label="Story Computing Machine home">✦ <span class="wordmark-long">Story Computing Machine</span><span class="wordmark-short">Story Machine</span></a><nav aria-label="Main navigation">{nav}</nav></div></header>
+{header}
 <main id="main">{body}</main>
-<footer class="site-footer"><div class="wrap"><span>Story Computing Machine</span><a href="{SOURCE_REPO}">Story source ↗</a></div></footer>
+{footer}
 </body></html>"""
 
 
@@ -238,10 +249,21 @@ def build_index(stories: list[dict], covers: dict[str, str], base: str, site_url
                  "Library", base, site_url, "library/")
 
 
-def build_guide_home(base: str, site_url: str, count: int) -> str:
-    body = f"""<section class="guide-hero wrap"><div class="guide-intro"><p class="eyebrow">Your next story awaits</p><h1>What are you in the mood to read?</h1><p>Set your reading comfort, then tap a few answers or write your own. Discover three stories and the prompts that inspired them.</p><a class="guide-browse" href="{base}library/">Browse all {count} stories instead →</a></div><div class="guide-panel" id="story-guide"><p class="eyebrow">Story guide</p><div id="guide-conversation" class="guide-conversation" role="log" aria-live="polite"><div class="guide-message guide-assistant"><p>Set your reading comfort, then I’ll ask what you’re in the mood for.</p></div></div><div id="guide-rating-step" class="guide-rating-step"><label for="guide-rating">Highest comfortable story rating</label><input id="guide-rating" type="range" min="0" max="3" step="1" value="0" aria-describedby="guide-rating-description"><div class="rating-ticks" aria-hidden="true"><span>General</span><span>Teen</span><span>Mature</span><span>Explicit</span></div><p class="rating-selection"><strong id="guide-rating-value">General</strong><span id="guide-rating-description">Suitable for all ages.</span></p><button id="guide-rating-continue" class="guide-primary" type="button">Continue</button></div><p id="guide-progress" class="guide-progress" hidden></p><div id="guide-choices" class="guide-choices" role="group" aria-label="Answer choices" hidden></div><form id="guide-form" hidden><label for="guide-answer">Your answer</label><textarea id="guide-answer" rows="3" maxlength="1000" placeholder="A sentence or two is enough"></textarea><div class="guide-actions"><button class="guide-primary" type="submit">Send answer</button><button id="guide-cancel-other" type="button">Back to choices</button></div></form><button id="guide-results-now" class="guide-results-now" type="button" hidden>Show matches now</button><p id="guide-status" class="guide-status" role="status"></p><div id="guide-results" class="guide-results" hidden></div><button id="guide-restart" class="guide-restart" type="button" hidden>Start over</button></div></section><section class="guide-after wrap"><h2>Every story begins with a prompt.</h2><p>The guide asks about your reading tastes before revealing the original writing prompts. You can always explore the complete <a href="{base}library/">story library</a> or the <a href="{base}art/">artwork gallery</a>.</p></section><script defer src="{base}guide.js"></script>"""
-    return shell("Discover", "Find an original story that fits your mood, then explore the prompts and artwork behind it.", body,
-                 "Discover", base, site_url)
+def build_scroll_home(base: str, site_url: str, stories: list[dict], covers: dict[str, str]) -> str:
+    front = f'<img class="book-cover-art" src="{base}book-cover-9x16.png" alt="" fetchpriority="high">'
+    back = f'<img class="book-cover-art" src="{base}book-back-cover-9x16.png?v={BACK_COVER_VERSION}" alt="">'
+    body = f"""<section class="scroll-home" data-cover-feed="{base}cover-feed.json" aria-label="Story cover book">
+<div class="scroll-viewport"><div class="scroll-ambient" aria-hidden="true"><img id="scroll-ambient-image" alt=""></div>
+<div class="scroll-scene" id="scroll-scene" role="group" aria-label="Story cover book">
+<div class="scroll-book" id="scroll-book" aria-hidden="true"><div class="scroll-page scroll-left" id="scroll-left"></div><div class="scroll-page scroll-right" id="scroll-right"></div><div class="scroll-leaf scroll-opening" id="scroll-opening"><div class="scroll-face scroll-front">{front}</div><div class="scroll-face scroll-back" id="scroll-opening-back"></div></div><div class="scroll-leaf scroll-turn" id="scroll-turn" hidden><div class="scroll-face scroll-front" id="scroll-turn-front"></div></div><div class="scroll-leaf scroll-ending" id="scroll-ending" hidden><div class="scroll-face scroll-front" id="scroll-ending-front"></div><div class="scroll-face scroll-back">{back}</div></div></div>
+</div>
+<div class="scroll-intro" id="scroll-intro"><p class="scroll-intro-kicker">Story Computing Machine</p><h1>A world in every page.</h1></div>
+<section class="scroll-end" id="about" aria-labelledby="about-heading" hidden><p class="scroll-end-kicker">About the project</p><h2 id="about-heading">Stories begin with a spark.<br><em>Then they become worlds.</em></h2><p class="scroll-end-lede">Story Computing Machine is a growing collection of original fiction and artwork. Each story begins with a writing prompt and grows into its own world, with a cover to open the door.</p><p class="scroll-end-meta"><strong>{len(stories)}</strong> stories <span aria-hidden="true">·</span> four audience ratings</p><div class="scroll-end-links"><a href="{base}library/">Enter the library ↗</a><a href="{base}art/">Explore the artwork ↗</a></div><p class="scroll-end-source">Curious how it is made? <a href="{SOURCE_REPO}">Explore the story source ↗</a></p></section>
+<div class="scroll-bottom" id="scroll-details" hidden><div class="scroll-story" aria-live="polite"><p id="scroll-count"></p><h2 id="scroll-title"></h2></div><div class="scroll-actions"><a id="scroll-read" href="{base}library/" hidden>Read the story <span aria-hidden="true">↗</span></a></div></div>
+</div></section>
+<script defer src="{base}book-scroll.js?v={COVER_JS_VERSION}"></script>"""
+    return shell("Discover", "Open a book of original story covers and explore the Story Computing Machine project.", body,
+                 "Discover", base, site_url, immersive=True)
 
 
 def prompt_markup(prompt: str) -> str:
@@ -315,11 +337,16 @@ def build(output: Path, base: str, site_url: str, media_index: dict | None = Non
     (output / "art").mkdir(parents=True)
     (output / "library").mkdir()
     (output / "stories").mkdir()
-    for filename in ("styles.css", "app.js", "favicon.svg", "favicon-32.png",
+    for filename in ("styles.css", "app.js", "book-scroll.js", "book-cover-9x16.png", "book-back-cover-9x16.png", "favicon.svg", "favicon-32.png",
                      "apple-touch-icon.png", "social-card.jpg"):
         shutil.copy2(STATIC / filename, output / filename)
     (output / "index.html").write_text(
-        build_guide_home(base, site_url, len(stories)), encoding="utf-8")
+        build_scroll_home(base, site_url, stories, covers), encoding="utf-8")
+    (output / "cover-feed.json").write_text(json.dumps([
+        {"title": story["title"], "rating": story["rating"], "prompt": story["prompt"],
+         "cover": covers[story["slug"]], "url": base + "stories/" + quote(story["slug"]) + "/"}
+        for story in stories
+    ], ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     (output / "library" / "index.html").write_text(
         build_index(stories, covers, base, site_url), encoding="utf-8")
     (output / "guide-catalog.json").write_text(json.dumps([

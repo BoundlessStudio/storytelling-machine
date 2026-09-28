@@ -1,8 +1,10 @@
 # Story Computing Machine website
 
-This repository builds the [Story Computing Machine](https://stories.rgbknights.com/) guide, library, story readers, and art gallery. The [source repository](https://github.com/BoundlessStudio/story-computing-machine) owns the writing and artwork. This repository owns the public presentation and its pinned `content/catalog.json` publication snapshot (currently 196 stories).
+This repository builds the [Story Computing Machine](https://stories.rgbknights.com/) home page, library, story readers, and art gallery. The [source repository](https://github.com/BoundlessStudio/story-computing-machine) owns the writing and artwork. This repository owns the public presentation and its pinned `content/catalog.json` publication snapshot (currently 196 stories).
 
-The homepage is an AI story guide. A slider sets the reader's highest comfortable rating as starting context. The guide then asks up to four adaptive questions, each with three clickable answers and an Other text option. An OpenRouter model chooses a shortlist from the eligible catalog prompts, reads the shortlisted finished stories, and recommends three. The Worker joins those choices to the catalog, so the displayed writing prompts, covers, and reader URLs are exact catalog values. Answers are kept in browser memory during the session and sent through the Worker to OpenRouter for each request; the Worker does not store them. The searchable grid lives at `/library/`; existing story URLs and `/art/` are preserved.
+The homepage is a horizontal book sequence driven by the mouse wheel. Each visit selects ten distinct covers from the published catalog; the wheel opens a 9:16 edition of the supplied cover with a paper inside face, pairs each story cover with its writing prompt, then closes the last page to the left and reveals project details on the right in the same scene. The searchable grid lives at `/library/`; existing story URLs and `/art/` are preserved.
+
+The guide API and client remain in the codebase but are not linked from the current homepage. The guide sets the reader's highest comfortable rating as starting context, asks up to four adaptive questions, and recommends three catalog stories through OpenRouter. Answers are kept in browser memory during the session and sent through the Worker to OpenRouter for each request; the Worker does not store them.
 
 There is no category taxonomy or scheduled story classification. New stories become eligible when they are imported into `content/catalog.json` and the site is rebuilt. The guide's model ID is set by `CHAT_MODEL` in `wrangler.jsonc` (default `openai/gpt-5-mini`).
 
@@ -21,7 +23,7 @@ npm run test:ts
 npm run build:site
 ```
 
-Create an ignored `.dev.vars` file containing `OPENROUTER_API_KEY=...`, then run `npm run dev`. The guide is at <http://127.0.0.1:8787/>. `npm run build:site:offline` uses the checked-in art index when working without the live index. The build uses the [R2 art index](https://art.rgbknights.com/manifests/story-computing-machine-art-v1.json) when available and falls back to `content/media-index.json`; `_site/media-source.json` records which it used.
+Run `npm run dev` to view the site at <http://127.0.0.1:8787/>. An ignored `.dev.vars` file with `OPENROUTER_API_KEY=...` is needed only for guide API requests. `npm run build:site:offline` uses the checked-in art index when working without the live index. The build uses the [R2 art index](https://art.rgbknights.com/manifests/story-computing-machine-art-v1.json) when available and falls back to `content/media-index.json`; `_site/media-source.json` records which it used.
 
 ## Deploy to Cloudflare Workers
 
