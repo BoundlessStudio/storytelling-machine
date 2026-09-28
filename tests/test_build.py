@@ -29,6 +29,16 @@ class SiteBuildTests(unittest.TestCase):
         self.assertEqual(len(art), 2149)
         self.assertEqual(len(covers), len(self.stories))
         self.assertEqual(len(comics), 2)
+        self.assertEqual(dict(Counter(item["type"] for item in art)), {
+            "Covers": 202, "Characters": 753, "Landscapes & interiors": 1070,
+            "Illustrations": 73, "Comics": 51,
+        })
+        self.assertTrue(all(item["type"] == "Covers" for item in art
+                            if item["id"].startswith("illustrated/") and item["id"].endswith("/cover.jpg")))
+        self.assertTrue(all(item["type"] == "Comics" for item in art
+                            if item["id"].startswith("graphic-novels/")))
+        self.assertTrue(any(item["type"] == "Landscapes & interiors" and item["thumbnail"] != item["full"]
+                            for item in art))
         self.assertEqual(covers["the-sun-in-the-crowd"], assets["stories/the-sun-in-the-crowd/title-image.jpg"]["url"])
         self.assertEqual(covers["the-closed-day"], assets["stories/the-closed-day/title-image.jpg"]["url"])
         self.assertTrue({item["full"] for item in art}.issubset(
@@ -45,6 +55,9 @@ class SiteBuildTests(unittest.TestCase):
             build(output, "/storytelling-machine/", "https://example.org", self.index)
             gallery = json.loads((output / "art.json").read_text(encoding="utf-8"))
             self.assertEqual(len(gallery), 2149)
+            self.assertEqual(set(item["type"] for item in gallery), {
+                "Covers", "Characters", "Landscapes & interiors", "Illustrations", "Comics",
+            })
             for story in self.stories:
                 page = output / "stories" / story["slug"] / "index.html"
                 self.assertTrue(page.is_file(), story["slug"])
@@ -75,8 +88,15 @@ class SiteBuildTests(unittest.TestCase):
             self.assertFalse((output / "engine.js").exists())
             gallery_page = (output / "art" / "index.html").read_text(encoding="utf-8")
             self.assertIn('id="art-type"', gallery_page)
+            self.assertIn('<option value="Landscapes &amp; interiors">Landscapes &amp; interiors</option>', gallery_page)
+            self.assertIn('<option value="Comics">Comics</option>', gallery_page)
+            self.assertNotIn('<option value="Edition covers">', gallery_page)
             self.assertIn('id="art-sentinel"', gallery_page)
             self.assertTrue((output / "characters.html").is_file())
+            self.assertIn("Landscapes%20%26%20interiors", (output / "landscapes.html").read_text(encoding="utf-8"))
+            self.assertIn("Landscapes%20%26%20interiors", (output / "interiors.html").read_text(encoding="utf-8"))
+            edition_story = (output / "stories" / "all-accounts-due" / "index.html").read_text(encoding="utf-8")
+            self.assertIn("View 45 artwork items", edition_story)
             self.assertEqual(json.loads((output / "media-source.json").read_text(encoding="utf-8"))["sourceCommit"], self.index["sourceCommit"])
 
     def test_published_ratings_match_pinned_source_counts(self) -> None:

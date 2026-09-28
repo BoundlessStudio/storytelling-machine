@@ -150,9 +150,18 @@
       });
       const params = new URLSearchParams(location.search);
       search.value = params.get('q') || '';
-      if ([...type.options].some(option => option.value === params.get('type'))) type.value = params.get('type');
+      const typeAliases = {
+        Landscapes: 'Landscapes & interiors',
+        Interiors: 'Landscapes & interiors',
+        'Edition covers': 'Covers',
+        'Comic covers': 'Comics',
+        'Comic pages': 'Comics',
+      };
+      const requestedType = params.get('type');
+      const selectedType = typeAliases[requestedType] || requestedType;
+      if ([...type.options].some(option => option.value === selectedType)) type.value = selectedType;
       if (names.has(params.get('story'))) story.value = params.get('story');
-      filterArt(false);
+      filterArt(Boolean(typeAliases[requestedType]));
     })
     .catch(() => { results.textContent = 'The gallery could not load. Please try again shortly.'; });
 })();

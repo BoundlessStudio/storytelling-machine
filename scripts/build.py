@@ -27,7 +27,7 @@ DEFAULT_SITE_URL = "https://stories.rgbknights.com"
 DEFAULT_INDEX_URL = "https://art.rgbknights.com/manifests/story-computing-machine-art-v1.json"
 IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 COLLECTIONS = {"characters": "Characters", "landscapes": "Landscapes", "interiors": "Interiors"}
-ART_TYPES = ("Covers", "Characters", "Landscapes", "Interiors", "Edition covers", "Illustrations", "Comic covers", "Comic pages")
+ART_TYPES = ("Covers", "Characters", "Landscapes & interiors", "Illustrations", "Comics")
 
 
 def read_json(name: str) -> dict:
@@ -163,31 +163,32 @@ def make_art(index: dict, stories: list[dict], base: str) -> tuple[list[dict], d
         if path.endswith(".webp") and str(PurePosixPath(path).with_suffix(".png")) in alternate_thumbnails:
             continue
         parts = path.split("/")
-        slug = kind = None
+        slug = kind = source_kind = None
         if len(parts) == 3 and parts[0] == "stories" and parts[2] == "title-image.jpg":
-            slug, kind = parts[1], "Covers"
+            slug, kind, source_kind = parts[1], "Covers", "Covers"
             covers[slug] = item["url"]
         elif len(parts) in {5, 6} and parts[0] == "stories" and parts[2] == "art":
-            slug, kind = parts[1], COLLECTIONS.get(parts[3])
+            slug, source_kind = parts[1], COLLECTIONS.get(parts[3])
+            kind = "Landscapes & interiors" if source_kind in {"Landscapes", "Interiors"} else source_kind
             if len(parts) == 6 and parts[4] != "selected":
                 kind = None
         elif len(parts) == 3 and parts[0] == "illustrated" and parts[2] == "cover.jpg":
-            slug, kind = edition_sources.get(parts[1], parts[1]), "Edition covers"
+            slug, kind, source_kind = edition_sources.get(parts[1], parts[1]), "Covers", "Edition covers"
         elif len(parts) == 4 and parts[0] == "illustrated" and parts[2] == "illustrations":
-            slug, kind = edition_sources.get(parts[1], parts[1]), "Illustrations"
+            slug, kind, source_kind = edition_sources.get(parts[1], parts[1]), "Illustrations", "Illustrations"
         elif len(parts) == 3 and parts[0] == "graphic-novels" and parts[2] == "cover.png":
-            slug, kind = edition_sources.get(parts[1], parts[1]), "Comic covers"
+            slug, kind, source_kind = edition_sources.get(parts[1], parts[1]), "Comics", "Comic covers"
         elif len(parts) == 4 and parts[0] == "graphic-novels" and parts[2] == "pages":
-            slug, kind = edition_sources.get(parts[1], parts[1]), "Comic pages"
+            slug, kind, source_kind = edition_sources.get(parts[1], parts[1]), "Comics", "Comic pages"
         elif len(parts) == 3 and parts[0] == "graphic-novels" and parts[2] == "edition.pdf":
             comics[edition_sources.get(parts[1], parts[1])] = item["url"]
         if not kind or item["contentType"] not in IMAGE_TYPES:
             continue
         story_title = story_by_slug[slug]["title"] if slug in story_by_slug else friendly_name(slug)
-        title = (f"{story_title} cover" if kind == "Covers" else
-                 f"{story_title} illustrated cover" if kind == "Edition covers" else
-                 f"{story_title} comic cover" if kind == "Comic covers" else friendly_name(path))
-        previous = old_meta.get((slug, kind, item["sha256"]))
+        title = (f"{story_title} cover" if source_kind == "Covers" else
+                 f"{story_title} illustrated cover" if source_kind == "Edition covers" else
+                 f"{story_title} comic cover" if source_kind == "Comic covers" else friendly_name(path))
+        previous = old_meta.get((slug, source_kind, item["sha256"]))
         if previous:
             title = previous["title"]
         scene = scene_meta.get(path)
@@ -261,7 +262,7 @@ def build_story(story: dict, stories: list[dict], covers: dict[str, str], art: l
 
 def build_art_page(count: int, base: str, site_url: str) -> str:
     options = "".join(f'<option value="{esc(kind)}">{esc(kind)}</option>' for kind in ART_TYPES)
-    body = f"""<section class="page-intro wrap"><p class="eyebrow">From the story collection</p><h1>Artwork gallery</h1><p>Covers, character studies, places, illustrations, and comic pages.</p><div class="intro-links"><span>{count:,} images</span><a href="{base}library/">Browse the library ↗</a></div></section>
+    body = f"""<section class="page-intro wrap"><p class="eyebrow">From the story collection</p><h1>Artwork gallery</h1><p>Covers, character studies, places, illustrations, and comics.</p><div class="intro-links"><span>{count:,} images</span><a href="{base}library/">Browse the library ↗</a></div></section>
 <section class="wrap listing" data-art-json="{base}art.json"><div class="controls"><label class="search-field">Search artwork<input id="art-search" type="search" placeholder="Artwork or story title" autocomplete="off"></label><label>Collection<select id="art-type"><option value="all">All artwork</option>{options}</select></label><label>Story<select id="art-story"><option value="all">All stories</option></select></label></div><p class="results" id="art-results" role="status" aria-live="polite">Loading artwork…</p><div class="art-grid" id="art-grid"></div><p class="empty" id="art-empty" hidden>No artwork matches those filters.</p><div class="art-sentinel" id="art-sentinel" aria-hidden="true" hidden></div><button class="button" id="art-more" type="button" hidden>Load more images</button></section>
 <dialog class="art-dialog" id="art-dialog" aria-label="Artwork viewer"><button class="dialog-close" id="dialog-close" type="button" aria-label="Close artwork">×</button><img id="dialog-image" alt=""><div class="dialog-copy"><p class="eyebrow" id="dialog-type"></p><h2 id="dialog-title"></h2><p id="dialog-story"></p><div class="reader-links"><a id="dialog-reader" href="#">Read the story ↗</a><a id="dialog-original" href="#" target="_blank" rel="noopener">Open original ↗</a></div></div></dialog>"""
     return shell("Gallery", "Browse the art of the Story Computing Machine.", body,
@@ -295,7 +296,7 @@ def build(output: Path, base: str, site_url: str, media_index: dict | None = Non
     art, covers, comics = make_art(media_index, stories, base)
     art_by_story = defaultdict(list)
     for item in art:
-        if item["type"] != "Covers":
+        if item["id"] != f"stories/{item['slug']}/title-image.jpg":
             art_by_story[item["slug"]].append(item)
     if output.exists():
         shutil.rmtree(output)
@@ -332,9 +333,10 @@ def build(output: Path, base: str, site_url: str, media_index: dict | None = Non
             redirect_page(base + f"stories/{quote(slug)}/", story["title"]), encoding="utf-8",
         )
     for old_path, category in (("characters.html", "Characters"),
-                               ("landscapes.html", "Landscapes"), ("interiors.html", "Interiors")):
+                               ("landscapes.html", "Landscapes & interiors"),
+                               ("interiors.html", "Landscapes & interiors")):
         (output / old_path).write_text(
-            redirect_page(base + f"art/?type={category}", category), encoding="utf-8",
+            redirect_page(base + f"art/?type={quote(category)}", category), encoding="utf-8",
         )
     sitemap = "".join(
         f"<url><loc>{esc(site_url.rstrip('/') + base + path)}</loc></url>"
