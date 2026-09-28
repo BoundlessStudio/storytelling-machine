@@ -114,15 +114,20 @@ def shell(title: str, description: str, body: str, active: str, base: str,
         f'<a href="{base}{path}"{current}>{label}</a>'
         for label, path, current in (
             (label, path, ' aria-current="page"' if active == label else "")
-            for label, path in (("Discover", ""), ("Library", "library/"), ("Gallery", "art/"))
+            for label, path in (("Library", "library/"), ("Gallery", "art/"))
         )
     )
+    header_class = 'site-header immersive-header' if immersive else 'site-header'
+    header = (f'<header class="{header_class}"><a class="site-mark" href="{base}" '
+              f'aria-label="Story Computing Machine home"><img class="brand-icon" '
+              f'src="{base}favicon.svg?v={ICON_VERSION}" alt="">'
+              '<span class="site-mark-long">Story Computing Machine</span>'
+              '<span class="site-mark-short">Story Machine</span></a>'
+              f'<nav aria-label="Main navigation">{nav}</nav></header>')
     if immersive:
-        header = f'<header class="immersive-header"><a class="immersive-mark" href="{base}" aria-label="Story Computing Machine home"><img class="brand-icon" src="{base}favicon.svg?v={ICON_VERSION}" alt=""> <span>Story Computing Machine</span></a><nav aria-label="Main navigation"><a href="{base}library/">Library</a><a href="{base}art/">Gallery</a></nav></header>'
         footer = ""
         body_class = ' class="immersive-body"'
     else:
-        header = f'<header class="site-header"><div class="wrap header-inner"><a class="wordmark" href="{base}" aria-label="Story Computing Machine home"><img class="brand-icon" src="{base}favicon.svg?v={ICON_VERSION}" alt=""> <span class="wordmark-long">Story Computing Machine</span><span class="wordmark-short">Story Machine</span></a><nav aria-label="Main navigation">{nav}</nav></div></header>'
         footer = f'<footer class="site-footer"><div class="wrap"><span>Story Computing Machine</span><a href="{SOURCE_REPO}">Story source ↗</a></div></footer>'
         body_class = ""
     return f"""<!doctype html><html lang="en"><head>
@@ -292,7 +297,7 @@ def build_story(story: dict, stories: list[dict], covers: dict[str, str], art: l
     comic_link = f'<a href="{esc(comic)}" target="_blank" rel="noopener">Download comic PDF ↗</a>' if comic else ""
     body = f"""<div class="reader wrap"><p><a class="back-link" href="{base}library/">← Library</a></p><header class="reader-header"><div><p class="eyebrow">{esc(story['created'])} · {esc(story['rating'])}</p><h1>{esc(story['title'])}</h1><div class="reader-links">{art_link}{comic_link}</div></div><img src="{esc(covers[slug])}" alt="Cover for {esc(story['title'])}"></header><div class="reader-content"><aside class="prompt"><h2>Writing prompt</h2>{prompt_markup(story['prompt'])}</aside><article class="prose">{prose_markup(story['body'], story['title'])}</article></div><nav class="reader-neighbors" aria-label="More stories">{''.join(neighbors)}</nav></div>"""
     return shell(story["title"], " ".join(story["prompt"].split())[:200], body,
-                 "", base, site_url, f"stories/{slug}/", covers[slug])
+                 "Library", base, site_url, f"stories/{slug}/", covers[slug])
 
 
 def build_art_page(count: int, base: str, site_url: str) -> str:
