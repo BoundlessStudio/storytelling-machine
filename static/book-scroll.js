@@ -79,6 +79,7 @@
     left.classList.toggle('scroll-awaiting-open', progress < 1);
     const closing = progress > stories.length ? Math.min(1, progress - stories.length) : 0;
     const open = closing ? 1 - closing : Math.min(1, progress);
+    book.classList.toggle('scroll-book-open', progress >= 1 && !closing);
     book.style.setProperty('--open', String(open));
     book.style.setProperty('--end', String(closing));
     const mobileEndCenter = Math.max(scene.clientHeight * .28, 70 + book.offsetHeight / 2);
