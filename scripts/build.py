@@ -101,6 +101,11 @@ def esc(value: object) -> str:
 def shell(title: str, description: str, body: str, active: str, base: str,
           site_url: str, page_path: str = "", image: str | None = None) -> str:
     canonical = site_url.rstrip("/") + base + page_path
+    page_title = f"{title} · Story Computing Machine"
+    preview_image = image or site_url.rstrip("/") + base + "social-card.jpg"
+    preview_alt = (f"Cover art for {title}" if image else
+                   "An open book unfolding into worlds from the Story Computing Machine")
+    page_type = "article" if page_path.startswith("stories/") else "website"
     nav = "".join(
         f'<a href="{base}{path}"{current}>{label}</a>'
         for label, path, current in (
@@ -108,14 +113,21 @@ def shell(title: str, description: str, body: str, active: str, base: str,
             for label, path in (("Discover", ""), ("Library", "library/"), ("Gallery", "art/"))
         )
     )
-    image_meta = f'<meta property="og:image" content="{esc(image)}">' if image else ""
     return f"""<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="{esc(description)}"><meta property="og:title" content="{esc(title)}">
-<meta property="og:description" content="{esc(description)}">{image_meta}
+<meta name="description" content="{esc(description)}">
+<meta property="og:type" content="{page_type}"><meta property="og:site_name" content="Story Computing Machine">
+<meta property="og:url" content="{esc(canonical)}"><meta property="og:title" content="{esc(page_title)}">
+<meta property="og:description" content="{esc(description)}"><meta property="og:image" content="{esc(preview_image)}">
+<meta property="og:image:alt" content="{esc(preview_alt)}">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{esc(page_title)}">
+<meta name="twitter:description" content="{esc(description)}"><meta name="twitter:image" content="{esc(preview_image)}">
+<meta name="twitter:image:alt" content="{esc(preview_alt)}">
 <link rel="canonical" href="{esc(canonical)}"><link rel="icon" type="image/svg+xml" href="{base}favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="{base}favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="{base}apple-touch-icon.png">
 <link rel="stylesheet" href="{base}styles.css?v={CSS_VERSION}"><script defer src="{base}app.js?v={JS_VERSION}"></script>
-<title>{esc(title)} · Story Computing Machine</title></head><body>
+<title>{esc(page_title)}</title></head><body>
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header"><div class="wrap header-inner"><a class="wordmark" href="{base}" aria-label="Story Computing Machine home">✦ <span class="wordmark-long">Story Computing Machine</span><span class="wordmark-short">Story Machine</span></a><nav aria-label="Main navigation">{nav}</nav></div></header>
 <main id="main">{body}</main>
@@ -222,14 +234,14 @@ def build_index(stories: list[dict], covers: dict[str, str], base: str, site_url
     cards = "".join(story_card(story, covers[story["slug"]], base) for story in stories)
     body = f"""<section class="page-intro wrap"><p class="eyebrow">Shared-universe fiction</p><h1>Story library</h1><p>Browse the collection, find a story, and stay a while.</p><div class="intro-links"><span>{len(stories)} stories</span><a href="{base}art/">Explore the gallery ↗</a></div></section>
 <section class="wrap listing" aria-label="Stories"><div class="controls"><label class="search-field">Search stories<input id="story-search" type="search" placeholder="Title or writing prompt" autocomplete="off"></label><label>Audience<select id="rating-filter"><option value="all">All ratings</option><option value="General">General</option><option value="Teen">Teen</option><option value="Mature">Mature</option><option value="Explicit">Explicit</option></select></label></div><p class="results" id="story-results" role="status" aria-live="polite">{len(stories)} stories</p><div class="story-grid" id="story-grid">{cards}</div><p class="empty" id="story-empty" hidden>No stories match those filters.</p></section>"""
-    return shell("Library", "Browse short stories from the Story Computing Machine.", body,
-                 "Library", base, site_url, "library/", image=covers[stories[0]["slug"]])
+    return shell("Library", "Explore original fiction and artwork across a shared universe of magic, mystery, and imagined worlds.", body,
+                 "Library", base, site_url, "library/")
 
 
-def build_guide_home(base: str, site_url: str, count: int, image: str) -> str:
+def build_guide_home(base: str, site_url: str, count: int) -> str:
     body = f"""<section class="guide-hero wrap"><div class="guide-intro"><p class="eyebrow">Your next story awaits</p><h1>What are you in the mood to read?</h1><p>Set your reading comfort, then tap a few answers or write your own. Discover three stories and the prompts that inspired them.</p><a class="guide-browse" href="{base}library/">Browse all {count} stories instead →</a></div><div class="guide-panel" id="story-guide"><p class="eyebrow">Story guide</p><div id="guide-conversation" class="guide-conversation" role="log" aria-live="polite"><div class="guide-message guide-assistant"><p>Set your reading comfort, then I’ll ask what you’re in the mood for.</p></div></div><div id="guide-rating-step" class="guide-rating-step"><label for="guide-rating">Highest comfortable story rating</label><input id="guide-rating" type="range" min="0" max="3" step="1" value="0" aria-describedby="guide-rating-description"><div class="rating-ticks" aria-hidden="true"><span>General</span><span>Teen</span><span>Mature</span><span>Explicit</span></div><p class="rating-selection"><strong id="guide-rating-value">General</strong><span id="guide-rating-description">Suitable for all ages.</span></p><button id="guide-rating-continue" class="guide-primary" type="button">Continue</button></div><p id="guide-progress" class="guide-progress" hidden></p><div id="guide-choices" class="guide-choices" role="group" aria-label="Answer choices" hidden></div><form id="guide-form" hidden><label for="guide-answer">Your answer</label><textarea id="guide-answer" rows="3" maxlength="1000" placeholder="A sentence or two is enough"></textarea><div class="guide-actions"><button class="guide-primary" type="submit">Send answer</button><button id="guide-cancel-other" type="button">Back to choices</button></div></form><button id="guide-results-now" class="guide-results-now" type="button" hidden>Show matches now</button><p id="guide-status" class="guide-status" role="status"></p><div id="guide-results" class="guide-results" hidden></div><button id="guide-restart" class="guide-restart" type="button" hidden>Start over</button></div></section><section class="guide-after wrap"><h2>Every story begins with a prompt.</h2><p>The guide asks about your reading tastes before revealing the original writing prompts. You can always explore the complete <a href="{base}library/">story library</a> or the <a href="{base}art/">artwork gallery</a>.</p></section><script defer src="{base}guide.js"></script>"""
-    return shell("Discover", "Find a story that fits your mood.", body,
-                 "Discover", base, site_url, image=image)
+    return shell("Discover", "Find an original story that fits your mood, then explore the prompts and artwork behind it.", body,
+                 "Discover", base, site_url)
 
 
 def prompt_markup(prompt: str) -> str:
@@ -265,7 +277,7 @@ def build_art_page(count: int, base: str, site_url: str) -> str:
     body = f"""<section class="page-intro wrap"><p class="eyebrow">From the story collection</p><h1>Artwork gallery</h1><p>Covers, character studies, places, illustrations, and comics.</p><div class="intro-links"><span>{count:,} images</span><a href="{base}library/">Browse the library ↗</a></div></section>
 <section class="wrap listing" data-art-json="{base}art.json"><div class="controls"><label class="search-field">Search artwork<input id="art-search" type="search" placeholder="Artwork or story title" autocomplete="off"></label><label>Collection<select id="art-type"><option value="all">All artwork</option>{options}</select></label><label>Story<select id="art-story"><option value="all">All stories</option></select></label></div><p class="results" id="art-results" role="status" aria-live="polite">Loading artwork…</p><div class="art-grid" id="art-grid"></div><p class="empty" id="art-empty" hidden>No artwork matches those filters.</p><div class="art-sentinel" id="art-sentinel" aria-hidden="true" hidden></div><button class="button" id="art-more" type="button" hidden>Load more images</button></section>
 <dialog class="art-dialog" id="art-dialog" aria-label="Artwork viewer"><button class="dialog-close" id="dialog-close" type="button" aria-label="Close artwork">×</button><img id="dialog-image" alt=""><div class="dialog-copy"><p class="eyebrow" id="dialog-type"></p><h2 id="dialog-title"></h2><p id="dialog-story"></p><div class="reader-links"><a id="dialog-reader" href="#">Read the story ↗</a><a id="dialog-original" href="#" target="_blank" rel="noopener">Open original ↗</a></div></div></dialog>"""
-    return shell("Gallery", "Browse the art of the Story Computing Machine.", body,
+    return shell("Gallery", "Explore covers, character studies, landscapes, illustrations, and comic art from the Story Computing Machine.", body,
                  "Gallery", base, site_url, "art/")
 
 
@@ -303,10 +315,11 @@ def build(output: Path, base: str, site_url: str, media_index: dict | None = Non
     (output / "art").mkdir(parents=True)
     (output / "library").mkdir()
     (output / "stories").mkdir()
-    for filename in ("styles.css", "app.js", "favicon.svg"):
+    for filename in ("styles.css", "app.js", "favicon.svg", "favicon-32.png",
+                     "apple-touch-icon.png", "social-card.jpg"):
         shutil.copy2(STATIC / filename, output / filename)
     (output / "index.html").write_text(
-        build_guide_home(base, site_url, len(stories), covers[stories[0]["slug"]]), encoding="utf-8")
+        build_guide_home(base, site_url, len(stories)), encoding="utf-8")
     (output / "library" / "index.html").write_text(
         build_index(stories, covers, base, site_url), encoding="utf-8")
     (output / "guide-catalog.json").write_text(json.dumps([
