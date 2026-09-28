@@ -38,7 +38,7 @@ export async function chatJson(
       if (!(error instanceof SyntaxError)) throw error;
     }
   }
-  throw new Error('Invalid model JSON');
+  throw new Error(`Invalid model JSON for ${name}`);
 }
 
 export async function askQuestion(config: OpenRouterConfig, rating: string, turns: Turn[]): Promise<string> {
