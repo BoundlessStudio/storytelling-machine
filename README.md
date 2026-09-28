@@ -1,10 +1,12 @@
 # Story Computing Machine website
 
-This repository builds the [Story Computing Machine](https://stories.rgbknights.com/) guide, library, story readers, and art gallery. The [source repository](https://github.com/BoundlessStudio/story-computing-machine) owns the writing and artwork. This repository owns the public presentation and its pinned `content/catalog.json` publication snapshot (currently 195 stories).
+This repository builds the [Story Computing Machine](https://stories.rgbknights.com/) guide, library, story readers, and art gallery. The [source repository](https://github.com/BoundlessStudio/story-computing-machine) owns the writing and artwork. This repository owns the public presentation and its pinned `content/catalog.json` publication snapshot (currently 196 stories).
 
 The homepage is an AI story guide. It asks which ratings a reader is comfortable with, then up to four short questions. An OpenRouter model chooses a shortlist from the eligible catalog prompts, reads the shortlisted finished stories, and recommends three. The Worker joins those choices to the catalog, so the displayed writing prompts, covers, and reader URLs are exact catalog values. Answers are kept in browser memory during the session and sent through the Worker to OpenRouter for each request; the Worker does not store them. The searchable grid lives at `/library/`; existing story URLs and `/art/` are preserved.
 
 There is no category taxonomy or scheduled story classification. New stories become eligible when they are imported into `content/catalog.json` and the site is rebuilt. The guide's model ID is set by `CHAT_MODEL` in `wrangler.jsonc` (default `openai/gpt-5-mini`).
+
+Ratings use the source collection's AO3 scale: General, Teen, Mature, and Explicit. The guide treats the reader's choice as the highest acceptable rating and filters stories on the server before asking the model to select any. `content/ratings-source.json` records the source commit for the current ratings and newest story. To refresh ratings from a reviewed source commit, run `python scripts/sync_ratings.py --repository PATH_TO_SOURCE --revision COMMIT`; pass `--add-story SLUG` when importing a new published story. Refresh `content/media-index.json` from the public R2 index when the new story has artwork there.
 
 ## Run locally
 

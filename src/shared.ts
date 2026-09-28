@@ -1,4 +1,4 @@
-export type Rating = 'PG' | 'YA' | 'R+';
+export type Rating = 'General' | 'Teen' | 'Mature' | 'Explicit';
 export type Turn = { question: string; answer: string };
 
 export type GuideStory = {
@@ -14,7 +14,7 @@ export type GuideStory = {
 
 export type Match = Omit<GuideStory, 'body' | 'canon'> & { reason: string };
 
-export const RATING_ORDER: Rating[] = ['PG', 'YA', 'R+'];
+export const RATING_ORDER: Rating[] = ['General', 'Teen', 'Mature', 'Explicit'];
 
 export function allowedRating(story: Rating, comfort: Rating): boolean {
   return RATING_ORDER.indexOf(story) <= RATING_ORDER.indexOf(comfort);
@@ -34,6 +34,6 @@ export function validateTurns(value: unknown): Turn[] {
 }
 
 export function validateRating(value: unknown): Rating {
-  if (value !== 'PG' && value !== 'YA' && value !== 'R+') throw new Error('Choose an audience rating');
+  if (value !== 'General' && value !== 'Teen' && value !== 'Mature' && value !== 'Explicit') throw new Error('Choose an audience rating');
   return value;
 }
