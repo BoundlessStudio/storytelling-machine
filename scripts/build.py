@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTENT = ROOT / "content"
 STATIC = ROOT / "static"
 CSS_VERSION = sha256((STATIC / "styles.css").read_bytes()).hexdigest()[:12]
+JS_VERSION = sha256((STATIC / "app.js").read_bytes()).hexdigest()[:12]
 SOURCE_REPO = "https://github.com/BoundlessStudio/story-computing-machine"
 DEFAULT_SITE_URL = "https://boundlessstudio.github.io"
 DEFAULT_INDEX_URL = "https://art.rgbknights.com/manifests/story-computing-machine-art-v1.json"
@@ -113,7 +114,7 @@ def shell(title: str, description: str, body: str, active: str, base: str,
 <meta name="description" content="{esc(description)}"><meta property="og:title" content="{esc(title)}">
 <meta property="og:description" content="{esc(description)}">{image_meta}
 <link rel="canonical" href="{esc(canonical)}"><link rel="icon" type="image/svg+xml" href="{base}favicon.svg">
-<link rel="stylesheet" href="{base}styles.css?v={CSS_VERSION}"><script defer src="{base}app.js"></script>
+<link rel="stylesheet" href="{base}styles.css?v={CSS_VERSION}"><script defer src="{base}app.js?v={JS_VERSION}"></script>
 <title>{esc(title)} · Story Computing Machine</title></head><body>
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header"><div class="wrap header-inner"><a class="wordmark" href="{base}" aria-label="Story Computing Machine home">✦ <span class="wordmark-long">Story Computing Machine</span><span class="wordmark-short">Story Machine</span></a><nav aria-label="Main navigation">{nav}</nav></div></header>
@@ -255,7 +256,7 @@ def build_story(story: dict, stories: list[dict], covers: dict[str, str], art: l
 def build_art_page(count: int, base: str, site_url: str) -> str:
     options = "".join(f'<option value="{esc(kind)}">{esc(kind)}</option>' for kind in ART_TYPES)
     body = f"""<section class="page-intro wrap"><p class="eyebrow">From the story collection</p><h1>Artwork gallery</h1><p>Covers, character studies, places, illustrations, and comic pages.</p><div class="intro-links"><span>{count:,} images</span><a href="{base}">Browse the library ↗</a></div></section>
-<section class="wrap listing" data-art-json="{base}art.json"><div class="controls"><label class="search-field">Search artwork<input id="art-search" type="search" placeholder="Artwork or story title" autocomplete="off"></label><label>Collection<select id="art-type"><option value="all">All artwork</option>{options}</select></label><label>Story<select id="art-story"><option value="all">All stories</option></select></label></div><p class="results" id="art-results" role="status" aria-live="polite">Loading artwork…</p><div class="art-grid" id="art-grid"></div><p class="empty" id="art-empty" hidden>No artwork matches those filters.</p><button class="button" id="art-more" type="button" hidden>Show more</button></section>
+<section class="wrap listing" data-art-json="{base}art.json"><div class="controls"><label class="search-field">Search artwork<input id="art-search" type="search" placeholder="Artwork or story title" autocomplete="off"></label><label>Collection<select id="art-type"><option value="all">All artwork</option>{options}</select></label><label>Story<select id="art-story"><option value="all">All stories</option></select></label></div><p class="results" id="art-results" role="status" aria-live="polite">Loading artwork…</p><div class="art-grid" id="art-grid"></div><p class="empty" id="art-empty" hidden>No artwork matches those filters.</p><div class="art-sentinel" id="art-sentinel" aria-hidden="true" hidden></div><button class="button" id="art-more" type="button" hidden>Load more images</button></section>
 <dialog class="art-dialog" id="art-dialog" aria-label="Artwork viewer"><button class="dialog-close" id="dialog-close" type="button" aria-label="Close artwork">×</button><img id="dialog-image" alt=""><div class="dialog-copy"><p class="eyebrow" id="dialog-type"></p><h2 id="dialog-title"></h2><p id="dialog-story"></p><div class="reader-links"><a id="dialog-reader" href="#">Read the story ↗</a><a id="dialog-original" href="#" target="_blank" rel="noopener">Open original ↗</a></div></div></dialog>"""
     return shell("Gallery", "Browse the art of the Story Computing Machine.", body,
                  "Gallery", base, site_url, "art/")

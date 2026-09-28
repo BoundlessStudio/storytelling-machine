@@ -52,12 +52,16 @@ class SiteBuildTests(unittest.TestCase):
                 self.assertTrue((output / "stories" / f"{story['slug']}.html").is_file())
             homepage = (output / "index.html").read_text(encoding="utf-8")
             css_version = sha256((STATIC / "styles.css").read_bytes()).hexdigest()[:12]
+            js_version = sha256((STATIC / "app.js").read_bytes()).hexdigest()[:12]
             self.assertIn(f'styles.css?v={css_version}', homepage)
+            self.assertIn(f'app.js?v={js_version}', homepage)
             self.assertEqual(homepage.count('data-story-card'), len(self.stories))
             self.assertIn('id="story-search"', homepage)
             self.assertNotIn("engine.js", homepage)
             self.assertFalse((output / "engine.js").exists())
-            self.assertIn('id="art-type"', (output / "art" / "index.html").read_text(encoding="utf-8"))
+            gallery_page = (output / "art" / "index.html").read_text(encoding="utf-8")
+            self.assertIn('id="art-type"', gallery_page)
+            self.assertIn('id="art-sentinel"', gallery_page)
             self.assertTrue((output / "characters.html").is_file())
             self.assertEqual(json.loads((output / "media-source.json").read_text(encoding="utf-8"))["sourceCommit"], self.index["sourceCommit"])
 
