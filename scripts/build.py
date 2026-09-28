@@ -118,11 +118,11 @@ def shell(title: str, description: str, body: str, active: str, base: str,
         )
     )
     if immersive:
-        header = f'<header class="immersive-header"><a class="immersive-mark" href="{base}" aria-label="Story Computing Machine home">✦ <span>Story Computing Machine</span></a><nav aria-label="Main navigation"><a href="{base}library/">Library</a><a href="{base}art/">Gallery</a></nav></header>'
+        header = f'<header class="immersive-header"><a class="immersive-mark" href="{base}" aria-label="Story Computing Machine home"><img class="brand-icon" src="{base}favicon.svg?v={ICON_VERSION}" alt=""> <span>Story Computing Machine</span></a><nav aria-label="Main navigation"><a href="{base}library/">Library</a><a href="{base}art/">Gallery</a></nav></header>'
         footer = ""
         body_class = ' class="immersive-body"'
     else:
-        header = f'<header class="site-header"><div class="wrap header-inner"><a class="wordmark" href="{base}" aria-label="Story Computing Machine home">✦ <span class="wordmark-long">Story Computing Machine</span><span class="wordmark-short">Story Machine</span></a><nav aria-label="Main navigation">{nav}</nav></div></header>'
+        header = f'<header class="site-header"><div class="wrap header-inner"><a class="wordmark" href="{base}" aria-label="Story Computing Machine home"><img class="brand-icon" src="{base}favicon.svg?v={ICON_VERSION}" alt=""> <span class="wordmark-long">Story Computing Machine</span><span class="wordmark-short">Story Machine</span></a><nav aria-label="Main navigation">{nav}</nav></div></header>'
         footer = f'<footer class="site-footer"><div class="wrap"><span>Story Computing Machine</span><a href="{SOURCE_REPO}">Story source ↗</a></div></footer>'
         body_class = ""
     return f"""<!doctype html><html lang="en"><head>
