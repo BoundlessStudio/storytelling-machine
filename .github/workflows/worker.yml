@@ -1,0 +1,49 @@
+name: Build and deploy AI story guide
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Deployment target
+        required: true
+        default: preview
+        type: choice
+        options: [preview, production]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.CLOUDFLARE_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: python -m pip install -r requirements.txt
+      - run: npm ci
+      - run: python -m unittest discover -s tests -p 'test_*.py'
+      - run: npm run check && npm run test:ts
+      - run: npm run build:site
+      - name: Deploy Worker with OpenRouter secret
+        run: |
+          python -c "import os; from pathlib import Path; Path('.env.worker').write_text('OPENROUTER_API_KEY=' + os.environ['OPENROUTER_API_KEY'] + '\n')"
+          if [ "$DEPLOY_TARGET" = "preview" ]; then
+            npx wrangler deploy --env preview --secrets-file .env.worker
+          else
+            npx wrangler deploy --secrets-file .env.worker
+          fi
+        env:
+          DEPLOY_TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.target || 'production' }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
