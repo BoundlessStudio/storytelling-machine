@@ -1,4 +1,4 @@
-import type { Match, Rating, Turn } from './shared';
+import { RATING_ORDER, type GuideQuestion, type Match, type Rating, type Turn } from './shared';
 
 const query = new URLSearchParams(location.search);
 if (query.has('q') || query.has('rating')) {
@@ -8,17 +8,38 @@ if (query.has('q') || query.has('rating')) {
 const guide = document.getElementById('story-guide');
 if (guide) {
   const conversation = document.getElementById('guide-conversation')!;
-  const ratingButtons = document.getElementById('guide-rating')!;
+  const ratingStep = document.getElementById('guide-rating-step')!;
+  const ratingSlider = document.getElementById('guide-rating') as HTMLInputElement;
+  const ratingValue = document.getElementById('guide-rating-value')!;
+  const ratingDescription = document.getElementById('guide-rating-description')!;
+  const ratingContinue = document.getElementById('guide-rating-continue') as HTMLButtonElement;
+  const progress = document.getElementById('guide-progress')!;
+  const choices = document.getElementById('guide-choices')!;
   const form = document.getElementById('guide-form') as HTMLFormElement;
   const answer = document.getElementById('guide-answer') as HTMLTextAreaElement;
+  const cancelOther = document.getElementById('guide-cancel-other') as HTMLButtonElement;
   const status = document.getElementById('guide-status')!;
   const results = document.getElementById('guide-results')!;
   const early = document.getElementById('guide-results-now') as HTMLButtonElement;
   const restart = document.getElementById('guide-restart') as HTMLButtonElement;
   let rating: Rating | null = null;
   let currentQuestion = '';
+  let currentChoices: string[] = [];
   let turns: Turn[] = [];
   let busy = false;
+  const ratingDescriptions: Record<Rating, string> = {
+    General: 'Suitable for all ages.',
+    Teen: 'May not suit readers under 13.',
+    Mature: 'May include adult themes or stronger violence.',
+    Explicit: 'May include detailed adult content.',
+  };
+
+  function updateRating(): void {
+    const selected = RATING_ORDER[Number(ratingSlider.value)] || 'General';
+    ratingValue.textContent = selected;
+    ratingDescription.textContent = ratingDescriptions[selected];
+    ratingSlider.setAttribute('aria-valuetext', `Up to ${selected}`);
+  }
 
   function message(text: string, role: 'assistant' | 'reader'): void {
     const bubble = document.createElement('div');
@@ -27,7 +48,7 @@ if (guide) {
     paragraph.textContent = text;
     bubble.append(paragraph);
     conversation.append(bubble);
-    bubble.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    conversation.scrollTop = conversation.scrollHeight;
   }
 
   function setBusy(value: boolean, text = ''): void {
@@ -35,7 +56,10 @@ if (guide) {
     status.textContent = text;
     answer.disabled = value;
     form.querySelectorAll('button').forEach((button) => { button.disabled = value; });
-    ratingButtons.querySelectorAll('button').forEach((button) => { button.disabled = value; });
+    choices.querySelectorAll('button').forEach((button) => { button.disabled = value; });
+    ratingSlider.disabled = value;
+    ratingContinue.disabled = value;
+    early.disabled = value;
   }
 
   function showFailure(error: unknown): void {
@@ -62,13 +86,35 @@ if (guide) {
     if (!rating || busy) return;
     setBusy(true, 'The guide is thinking…');
     try {
-      const data = await post<{ question: string }>('/api/guide/question', { rating, turns });
+      const data = await post<GuideQuestion>('/api/guide/question', { rating, turns });
+      if (!data.question || !Array.isArray(data.choices) || data.choices.length !== 3) {
+        throw new Error('The guide could not prepare the next question.');
+      }
       currentQuestion = data.question;
+      currentChoices = data.choices;
       message(currentQuestion, 'assistant');
-      form.hidden = false;
+      progress.textContent = `Question ${turns.length + 1} of 4`;
+      progress.hidden = false;
+      choices.replaceChildren();
+      currentChoices.forEach((choice, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.choice = String(index);
+        button.textContent = choice;
+        choices.append(button);
+      });
+      const other = document.createElement('button');
+      other.type = 'button';
+      other.dataset.other = '';
+      other.className = 'guide-other';
+      other.textContent = 'Other — write my own';
+      choices.append(other);
+      choices.hidden = false;
+      form.hidden = true;
       early.hidden = turns.length < 2;
-      answer.focus();
       setBusy(false);
+      choices.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+      choices.querySelector('button')?.focus({ preventScroll: true });
     } catch (error) {
       showFailure(error);
     }
@@ -113,7 +159,11 @@ if (guide) {
       results.append(card);
     }
     conversation.hidden = true;
+    ratingStep.hidden = true;
+    choices.hidden = true;
+    progress.hidden = true;
     form.hidden = true;
+    early.hidden = true;
     results.hidden = false;
     restart.hidden = false;
     results.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -131,26 +181,59 @@ if (guide) {
     }
   }
 
-  ratingButtons.addEventListener('click', (event) => {
-    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-rating]');
-    if (!button || busy) return;
-    rating = button.dataset.rating as Rating;
-    message(button.textContent || rating, 'reader');
-    ratingButtons.hidden = true;
+  function chooseAnswer(value: string): void {
+    if (!currentQuestion || busy) return;
+    turns.push({ question: currentQuestion, answer: value });
+    message(value, 'reader');
+    currentQuestion = '';
+    currentChoices = [];
+    choices.hidden = true;
+    progress.hidden = true;
+    form.hidden = true;
+    early.hidden = true;
+    answer.value = '';
+    if (turns.length >= 4) void getMatches();
+    else void nextQuestion();
+  }
+
+  ratingSlider.addEventListener('input', updateRating);
+  ratingContinue.addEventListener('click', () => {
+    if (busy) return;
+    rating = RATING_ORDER[Number(ratingSlider.value)] || 'General';
+    message(`Up to ${rating}`, 'reader');
+    ratingStep.hidden = true;
     void nextQuestion();
+  });
+
+  choices.addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button');
+    if (!button || busy) return;
+    if ('choice' in button.dataset) {
+      const value = currentChoices[Number(button.dataset.choice)];
+      if (value) chooseAnswer(value);
+    } else if ('other' in button.dataset) {
+      choices.hidden = true;
+      form.hidden = false;
+      form.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+      answer.focus({ preventScroll: true });
+    }
+  });
+
+  cancelOther.addEventListener('click', () => {
+    form.hidden = true;
+    choices.hidden = false;
+    choices.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+    choices.querySelector<HTMLButtonElement>('[data-other]')?.focus({ preventScroll: true });
   });
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     const value = answer.value.trim();
     if (!value || !currentQuestion || busy) return;
-    turns.push({ question: currentQuestion, answer: value });
-    message(value, 'reader');
-    answer.value = '';
-    if (turns.length >= 4) void getMatches();
-    else void nextQuestion();
+    chooseAnswer(value);
   });
 
+  updateRating();
   early.addEventListener('click', () => { void getMatches(); });
   restart.addEventListener('click', () => { location.reload(); });
 }

@@ -107,7 +107,7 @@ export default {
     try {
       if (url.pathname === '/api/guide/question') {
         if (turns.length >= 4) return json({ error: 'The guide is ready to recommend stories.' }, 400);
-        return json({ question: await askQuestion(config, rating, turns) });
+        return json(await askQuestion(config, rating, turns));
       }
       if (url.pathname === '/api/guide/matches') {
         if (turns.length < 2) return json({ error: 'Answer two questions first.' }, 400);
