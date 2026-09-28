@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from collections import defaultdict
+from hashlib import sha256
 import html
 import json
 from pathlib import Path, PurePosixPath
@@ -19,6 +20,7 @@ import markdown
 ROOT = Path(__file__).resolve().parents[1]
 CONTENT = ROOT / "content"
 STATIC = ROOT / "static"
+CSS_VERSION = sha256((STATIC / "styles.css").read_bytes()).hexdigest()[:12]
 SOURCE_REPO = "https://github.com/BoundlessStudio/story-computing-machine"
 DEFAULT_SITE_URL = "https://boundlessstudio.github.io"
 DEFAULT_INDEX_URL = "https://art.rgbknights.com/manifests/story-computing-machine-art-v1.json"
@@ -111,7 +113,7 @@ def shell(title: str, description: str, body: str, active: str, base: str,
 <meta name="description" content="{esc(description)}"><meta property="og:title" content="{esc(title)}">
 <meta property="og:description" content="{esc(description)}">{image_meta}
 <link rel="canonical" href="{esc(canonical)}"><link rel="icon" type="image/svg+xml" href="{base}favicon.svg">
-<link rel="stylesheet" href="{base}styles.css"><script defer src="{base}app.js"></script>
+<link rel="stylesheet" href="{base}styles.css?v={CSS_VERSION}"><script defer src="{base}app.js"></script>
 <title>{esc(title)} · Story Computing Machine</title></head><body>
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header"><div class="wrap header-inner"><a class="wordmark" href="{base}" aria-label="Story Computing Machine home">✦ <span class="wordmark-long">Story Computing Machine</span><span class="wordmark-short">Story Machine</span></a><nav aria-label="Main navigation">{nav}</nav></div></header>
