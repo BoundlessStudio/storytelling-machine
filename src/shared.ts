@@ -1,5 +1,6 @@
 export type Rating = 'General' | 'Teen' | 'Mature' | 'Explicit';
 export type Turn = { question: string; answer: string };
+export type GuideQuestion = { question: string; choices: string[] };
 
 export type GuideStory = {
   slug: string;

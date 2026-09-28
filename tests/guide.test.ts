@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import worker, { type Env } from '../src/worker';
-import { chatJson } from '../src/openrouter';
+import { askQuestion, chatJson } from '../src/openrouter';
 import { makeMatches, pickCandidateSlugs } from '../src/recommend';
 import { allowedRating, validateRating, validateTurns, type GuideStory } from '../src/shared';
 
@@ -52,6 +52,65 @@ test('shortlist ignores invented and duplicate slugs', () => {
 test('conversation rejects oversized and excessive answers', () => {
   assert.throws(() => validateTurns(Array(5).fill({ question: 'What?', answer: 'Anything' })));
   assert.throws(() => validateTurns([{ question: 'What?', answer: 'x'.repeat(1001) }]));
+});
+
+test('AI question supplies three choices and uses rating as starting context', async () => {
+  const oldFetch = globalThis.fetch;
+  let request: any;
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    request = JSON.parse(String(init?.body));
+    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
+      question: 'What kind of mood sounds good today?',
+      choices: ['A quiet mystery', 'A hopeful adventure', 'Something tense and strange'],
+    }) } }] }), { headers: { 'Content-Type': 'application/json' } });
+  }) as typeof fetch;
+  try {
+    const result = await askQuestion({ key: 'test-key', chatModel: 'test-model' }, 'Mature', []);
+    assert.equal(result.choices.length, 3);
+    assert.equal(result.choices[0], 'A quiet mystery');
+    assert.match(request.messages[1].content, /"highestComfortableRating":"Mature"/);
+    assert.match(request.messages[0].content, /Other free-text answer/);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test('invalid or duplicate AI choices are rejected', async () => {
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
+    question: 'What kind of mood sounds good today?',
+    choices: ['A quiet mystery', 'A quiet mystery', 'Other'],
+  }) } }] }), { headers: { 'Content-Type': 'application/json' } })) as typeof fetch;
+  try {
+    await assert.rejects(askQuestion({ key: 'test-key', chatModel: 'test-model' }, 'General', []));
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test('question endpoint returns clickable choices at the top level', async () => {
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
+    question: 'Which pace sounds right tonight?',
+    choices: ['Quiet and reflective', 'A steady build', 'Fast and urgent'],
+  }) } }] }), { headers: { 'Content-Type': 'application/json' } })) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request('https://stories.example/api/guide/question', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rating: 'Teen', turns: [] }),
+    }), {
+      ASSETS: { fetch: async () => new Response('') },
+      GUIDE_LIMIT: { limit: async () => ({ success: true }) },
+      OPENROUTER_API_KEY: 'test-key',
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      question: 'Which pace sounds right tonight?',
+      choices: ['Quiet and reflective', 'A steady build', 'Fast and urgent'],
+    });
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
 });
 
 test('Worker filters before prompting and joins model slugs to published stories', async () => {
