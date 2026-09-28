@@ -3,15 +3,26 @@ import { test } from 'node:test';
 import worker, { type Env } from '../src/worker';
 import { chatJson } from '../src/openrouter';
 import { makeMatches, pickCandidateSlugs } from '../src/recommend';
-import { validateTurns, type GuideStory } from '../src/shared';
+import { allowedRating, validateRating, validateTurns, type GuideStory } from '../src/shared';
 
 const catalog: GuideStory[] = [
-  { slug: 'quiet', title: 'Quiet', rating: 'PG', canon: false, prompt: 'A quiet garden comes alive.', body: 'A reflective garden story.', cover: 'https://art.example/quiet.jpg', url: '/stories/quiet/' },
-  { slug: 'mystery', title: 'Mystery', rating: 'PG', canon: true, prompt: 'A locked room holds a secret.', body: 'A mystery story.', cover: 'https://art.example/mystery.jpg', url: '/stories/mystery/' },
-  { slug: 'wonder', title: 'Wonder', rating: 'PG', canon: false, prompt: 'A child discovers a moon.', body: 'A wondrous story.', cover: 'https://art.example/wonder.jpg', url: '/stories/wonder/' },
-  { slug: 'older', title: 'Older', rating: 'YA', canon: false, prompt: 'A difficult choice.', body: 'A complex story.', cover: 'https://art.example/older.jpg', url: '/stories/older/' },
-  { slug: 'intense', title: 'Intense', rating: 'R+', canon: false, prompt: 'A dark battle.', body: 'A grim story.', cover: 'https://art.example/intense.jpg', url: '/stories/intense/' },
+  { slug: 'quiet', title: 'Quiet', rating: 'General', canon: false, prompt: 'A quiet garden comes alive.', body: 'A reflective garden story.', cover: 'https://art.example/quiet.jpg', url: '/stories/quiet/' },
+  { slug: 'mystery', title: 'Mystery', rating: 'General', canon: true, prompt: 'A locked room holds a secret.', body: 'A mystery story.', cover: 'https://art.example/mystery.jpg', url: '/stories/mystery/' },
+  { slug: 'wonder', title: 'Wonder', rating: 'General', canon: false, prompt: 'A child discovers a moon.', body: 'A wondrous story.', cover: 'https://art.example/wonder.jpg', url: '/stories/wonder/' },
+  { slug: 'older', title: 'Older', rating: 'Teen', canon: false, prompt: 'A difficult choice.', body: 'A complex story.', cover: 'https://art.example/older.jpg', url: '/stories/older/' },
+  { slug: 'mature', title: 'Mature', rating: 'Mature', canon: false, prompt: 'A hard choice.', body: 'An intense story.', cover: 'https://art.example/mature.jpg', url: '/stories/mature/' },
+  { slug: 'intense', title: 'Intense', rating: 'Explicit', canon: false, prompt: 'A dark battle.', body: 'A grim story.', cover: 'https://art.example/intense.jpg', url: '/stories/intense/' },
 ];
+
+test('rating comfort follows the source collection scale', () => {
+  assert.deepEqual(['General', 'Teen', 'Mature', 'Explicit'].map(validateRating),
+    ['General', 'Teen', 'Mature', 'Explicit']);
+  assert.throws(() => validateRating('PG'));
+  assert.equal(allowedRating('General', 'Teen'), true);
+  assert.equal(allowedRating('Mature', 'Teen'), false);
+  assert.equal(allowedRating('Explicit', 'Mature'), false);
+  assert.equal(allowedRating('Mature', 'Explicit'), true);
+});
 
 test('matches use exact catalog prompts and never exceed the rating', () => {
   const result = makeMatches({ matches: [
@@ -19,7 +30,7 @@ test('matches use exact catalog prompts and never exceed the rating', () => {
     { slug: 'quiet', reason: 'A gentle pace.' },
     { slug: 'mystery', reason: 'A puzzle.' },
     { slug: 'wonder', reason: 'A sense of wonder.' },
-  ] }, catalog, 'PG');
+  ] }, catalog, 'General');
   assert.deepEqual(result.map((item) => item.slug), ['quiet', 'mystery', 'wonder']);
   assert.equal(result[0].prompt, catalog[0].prompt);
   assert.equal(result[0].url, catalog[0].url);
@@ -30,7 +41,7 @@ test('invalid model picks cannot produce invented or generic matches', () => {
     { slug: 'quiet', reason: 'A gentle pace.' },
     { slug: 'fake', reason: 'An invented story.' },
     { slug: 'mystery', reason: '' },
-  ] }, catalog, 'PG'));
+  ] }, catalog, 'General'));
 });
 
 test('shortlist ignores invented and duplicate slugs', () => {
@@ -68,7 +79,7 @@ test('Worker filters before prompting and joins model slugs to published stories
   try {
     const response = await worker.fetch(new Request('https://stories.example/api/guide/matches', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rating: 'PG', turns: [
+      body: JSON.stringify({ rating: 'General', turns: [
         { question: 'Mood?', answer: 'I want a quiet mystery.' },
         { question: 'Pace?', answer: 'Something reflective.' },
       ] }),
@@ -102,7 +113,7 @@ test('model failure returns a library-safe error instead of unchecked matches', 
   try {
     const response = await worker.fetch(new Request('https://stories.example/api/guide/matches', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rating: 'PG', turns: [
+      body: JSON.stringify({ rating: 'General', turns: [
         { question: 'Mood?', answer: 'Quiet' }, { question: 'Pace?', answer: 'Slow' },
       ] }),
     }), {
@@ -144,7 +155,7 @@ test('repeated malformed model JSON is treated as service failure', async () => 
   try {
     const response = await worker.fetch(new Request('https://stories.example/api/guide/matches', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rating: 'PG', turns: [
+      body: JSON.stringify({ rating: 'General', turns: [
         { question: 'Mood?', answer: 'Quiet' }, { question: 'Pace?', answer: 'Slow' },
       ] }),
     }), {

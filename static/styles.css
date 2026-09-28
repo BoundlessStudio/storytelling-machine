@@ -95,6 +95,7 @@ button{cursor:pointer}
 .guide-message p{margin:0}.guide-reader{align-self:end;background:#f0ede5}.guide-assistant{align-self:start}
 .guide-rating{display:flex;gap:.6rem;flex-wrap:wrap}.guide-rating button,.guide-primary{padding:.7rem 1rem;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;font-weight:700}
 .guide-rating button:hover,.guide-primary:hover{background:#234638}.guide-rating button:focus-visible,.guide-actions button:focus-visible,.guide-restart:focus-visible,.guide-match a:focus-visible{outline:3px solid #ae6e2c;outline-offset:3px}
+.rating-help{font-size:.88rem;line-height:1.5;color:var(--muted);margin:.65rem 0 0}
 #guide-form label{display:block;font-weight:700;font-size:.85rem;margin-bottom:.4rem}#guide-answer{display:block;width:100%;resize:vertical;padding:.8rem;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
 .guide-actions{display:flex;gap:.8rem;align-items:center;margin-top:.8rem;flex-wrap:wrap}.guide-actions button:not(.guide-primary),.guide-restart{border:0;background:transparent;color:var(--accent);font-weight:700;padding:.6rem}
 .guide-status{min-height:1.5em;color:var(--muted);font-size:.9rem}.guide-results h2{font-family:Georgia,serif;font-weight:500;font-size:2rem;margin:1rem 0 1.4rem}

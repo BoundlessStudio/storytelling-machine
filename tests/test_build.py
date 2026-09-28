@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+from collections import Counter
 from hashlib import sha256
 import html
 import io
@@ -24,11 +25,12 @@ class SiteBuildTests(unittest.TestCase):
     def test_index_drives_every_cover_and_gallery_image(self) -> None:
         assets = validate_media_index(self.index)
         art, covers, comics = make_art(self.index, self.stories, "/storytelling-machine/")
-        self.assertEqual(len(assets), 2154)
-        self.assertEqual(len(art), 2148)
+        self.assertEqual(len(assets), 2155)
+        self.assertEqual(len(art), 2149)
         self.assertEqual(len(covers), len(self.stories))
         self.assertEqual(len(comics), 2)
         self.assertEqual(covers["the-sun-in-the-crowd"], assets["stories/the-sun-in-the-crowd/title-image.jpg"]["url"])
+        self.assertEqual(covers["the-closed-day"], assets["stories/the-closed-day/title-image.jpg"]["url"])
         self.assertTrue({item["full"] for item in art}.issubset(
             {item["url"] for item in assets.values() if item["contentType"].startswith("image/")}))
         self.assertEqual(len({item["id"] for item in art}), len(art))
@@ -42,7 +44,7 @@ class SiteBuildTests(unittest.TestCase):
             output = Path(temporary) / "site"
             build(output, "/storytelling-machine/", "https://example.org", self.index)
             gallery = json.loads((output / "art.json").read_text(encoding="utf-8"))
-            self.assertEqual(len(gallery), 2148)
+            self.assertEqual(len(gallery), 2149)
             for story in self.stories:
                 page = output / "stories" / story["slug"] / "index.html"
                 self.assertTrue(page.is_file(), story["slug"])
@@ -63,6 +65,10 @@ class SiteBuildTests(unittest.TestCase):
             guide_catalog = json.loads((output / "guide-catalog.json").read_text(encoding="utf-8"))
             self.assertEqual(len(guide_catalog), len(self.stories))
             self.assertEqual(guide_catalog[0]["prompt"], self.stories[0]["prompt"])
+            self.assertEqual(guide_catalog[0]["slug"], "the-closed-day")
+            self.assertEqual(guide_catalog[0]["rating"], "Teen")
+            self.assertIn('data-rating="Explicit"', homepage)
+            self.assertIn('<option value="Mature">Mature</option>', library)
             self.assertNotIn("engine.js", homepage)
             self.assertFalse((output / "engine.js").exists())
             gallery_page = (output / "art" / "index.html").read_text(encoding="utf-8")
@@ -71,12 +77,18 @@ class SiteBuildTests(unittest.TestCase):
             self.assertTrue((output / "characters.html").is_file())
             self.assertEqual(json.loads((output / "media-source.json").read_text(encoding="utf-8"))["sourceCommit"], self.index["sourceCommit"])
 
+    def test_published_ratings_match_pinned_source_counts(self) -> None:
+        source = json.loads((CONTENT / "ratings-source.json").read_text(encoding="utf-8"))
+        self.assertEqual(len(self.stories), source["stories"])
+        self.assertEqual(dict(Counter(story["rating"] for story in self.stories)), source["counts"])
+        self.assertEqual(source["counts"], {"General": 106, "Teen": 77, "Mature": 8, "Explicit": 5})
+
     def test_remote_404_uses_verified_snapshot(self) -> None:
         error = HTTPError("https://art.example.org/index.json", 404, "missing", {}, None)
         with patch("scripts.build.urlopen", side_effect=error):
             index, source = load_media_index("https://art.example.org/index.json")
         self.assertEqual(source, "snapshot")
-        self.assertEqual(len(index["assets"]), 2154)
+        self.assertEqual(len(index["assets"]), 2155)
 
     def test_public_index_is_used_when_available(self) -> None:
         payload = json.dumps(self.index).encode("utf-8")
