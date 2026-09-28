@@ -1,0 +1,22 @@
+{
+  "name": "storytelling-machine-guide",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:client": "esbuild src/client.ts --bundle --minify --outfile=_site/guide.js",
+    "build:site": "python scripts/build.py --output _site --base-path / --site-url https://stories.rgbknights.com && npm run build:client",
+    "build:site:offline": "python scripts/build.py --output _site --base-path / --site-url https://stories.rgbknights.com --offline && npm run build:client",
+    "check": "tsc --noEmit",
+    "test:ts": "tsx --test tests/*.test.ts",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@cloudflare/workers-types": "^5.20260928.1",
+    "esbuild": "^0.25.9",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "wrangler": "^4.36.0"
+  }
+}
