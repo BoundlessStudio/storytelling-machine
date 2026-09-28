@@ -141,7 +141,6 @@ body.immersive-body{height:100svh;overflow:hidden;background:#f5f3ee;color:#202a
 .scroll-end-lede{max-width:48ch;margin:1.35rem 0 0;color:#58645b;font-size:clamp(.95rem,1.15vw,1.15rem);line-height:1.55}
 .scroll-end-meta{margin:1.4rem 0 0;padding-top:.8rem;border-top:1px solid #927f6666;color:#5f685f;font-size:.84rem;letter-spacing:.03em}
 .scroll-end-meta strong{color:#26322c;font-size:1.05rem}
-.scroll-end-meta span{padding:0 .35rem;color:#a58d6b}
 .scroll-end-links{display:flex;flex-wrap:wrap;gap:1rem 1.8rem;margin-top:1.25rem}
 .scroll-end-links a{color:#26322c;font-size:.9rem;font-weight:750;text-decoration:none;border-bottom:1px solid #987550;padding-bottom:.2rem}
 .scroll-end-links a:hover{border-color:#26322c}
