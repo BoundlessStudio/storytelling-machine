@@ -1,11 +1,11 @@
 {
   "repository": "BoundlessStudio/story-computing-machine",
-  "commit": "8442559494d1e484750542ede7a0453405e23060",
-  "stories": 196,
+  "commit": "6771ccd81a29cb9bdc2fb4efe5c9a7e32bacc0f6",
+  "stories": 198,
   "counts": {
     "Explicit": 5,
-    "General": 106,
-    "Mature": 8,
+    "General": 107,
+    "Mature": 9,
     "Teen": 77
   }
 }

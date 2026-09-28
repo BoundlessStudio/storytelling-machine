@@ -14,6 +14,7 @@ from urllib.error import HTTPError
 
 from scripts.build import (CONTENT, ICON_VERSION, STATIC, asset_url, build, load_media_index, make_art,
                            prompt_markup, prose_markup, validate_media_index)
+from scripts.sync_ratings import source_rating
 
 
 class SiteBuildTests(unittest.TestCase):
@@ -25,12 +26,12 @@ class SiteBuildTests(unittest.TestCase):
     def test_index_drives_every_cover_and_gallery_image(self) -> None:
         assets = validate_media_index(self.index)
         art, covers, comics = make_art(self.index, self.stories, "/storytelling-machine/")
-        self.assertEqual(len(assets), 2155)
-        self.assertEqual(len(art), 2149)
+        self.assertEqual(len(assets), 2157)
+        self.assertEqual(len(art), 2151)
         self.assertEqual(len(covers), len(self.stories))
         self.assertEqual(len(comics), 2)
         self.assertEqual(dict(Counter(item["type"] for item in art)), {
-            "Covers": 202, "Characters": 753, "Landscapes & interiors": 1070,
+            "Covers": 204, "Characters": 753, "Landscapes & interiors": 1070,
             "Illustrations": 73, "Comics": 51,
         })
         self.assertTrue(all(item["type"] == "Covers" for item in art
@@ -41,6 +42,8 @@ class SiteBuildTests(unittest.TestCase):
                             for item in art))
         self.assertEqual(covers["the-sun-in-the-crowd"], assets["stories/the-sun-in-the-crowd/title-image.jpg"]["url"])
         self.assertEqual(covers["the-closed-day"], assets["stories/the-closed-day/title-image.jpg"]["url"])
+        self.assertEqual(covers["after-the-party"], assets["stories/after-the-party/title-image.jpg"]["url"])
+        self.assertEqual(covers["spirit-heart"], assets["stories/spirit-heart/title-image.jpg"]["url"])
         self.assertTrue({item["full"] for item in art}.issubset(
             {item["url"] for item in assets.values() if item["contentType"].startswith("image/")}))
         self.assertEqual(len({item["id"] for item in art}), len(art))
@@ -54,7 +57,7 @@ class SiteBuildTests(unittest.TestCase):
             output = Path(temporary) / "site"
             build(output, "/storytelling-machine/", "https://example.org", self.index)
             gallery = json.loads((output / "art.json").read_text(encoding="utf-8"))
-            self.assertEqual(len(gallery), 2149)
+            self.assertEqual(len(gallery), 2151)
             self.assertEqual(set(item["type"] for item in gallery), {
                 "Covers", "Characters", "Landscapes & interiors", "Illustrations", "Comics",
             })
@@ -95,8 +98,8 @@ class SiteBuildTests(unittest.TestCase):
             guide_catalog = json.loads((output / "guide-catalog.json").read_text(encoding="utf-8"))
             self.assertEqual(len(guide_catalog), len(self.stories))
             self.assertEqual(guide_catalog[0]["prompt"], self.stories[0]["prompt"])
-            self.assertEqual(guide_catalog[0]["slug"], "the-closed-day")
-            self.assertEqual(guide_catalog[0]["rating"], "Teen")
+            self.assertEqual(guide_catalog[0]["slug"], "spirit-heart")
+            self.assertEqual(guide_catalog[0]["rating"], "General")
             cover_feed = json.loads((output / "cover-feed.json").read_text(encoding="utf-8"))
             self.assertEqual(len(cover_feed), len(self.stories))
             self.assertEqual(cover_feed[0]["cover"], guide_catalog[0]["cover"])
@@ -137,14 +140,30 @@ class SiteBuildTests(unittest.TestCase):
         source = json.loads((CONTENT / "ratings-source.json").read_text(encoding="utf-8"))
         self.assertEqual(len(self.stories), source["stories"])
         self.assertEqual(dict(Counter(story["rating"] for story in self.stories)), source["counts"])
-        self.assertEqual(source["counts"], {"General": 106, "Teen": 77, "Mature": 8, "Explicit": 5})
+        self.assertEqual(source["counts"], {"General": 107, "Teen": 77, "Mature": 9, "Explicit": 5})
+        for story in self.stories[:2]:
+            self.assertEqual(story["body"].splitlines().count(f"# {story['title']}"), 1)
+
+    def test_pinned_cover_hashes_match_media_index(self) -> None:
+        covers = json.loads((CONTENT / "covers.json").read_text(encoding="utf-8"))
+        assets = validate_media_index(self.index)
+        self.assertEqual(len(covers), len(self.stories))
+        for story in self.stories:
+            self.assertEqual(covers[story["cover"]],
+                             assets[f"stories/{story['slug']}/title-image.jpg"]["sha256"])
+
+    def test_source_rating_accepts_both_published_formats(self) -> None:
+        with patch("scripts.sync_ratings.git_text", return_value="# Content rating\n\n- **Rating:** Mature\n"):
+            self.assertEqual(source_rating(Path("."), "commit", "older-story"), "Mature")
+        with patch("scripts.sync_ratings.git_text", return_value="# Rating\n\nGeneral\n"):
+            self.assertEqual(source_rating(Path("."), "commit", "newer-story"), "General")
 
     def test_remote_404_uses_verified_snapshot(self) -> None:
         error = HTTPError("https://art.example.org/index.json", 404, "missing", {}, None)
         with patch("scripts.build.urlopen", side_effect=error):
             index, source = load_media_index("https://art.example.org/index.json")
         self.assertEqual(source, "snapshot")
-        self.assertEqual(len(index["assets"]), 2155)
+        self.assertEqual(len(index["assets"]), 2157)
 
     def test_public_index_is_used_when_available(self) -> None:
         payload = json.dumps(self.index).encode("utf-8")
