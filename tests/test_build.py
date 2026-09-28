@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+from hashlib import sha256
 import html
 import io
 import json
@@ -10,7 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 from urllib.error import HTTPError
 
-from scripts.build import (CONTENT, asset_url, build, load_media_index, make_art,
+from scripts.build import (CONTENT, STATIC, asset_url, build, load_media_index, make_art,
                            prompt_markup, prose_markup, validate_media_index)
 
 
@@ -50,6 +51,8 @@ class SiteBuildTests(unittest.TestCase):
                 self.assertIn(html.escape(story["title"]), text)
                 self.assertTrue((output / "stories" / f"{story['slug']}.html").is_file())
             homepage = (output / "index.html").read_text(encoding="utf-8")
+            css_version = sha256((STATIC / "styles.css").read_bytes()).hexdigest()[:12]
+            self.assertIn(f'styles.css?v={css_version}', homepage)
             self.assertEqual(homepage.count('data-story-card'), len(self.stories))
             self.assertIn('id="story-search"', homepage)
             self.assertNotIn("engine.js", homepage)
