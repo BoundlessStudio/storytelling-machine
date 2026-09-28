@@ -23,6 +23,11 @@
   "vars": {
     "CHAT_MODEL": "openai/gpt-5-mini"
   },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1,
+    "logs": { "invocation_logs": false }
+  },
   "env": {
     "preview": {
       "routes": [],
@@ -36,7 +41,12 @@
           "namespace_id": "1028",
           "simple": { "limit": 15, "period": 60 }
         }
-      ]
+      ],
+      "observability": {
+        "enabled": true,
+        "head_sampling_rate": 1,
+        "logs": { "invocation_logs": false }
+      }
     }
   }
 }
