@@ -18,11 +18,103 @@
   const intro = document.getElementById('scroll-intro');
   const scene = document.getElementById('scroll-scene');
   const end = document.getElementById('about');
+  const bookmarkRail = document.getElementById('scroll-bookmarks');
+  const bookmarkList = document.getElementById('scroll-bookmarks-list');
+  const bookmarkReturn = document.getElementById('scroll-bookmark-return');
   const mobile = matchMedia('(max-width: 600px)');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   let stories = [];
+  let feed = [];
   let frame = 0;
   let activeIndex = -1;
+  let bookmarkedStory = null;
+  let bookmarkOpenFromCover = false;
+  let bookmarkTimer = 0;
+  let bookmarkSignature = '';
+
+  function positionBookmarks() {
+    if (bookmarkRail.hidden) return;
+    const bounds = book.getBoundingClientRect();
+    const viewport = bookmarkRail.parentElement.getBoundingClientRect();
+    const top = Math.max(78, bounds.top - viewport.top + 10);
+    bookmarkRail.style.left = `${Math.min(viewport.width - 44, bounds.right - viewport.left - 6)}px`;
+    bookmarkRail.style.top = `${top}px`;
+    bookmarkList.style.maxHeight = `${Math.max(90, Math.min(bounds.height * .72, viewport.height - top - 28))}px`;
+    bookmarkRail.classList.toggle('is-overflowing', bookmarkList.scrollHeight > bookmarkList.clientHeight + 2);
+  }
+
+  function showBookmarks(progress) {
+    const opening = Math.min(1, Math.max(0, progress));
+    bookmarkRail.hidden = !bookmarkSignature || !!bookmarkedStory || opening >= .8;
+    bookmarkRail.style.opacity = String(Math.max(0, 1 - opening * 1.25));
+    bookmarkRail.style.pointerEvents = opening > .25 ? 'none' : '';
+  }
+
+  function updateBookmarkSelection() {
+    for (const button of bookmarkList.querySelectorAll('button')) {
+      button.setAttribute('aria-pressed', String(button.dataset.storyUrl === bookmarkedStory?.url));
+    }
+    bookmarkReturn.hidden = !bookmarkedStory;
+  }
+
+  function closeBookmark() {
+    if (!bookmarkedStory) return;
+    clearTimeout(bookmarkTimer);
+    bookmarkedStory = null;
+    bookmarkOpenFromCover = false;
+    book.classList.remove('bookmark-preview');
+    updateBookmarkSelection();
+    schedule();
+  }
+
+  function openBookmark(story) {
+    if (bookmarkedStory?.url === story.url) {
+      closeBookmark();
+      return;
+    }
+    clearTimeout(bookmarkTimer);
+    bookmarkOpenFromCover = !bookmarkedStory && progressNow() < 1;
+    bookmarkedStory = story;
+    book.classList.add('bookmark-preview');
+    updateBookmarkSelection();
+    showBookmarks(progressNow());
+    schedule();
+    if (bookmarkOpenFromCover) {
+      bookmarkTimer = setTimeout(() => {
+        bookmarkOpenFromCover = false;
+        schedule();
+      }, reducedMotion.matches ? 0 : 570);
+    }
+  }
+
+  function refreshBookmarks() {
+    const now = Date.now();
+    const recent = feed.filter((story) => {
+      const created = Date.parse(story.createdAt);
+      const age = now - created;
+      return Number.isFinite(created) && age >= 0 && age < 48 * 60 * 60 * 1000;
+    }).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    const signature = recent.map((story) => story.url).join('|');
+    if (signature === bookmarkSignature) return;
+    bookmarkSignature = signature;
+    const buttons = recent.map((story, index) => {
+      const button = document.createElement('button');
+      button.className = 'scroll-bookmark';
+      button.type = 'button';
+      button.dataset.storyUrl = story.url;
+      button.style.setProperty('--bookmark-color',
+        `hsl(${(18 + index * 137.508) % 360} 60% ${index % 2 ? 25 : 28}%)`);
+      button.textContent = String(index + 1);
+      button.title = `${story.title} — created ${new Date(story.createdAt).toLocaleString()}`;
+      button.setAttribute('aria-label', `Open new story: ${story.title}`);
+      button.addEventListener('click', () => openBookmark(story));
+      return button;
+    });
+    bookmarkList.replaceChildren(...buttons);
+    updateBookmarkSelection();
+    showBookmarks(progressNow());
+    positionBookmarks();
+  }
 
   function indexAt(value) {
     return ((value % stories.length) + stories.length) % stories.length;
@@ -60,22 +152,54 @@
     }
   }
 
+  function displayStory(story, label, animatePrompt = false) {
+    setPrompt(story, animatePrompt);
+    read.href = story.url;
+    read.hidden = false;
+    details.hidden = false;
+    ambient.src = story.cover;
+    scene.setAttribute('aria-label', label);
+  }
+
   function setActive(index, animatePrompt = false) {
     if (index === activeIndex) return;
     const previousIndex = activeIndex;
     activeIndex = index;
     const story = stories[index];
-    setPrompt(story, animatePrompt && previousIndex >= 0);
-    read.href = story.url;
-    read.hidden = false;
-    details.hidden = false;
-    ambient.src = story.cover;
-    scene.setAttribute('aria-label', `Story cover book. ${story.title}, ${index + 1} of ${stories.length}.`);
+    displayStory(story, `Story cover book. ${story.title}, ${index + 1} of ${stories.length}.`,
+      animatePrompt && previousIndex >= 0);
     preload(index);
+  }
+
+  function renderBookmark() {
+    const story = bookmarkedStory;
+    activeIndex = -1;
+    book.classList.add('scroll-book-open');
+    book.style.setProperty('--open', '1');
+    book.style.setProperty('--end', '0');
+    book.style.top = '50%';
+    book.style.transform = 'translate(-50%, -50%)';
+    intro.style.opacity = '0';
+    intro.style.transform = 'translateY(-24px)';
+    end.hidden = true;
+    end.inert = true;
+    left.classList.remove('scroll-awaiting-open');
+    left.style.opacity = '1';
+    right.style.opacity = '1';
+    opening.hidden = !bookmarkOpenFromCover;
+    if (bookmarkOpenFromCover) opening.style.transform = 'rotateY(-180deg)';
+    turn.hidden = true;
+    ending.hidden = true;
+    setCover(right, story);
+    displayStory(story, `New story. ${story.title}.`, true);
   }
 
   function render(progress) {
     if (!stories.length) return;
+    if (bookmarkedStory) {
+      renderBookmark();
+      return;
+    }
     left.classList.toggle('scroll-awaiting-open', progress < 1);
     const closing = progress > stories.length ? Math.min(1, progress - stories.length) : 0;
     const open = closing ? 1 - closing : Math.min(1, progress);
@@ -98,6 +222,7 @@
     end.style.opacity = String(Math.min(1, Math.max(0, (closing - .72) / .28)));
     if (progress < 1) {
       activeIndex = -1;
+      scene.setAttribute('aria-label', 'Story cover book. Scroll to open.');
       opening.hidden = false;
       turn.hidden = true;
       ending.hidden = true;
@@ -157,12 +282,16 @@
     frame = requestAnimationFrame(() => {
       frame = 0;
       const progress = progressNow();
-      render(reducedMotion.matches ? Math.round(progress) : progress);
+      const displayedProgress = reducedMotion.matches ? Math.round(progress) : progress;
+      render(displayedProgress);
+      showBookmarks(displayedProgress);
+      positionBookmarks();
     });
   }
 
   track.addEventListener('wheel', (event) => {
     if (!stories.length || event.ctrlKey) return;
+    if (bookmarkedStory) closeBookmark();
     const delta = event.deltaY + event.deltaX;
     if (track.scrollLeft >= track.scrollWidth - track.clientWidth - 1) {
       event.preventDefault();
@@ -174,6 +303,16 @@
     track.scrollLeft += delta;
   }, { passive: false });
   track.addEventListener('scroll', schedule, { passive: true });
+  bookmarkList.addEventListener('wheel', (event) => {
+    if (event.ctrlKey) return;
+    if (bookmarkList.scrollHeight > bookmarkList.clientHeight + 1) {
+      event.stopPropagation();
+    }
+  }, { passive: true });
+  bookmarkReturn.addEventListener('click', closeBookmark);
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeBookmark();
+  });
   window.addEventListener('resize', schedule);
 
   fetch(home.dataset.coverFeed)
@@ -191,7 +330,10 @@
         const j = Math.floor(Math.random() * (i + 1));
         [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
       }
+      feed = items;
       stories = candidates.slice(0, 10);
+      refreshBookmarks();
+      setInterval(refreshBookmarks, 60 * 1000);
       schedule();
     })
     .catch(() => {
