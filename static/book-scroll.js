@@ -100,9 +100,9 @@
       return;
     }
     const opening = Math.min(1, Math.max(0, progress));
-    bookmarkRail.hidden = !bookmarkSignature || !!bookmarkedStory || opening >= .15;
-    bookmarkRail.style.opacity = String(Math.max(0, 1 - opening * 7));
-    bookmarkRail.style.pointerEvents = opening > .03 ? 'none' : '';
+    bookmarkRail.hidden = !bookmarkSignature || !!bookmarkedStory || opening > 0;
+    bookmarkRail.style.opacity = '1';
+    bookmarkRail.style.pointerEvents = '';
     bookmarkHint.hidden = !bookmarkSignature || !!bookmarkedStory || opening >= .2;
     bookmarkHint.style.opacity = String(Math.max(0, 1 - opening * 5));
   }
