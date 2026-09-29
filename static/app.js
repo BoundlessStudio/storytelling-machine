@@ -151,8 +151,9 @@
       const params = new URLSearchParams(location.search);
       search.value = params.get('q') || '';
       const typeAliases = {
-        Landscapes: 'Landscapes & interiors',
-        Interiors: 'Landscapes & interiors',
+        Landscapes: 'Locations',
+        Interiors: 'Locations',
+        'Landscapes & interiors': 'Locations',
       };
       const requestedType = params.get('type');
       const selectedType = typeAliases[requestedType] || requestedType;
