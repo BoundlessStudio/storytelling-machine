@@ -188,6 +188,8 @@
     right.style.opacity = '1';
     opening.hidden = !bookmarkOpenFromCover;
     if (bookmarkOpenFromCover) opening.style.transform = 'rotateY(-180deg)';
+    opening.style.setProperty('--cover-light', '.08');
+    opening.style.setProperty('--turn-shadow', '0');
     turn.hidden = true;
     ending.hidden = true;
     setCover(right, story);
@@ -226,8 +228,10 @@
       opening.hidden = false;
       turn.hidden = true;
       ending.hidden = true;
-      right.style.opacity = '1';
+      right.style.opacity = String(Math.min(1, open * 8));
       opening.style.transform = `rotateY(${-180 * open}deg)`;
+      opening.style.setProperty('--cover-light', String(.08 + .55 * Math.sin(Math.PI * open)));
+      opening.style.setProperty('--turn-shadow', String(Math.sin(Math.PI * open)));
       openingBack.style.opacity = '1';
       left.style.opacity = '0';
       setPrompt(stories[0]);
@@ -245,7 +249,9 @@
       setCover(endingFront, stories[last]);
       setPrompt(stories[last]);
       ending.style.transform = `rotateY(${-180 * closing}deg)`;
-      left.style.opacity = '1';
+      ending.style.setProperty('--cover-light', String(.08 + .55 * Math.sin(Math.PI * closing)));
+      ending.style.setProperty('--turn-shadow', String(Math.sin(Math.PI * closing)));
+      left.style.opacity = String(Math.min(1, (1 - closing) * 8));
       right.style.opacity = '0';
       if (closing < .55) setActive(last);
       else {
