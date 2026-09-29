@@ -30,7 +30,7 @@ DEFAULT_SITE_URL = "https://stories.rgbknights.com"
 DEFAULT_INDEX_URL = "https://art.rgbknights.com/manifests/story-computing-machine-art-v1.json"
 IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 COLLECTIONS = {"characters": "Characters", "landscapes": "Landscapes", "interiors": "Interiors"}
-ART_TYPES = ("Covers", "Characters", "Landscapes & interiors")
+ART_TYPES = ("Covers", "Characters", "Locations")
 
 
 def read_json(name: str) -> dict:
@@ -193,7 +193,7 @@ def make_art(index: dict, stories: list[dict], base: str) -> tuple[list[dict], d
                 covers[slug] = item["url"]
         elif len(parts) == 5 and parts[0] == "stories" and parts[2] == "art":
             slug, source_kind = parts[1], COLLECTIONS.get(parts[3])
-            kind = "Landscapes & interiors" if source_kind in {"Landscapes", "Interiors"} else source_kind
+            kind = "Locations" if source_kind in {"Landscapes", "Interiors"} else source_kind
         if not kind or item["contentType"] not in IMAGE_TYPES:
             continue
         story_title = story_by_slug[slug]["title"] if slug in story_by_slug else friendly_name(slug)
@@ -357,8 +357,8 @@ def build(output: Path, base: str, site_url: str, media_index: dict | None = Non
             redirect_page(base + f"stories/{quote(slug)}/", story["title"]), encoding="utf-8",
         )
     for old_path, category in (("characters.html", "Characters"),
-                               ("landscapes.html", "Landscapes & interiors"),
-                               ("interiors.html", "Landscapes & interiors")):
+                               ("landscapes.html", "Locations"),
+                               ("interiors.html", "Locations")):
         (output / old_path).write_text(
             redirect_page(base + f"art/?type={quote(category)}", category), encoding="utf-8",
         )

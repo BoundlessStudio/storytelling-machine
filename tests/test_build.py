@@ -30,10 +30,10 @@ class SiteBuildTests(unittest.TestCase):
         self.assertEqual(len(art), 1882)
         self.assertEqual(len(covers), len(self.stories))
         self.assertEqual(dict(Counter(item["type"] for item in art)), {
-            "Covers": 200, "Characters": 753, "Landscapes & interiors": 929,
+            "Covers": 200, "Characters": 753, "Locations": 929,
         })
         self.assertTrue(all(item["id"].startswith("stories/") for item in art))
-        self.assertTrue(any(item["type"] == "Landscapes & interiors" and item["thumbnail"] != item["full"]
+        self.assertTrue(any(item["type"] == "Locations" and item["thumbnail"] != item["full"]
                             for item in art))
         self.assertEqual(covers["the-sun-in-the-crowd"], assets["stories/the-sun-in-the-crowd/title-image.jpg"]["url"])
         self.assertEqual(covers["the-closed-day"], assets["stories/the-closed-day/title-image.jpg"]["url"])
@@ -55,7 +55,7 @@ class SiteBuildTests(unittest.TestCase):
             gallery = json.loads((output / "art.json").read_text(encoding="utf-8"))
             self.assertEqual(len(gallery), 1882)
             self.assertEqual(set(item["type"] for item in gallery), {
-                "Covers", "Characters", "Landscapes & interiors",
+                "Covers", "Characters", "Locations",
             })
             for story in self.stories:
                 page = output / "stories" / story["slug"] / "index.html"
@@ -118,7 +118,7 @@ class SiteBuildTests(unittest.TestCase):
             self.assertFalse((output / "engine.js").exists())
             gallery_page = (output / "art" / "index.html").read_text(encoding="utf-8")
             self.assertIn('id="art-type"', gallery_page)
-            self.assertIn('<option value="Landscapes &amp; interiors">Landscapes &amp; interiors</option>', gallery_page)
+            self.assertIn('<option value="Locations">Locations</option>', gallery_page)
             self.assertEqual(gallery_page.count('<option value="Comics">'), 0)
             self.assertIn('id="art-sentinel"', gallery_page)
             self.assertIn('content="https://example.org/storytelling-machine/social-card.jpg"', gallery_page)
@@ -126,8 +126,8 @@ class SiteBuildTests(unittest.TestCase):
             self.assertIn('<meta property="og:type" content="article">', story_page)
             self.assertIn('<meta name="twitter:image" content="https://art.rgbknights.com/', story_page)
             self.assertTrue((output / "characters.html").is_file())
-            self.assertIn("Landscapes%20%26%20interiors", (output / "landscapes.html").read_text(encoding="utf-8"))
-            self.assertIn("Landscapes%20%26%20interiors", (output / "interiors.html").read_text(encoding="utf-8"))
+            self.assertIn("type=Locations", (output / "landscapes.html").read_text(encoding="utf-8"))
+            self.assertIn("type=Locations", (output / "interiors.html").read_text(encoding="utf-8"))
             artwork_story = (output / "stories" / "all-accounts-due" / "index.html").read_text(encoding="utf-8")
             self.assertIn("View 12 artwork items", artwork_story)
             self.assertNotIn("Download comic PDF", artwork_story)
