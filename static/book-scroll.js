@@ -18,11 +18,26 @@
   const scene = document.getElementById('scroll-scene');
   const end = document.getElementById('about');
   const bookmarkRail = document.getElementById('scroll-bookmarks');
+  const bookmarkHost = bookmarkRail.parentElement;
   const bookmarkList = document.getElementById('scroll-bookmarks-list');
   const bookmarkHint = document.getElementById('scroll-bookmark-hint');
   const bookmarkReturn = document.getElementById('scroll-bookmark-return');
   const mobile = matchMedia('(max-width: 600px)');
   const portraitPhone = matchMedia('(max-width: 600px) and (orientation: portrait)');
+  const compactPortrait = matchMedia('(max-width: 600px) and (orientation: portrait) and (min-aspect-ratio: 53/100)');
+  const landscapePhone = matchMedia('(orientation: landscape) and (max-width: 1000px) and (max-height: 600px)');
+  const mobileStory = document.getElementById('mobile-story');
+  const mobileBackdrop = document.getElementById('mobile-art-backdrop');
+  const mobileCover = document.getElementById('mobile-cover');
+  const mobileFrontCover = mobileCover.getAttribute('src');
+  const mobileBookmarkReturn = document.getElementById('mobile-bookmark-return');
+  const mobileSideCopy = document.getElementById('mobile-side-copy');
+  const mobileOverlayCopy = document.getElementById('mobile-overlay-copy');
+  const mobileSideRead = document.getElementById('mobile-side-read');
+  const mobileOverlayRead = document.getElementById('mobile-overlay-read');
+  const mobileToggle = document.getElementById('mobile-wp-toggle');
+  const mobileOverlay = document.getElementById('mobile-prompt-overlay');
+  const mobileClose = document.getElementById('mobile-prompt-close');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   let stories = [];
   let feed = [];
@@ -32,24 +47,31 @@
   let bookmarkOpenFromCover = false;
   let bookmarkTimer = 0;
   let bookmarkSignature = '';
+  let overlayOpen = false;
+  let lastPhoneStep = 0;
+  let lastPhoneMode = portraitPhone.matches ? 'portrait' : landscapePhone.matches ? 'landscape' : 'desktop';
+
+  const isPhone = () => portraitPhone.matches || landscapePhone.matches;
 
   function positionBookmarks() {
     if (bookmarkRail.hidden) return;
-    const sceneBounds = scene.getBoundingClientRect();
     const viewport = bookmarkRail.parentElement.getBoundingClientRect();
-    const closedBookWidth = portraitPhone.matches
-      ? book.offsetWidth
-      : mobile.matches
-      ? Math.min(viewport.width * 1.4, viewport.height * .72) : book.offsetWidth;
-    const pageWidth = closedBookWidth / 2;
-    if (portraitPhone.matches) {
-      const pageLeft = (viewport.width - pageWidth) / 2;
-      bookmarkRail.style.left = `${pageLeft + 8}px`;
-      bookmarkRail.style.top = `${Math.max(52, (viewport.height - book.offsetHeight) / 2 - 32)}px`;
-      bookmarkRail.style.width = `${pageWidth - 16}px`;
+    if (isPhone()) {
+      const topInset = landscapePhone.matches || compactPortrait.matches ? 38 : 0;
+      const coverWidth = Math.min(viewport.width, (viewport.height - topInset) * 9 / 16);
+      const coverHeight = coverWidth * 16 / 9;
+      const coverLeft = (viewport.width - coverWidth) / 2;
+      const coverTop = topInset + (viewport.height - topInset - coverHeight) / 2;
+      bookmarkRail.style.left = `${coverLeft + 8}px`;
+      bookmarkRail.style.top = `${Math.max(4, coverTop - 35)}px`;
+      bookmarkRail.style.width = `${coverWidth - 16}px`;
       bookmarkRail.classList.toggle('is-overflowing', bookmarkList.scrollWidth > bookmarkList.clientWidth + 2);
       return;
     }
+    const sceneBounds = scene.getBoundingClientRect();
+    const closedBookWidth = mobile.matches
+      ? Math.min(viewport.width * 1.4, viewport.height * .72) : book.offsetWidth;
+    const pageWidth = closedBookWidth / 2;
     const closedRight = sceneBounds.left - viewport.left + sceneBounds.width / 2 + pageWidth / 2;
     const closedTop = sceneBounds.top - viewport.top + sceneBounds.height / 2 - closedBookWidth * 4 / 9;
     const leftEdge = Math.max(8, closedRight - pageWidth + 8);
@@ -70,6 +92,13 @@
   }
 
   function showBookmarks(progress) {
+    if (isPhone()) {
+      bookmarkRail.hidden = !bookmarkSignature || !!bookmarkedStory || progress >= .5;
+      bookmarkRail.style.opacity = String(Math.max(0, 1 - progress * 2));
+      bookmarkRail.style.pointerEvents = progress >= .45 ? 'none' : '';
+      bookmarkHint.hidden = true;
+      return;
+    }
     const opening = Math.min(1, Math.max(0, progress));
     bookmarkRail.hidden = !bookmarkSignature || !!bookmarkedStory || opening >= .15;
     bookmarkRail.style.opacity = String(Math.max(0, 1 - opening * 7));
@@ -83,6 +112,7 @@
       button.setAttribute('aria-pressed', String(button.dataset.storyUrl === bookmarkedStory?.url));
     }
     bookmarkReturn.hidden = !bookmarkedStory;
+    mobileBookmarkReturn.hidden = !bookmarkedStory;
   }
 
   function closeBookmark() {
@@ -101,6 +131,15 @@
       return;
     }
     clearTimeout(bookmarkTimer);
+    if (isPhone()) {
+      bookmarkedStory = story;
+      activeIndex = -1;
+      overlayOpen = false;
+      updateBookmarkSelection();
+      showBookmarks(progressNow());
+      schedule();
+      return;
+    }
     bookmarkOpenFromCover = !bookmarkedStory && progressNow() < 1;
     bookmarkedStory = story;
     book.classList.add('bookmark-preview');
@@ -165,7 +204,6 @@
     if (left.dataset.prompt === story.url) return;
     const panel = document.createElement('div');
     panel.className = 'scroll-prompt';
-    panel.classList.toggle('is-long', story.prompt.length > 350);
     if (animate) panel.classList.add('scroll-prompt-entering');
     const label = document.createElement('span');
     label.className = 'scroll-prompt-label';
@@ -224,64 +262,75 @@
     ending.hidden = true;
     setCover(right, story);
     displayStory(story, `New story. ${story.title}.`, true);
-    if (portraitPhone.matches) {
-      renderPortraitPage(story, false);
-    } else {
-      book.classList.remove('portrait-prompt-page', 'portrait-cover-page');
-    }
   }
 
-  function renderPortraitPage(story, promptPage) {
-    book.classList.toggle('portrait-prompt-page', promptPage);
-    book.classList.toggle('portrait-cover-page', !promptPage);
-    book.style.top = '50%';
-    book.style.transform = promptPage ? 'translate(-25%, -50%)' : 'translate(-75%, -50%)';
-    opening.hidden = true;
-    turn.hidden = true;
-    ending.hidden = true;
-    left.style.opacity = promptPage ? '1' : '0';
-    right.style.opacity = promptPage ? '0' : '1';
-    setPrompt(story);
-    setCover(right, story);
-  }
-
-  function renderPortrait(progress) {
+  function renderPhone(progress) {
     const step = Math.round(progress);
-    const finalStep = stories.length * 2 + 1;
-    const atEnd = step >= finalStep;
-    const index = Math.min(stories.length - 1, Math.max(0, Math.floor((step - 1) / 2)));
-    const promptPage = step > 0 && step % 2 === 1;
-    const story = stories[index];
-    book.classList.toggle('scroll-book-open', !atEnd);
-    book.style.setProperty('--open', '1');
-    book.style.setProperty('--end', atEnd ? '1' : '0');
-    renderPortraitPage(story, promptPage);
-    book.style.opacity = atEnd ? '0' : '1';
+    const atIntro = step === 0 && !bookmarkedStory;
+    const atEnd = step >= stories.length + 1 && !bookmarkedStory;
+    const index = Math.min(stories.length - 1, Math.max(0, step - 1));
+    const story = bookmarkedStory || stories[index];
+    const storyKey = atIntro ? 'intro' : atEnd ? 'end' : story.url;
+    if (storyKey !== mobileStory.dataset.storyKey) overlayOpen = false;
+    mobileStory.dataset.storyKey = storyKey;
+    lastPhoneStep = step;
+    mobileStory.hidden = atEnd;
+    mobileStory.classList.toggle('is-intro', atIntro);
+    mobileBookmarkReturn.hidden = !bookmarkedStory;
+    mobileToggle.hidden = atIntro || atEnd;
+    mobileOverlay.hidden = atIntro || atEnd || !portraitPhone.matches || !overlayOpen;
+    mobileToggle.setAttribute('aria-expanded', String(!atIntro && !atEnd && portraitPhone.matches && overlayOpen));
     intro.style.opacity = '0';
     end.hidden = !atEnd;
     end.inert = !atEnd;
     end.style.opacity = atEnd ? '1' : '0';
-    end.style.top = '4.25rem';
+    end.style.top = '';
+    details.hidden = true;
     if (atEnd) {
-      details.hidden = true;
-      scene.setAttribute('aria-label', 'About the project.');
+      activeIndex = -1;
+    } else if (atIntro) {
+      mobileStory.setAttribute('aria-label', 'Book cover. Swipe to browse stories or select a bookmark.');
+      if (mobileCover.dataset.cover !== mobileFrontCover) {
+        mobileCover.src = mobileFrontCover;
+        mobileBackdrop.src = mobileFrontCover;
+        mobileCover.dataset.cover = mobileFrontCover;
+      }
+      mobileCover.alt = 'Story Computing Machine book cover';
+      activeIndex = -1;
     } else {
-      displayStory(story, `${promptPage ? 'Writing prompt' : 'Cover image'} for ${story.title}, ${index + 1} of ${stories.length}.`);
-      activeIndex = index;
-      preload(index);
+      mobileStory.setAttribute('aria-label', bookmarkedStory
+        ? `New story. ${story.title}.`
+        : `${story.title}, ${index + 1} of ${stories.length}.`);
+      if (mobileCover.dataset.cover !== story.cover) {
+        mobileCover.src = story.cover;
+        mobileBackdrop.src = story.cover;
+        mobileCover.dataset.cover = story.cover;
+      }
+      mobileCover.alt = `Cover art for ${story.title}`;
+      mobileSideCopy.textContent = story.prompt;
+      mobileOverlayCopy.textContent = story.prompt;
+      mobileSideRead.href = story.url;
+      mobileOverlayRead.href = story.url;
+      activeIndex = bookmarkedStory ? -1 : index;
+      if (!bookmarkedStory) preload(index);
     }
   }
 
   function render(progress) {
     if (!stories.length) return;
-    if (bookmarkedStory) {
-      renderBookmark();
+    if (isPhone()) {
+      if (bookmarkRail.parentElement !== mobileStory) {
+        mobileStory.insertBefore(bookmarkRail, mobileCover);
+      }
+      renderPhone(progress);
       return;
     }
-    book.style.opacity = '1';
-    book.classList.remove('portrait-prompt-page', 'portrait-cover-page');
-    if (portraitPhone.matches) {
-      renderPortrait(progress);
+    if (bookmarkRail.parentElement !== bookmarkHost) {
+      bookmarkHost.insertBefore(bookmarkRail, bookmarkHint);
+    }
+    mobileStory.hidden = true;
+    if (bookmarkedStory) {
+      renderBookmark();
       return;
     }
     left.classList.toggle('scroll-awaiting-open', progress < 1);
@@ -360,7 +409,7 @@
   }
 
   function progressNow() {
-    const steps = portraitPhone.matches ? stories.length * 2 + 2 : stories.length + 2;
+    const steps = stories.length + 2;
     return Math.max(0, Math.min(steps - 1,
       track.scrollLeft / (home.offsetWidth / steps)));
   }
@@ -379,6 +428,7 @@
 
   track.addEventListener('wheel', (event) => {
     if (!stories.length || event.ctrlKey) return;
+    if (isPhone() && event.target.closest('.mobile-prompt-side, .mobile-prompt-overlay')) return;
     if (bookmarkedStory) closeBookmark();
     const delta = event.deltaY + event.deltaX;
     if (track.scrollLeft >= track.scrollWidth - track.clientWidth - 1) {
@@ -398,10 +448,38 @@
     }
   }, { passive: true });
   bookmarkReturn.addEventListener('click', closeBookmark);
+  mobileBookmarkReturn.addEventListener('click', closeBookmark);
+  mobileToggle.addEventListener('click', () => {
+    overlayOpen = !overlayOpen;
+    schedule();
+  });
+  mobileClose.addEventListener('click', () => {
+    overlayOpen = false;
+    schedule();
+    mobileToggle.focus();
+  });
   document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && overlayOpen) {
+      overlayOpen = false;
+      schedule();
+      mobileToggle.focus();
+    }
     if (event.key === 'Escape') closeBookmark();
   });
-  window.addEventListener('resize', schedule);
+  window.addEventListener('resize', () => {
+    const mode = portraitPhone.matches ? 'portrait' : landscapePhone.matches ? 'landscape' : 'desktop';
+    if (mode !== lastPhoneMode && stories.length) {
+      if (mode !== 'desktop' && bookmarkedStory) closeBookmark();
+      const step = lastPhoneMode === 'desktop'
+        ? end.hidden ? Math.max(0, activeIndex + 1) : stories.length + 1
+        : lastPhoneStep;
+      track.scrollLeft = step * track.clientWidth;
+      activeIndex = -1;
+      overlayOpen = false;
+    }
+    lastPhoneMode = mode;
+    schedule();
+  });
 
   fetch(home.dataset.coverFeed)
     .then((response) => {
@@ -420,12 +498,22 @@
       }
       feed = items;
       stories = candidates.slice(0, 10);
-      home.style.setProperty('--portrait-steps', String(stories.length * 2 + 2));
+      home.style.setProperty('--mobile-steps', String(stories.length + 2));
+      render(progressNow());
       refreshBookmarks();
       setInterval(refreshBookmarks, 60 * 1000);
       schedule();
     })
     .catch(() => {
       scene.setAttribute('aria-label', 'Story cover book. Browse the library for more stories.');
+      if (isPhone()) {
+        mobileStory.hidden = false;
+        mobileStory.classList.remove('is-intro');
+        mobileStory.setAttribute('aria-label', 'Story cover book. Browse the library for more stories.');
+        mobileOverlay.hidden = false;
+        mobileOverlay.setAttribute('aria-label', 'Story library');
+        mobileSideCopy.textContent = 'Browse the story library while the featured covers are unavailable.';
+        mobileOverlayCopy.textContent = mobileSideCopy.textContent;
+      }
     });
 })();
