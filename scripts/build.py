@@ -23,8 +23,9 @@ STATIC = ROOT / "static"
 CSS_VERSION = sha256((STATIC / "styles.css").read_bytes()).hexdigest()[:12]
 ICON_VERSION = sha256((STATIC / "favicon.svg").read_bytes()).hexdigest()[:12]
 JS_VERSION = sha256((STATIC / "app.js").read_bytes()).hexdigest()[:12]
-COVER_JS_VERSION = sha256((STATIC / "book-scroll.js").read_bytes()).hexdigest()[:12]
-BACK_COVER_VERSION = sha256((STATIC / "book-back-cover-9x16.png").read_bytes()).hexdigest()[:12]
+HORIZON_JS_VERSION = sha256((STATIC / "horizon.js").read_bytes()).hexdigest()[:12]
+HORIZON_CSS_VERSION = sha256((STATIC / "horizon.css").read_bytes()).hexdigest()[:12]
+HORIZON_STOPS = 12
 SOURCE_REPO = "https://github.com/BoundlessStudio/story-computing-machine"
 DEFAULT_SITE_URL = "https://stories.rgbknights.com"
 DEFAULT_INDEX_URL = "https://art.rgbknights.com/manifests/story-computing-machine-art-v1.json"
@@ -103,7 +104,7 @@ def esc(value: object) -> str:
 
 def shell(title: str, description: str, body: str, active: str, base: str,
           site_url: str, page_path: str = "", image: str | None = None,
-          immersive: bool = False) -> str:
+          immersive: bool = False, head_extra: str = "", body_class: str = "immersive-body") -> str:
     canonical = site_url.rstrip("/") + base + page_path
     page_title = f"{title} · Story Computing Machine"
     preview_image = image or site_url.rstrip("/") + base + "social-card.jpg"
@@ -126,7 +127,7 @@ def shell(title: str, description: str, body: str, active: str, base: str,
               f'<nav aria-label="Main navigation">{nav}</nav></header>')
     if immersive:
         footer = ""
-        body_class = ' class="immersive-body"'
+        body_class = f' class="{body_class}"'
     else:
         footer = f'<footer class="site-footer"><div class="wrap"><span>Story Computing Machine</span><a href="{SOURCE_REPO}">Story source ↗</a></div></footer>'
         body_class = ""
@@ -144,7 +145,7 @@ def shell(title: str, description: str, body: str, active: str, base: str,
 <link rel="icon" type="image/png" sizes="32x32" href="{base}favicon-32.png?v={ICON_VERSION}">
 <link rel="apple-touch-icon" sizes="180x180" href="{base}apple-touch-icon.png?v={ICON_VERSION}">
 <link rel="stylesheet" href="{base}styles.css?v={CSS_VERSION}"><script defer src="{base}app.js?v={JS_VERSION}"></script>
-<title>{esc(page_title)}</title></head><body{body_class}>
+{head_extra}<title>{esc(page_title)}</title></head><body{body_class}>
 <a class="skip-link" href="#main">Skip to content</a>
 {header}
 <main id="main">{body}</main>
@@ -234,24 +235,92 @@ def build_index(stories: list[dict], covers: dict[str, str], base: str, site_url
                  "Library", base, site_url, "library/")
 
 
-def build_scroll_home(base: str, site_url: str, stories: list[dict], covers: dict[str, str]) -> str:
-    front = f'<img class="book-cover-art" src="{base}book-cover-9x16.png" alt="" fetchpriority="high">'
-    back = f'<img class="book-cover-art" src="{base}book-back-cover-9x16.png?v={BACK_COVER_VERSION}" alt="">'
-    body = f"""<section class="scroll-home" data-cover-feed="{base}cover-feed.json" aria-label="Story cover book">
-<div class="scroll-viewport"><div class="scroll-ambient" aria-hidden="true"></div>
-<div class="scroll-scene" id="scroll-scene" role="group" aria-label="Story cover book">
-<div class="scroll-book" id="scroll-book" aria-hidden="true"><div class="scroll-page scroll-left" id="scroll-left"></div><div class="scroll-page scroll-right" id="scroll-right"></div><div class="scroll-leaf scroll-opening" id="scroll-opening"><div class="scroll-face scroll-front">{front}</div><div class="scroll-face scroll-back" id="scroll-opening-back"></div></div><div class="scroll-leaf scroll-turn" id="scroll-turn" hidden><div class="scroll-face scroll-front" id="scroll-turn-front"></div></div><div class="scroll-leaf scroll-ending" id="scroll-ending" hidden><div class="scroll-face scroll-front" id="scroll-ending-front"></div><div class="scroll-face scroll-back">{back}</div></div></div>
+def horizon_data(stories: list[dict], covers: dict[str, str], art: list[dict], base: str) -> dict:
+    """Inline data for the Long Horizon: the prepared pool plus the newest stories."""
+    panorama = read_json("panorama.json")
+    by_slug = {story["slug"]: story for story in stories}
+    art_slugs = {item["slug"] for item in art if item["type"] != "Covers"}
+
+    def story_fields(story: dict) -> dict:
+        return {"slug": story["slug"], "title": story["title"], "rating": story["rating"],
+                "prompt": " ".join(story["prompt"].split()), "created": story["created"],
+                "createdAt": story["createdAt"], "url": base + "stories/" + quote(story["slug"]) + "/"}
+
+    pool = []
+    for stop in panorama["stops"]:
+        story = by_slug.get(stop["slug"])
+        if not story:
+            continue
+        land = stop["landscape"]
+        entry = story_fields(story) | {
+            "cover": base + stop["cover"],
+            "land": {"src": base + land["src"], "title": land["title"], "sky": land["sky"], "ground": land["ground"]},
+            "study": ({"src": base + stop["study"]["src"], "title": stop["study"]["title"]}
+                      if "study" in stop else None),
+            "art": base + "art/?story=" + quote(story["slug"]) if story["slug"] in art_slugs else base + "art/",
+        }
+        pool.append(entry)
+    if len(pool) < HORIZON_STOPS + 2:
+        raise ValueError("The Long Horizon needs more prepared stops; run scripts/sync_panorama.py")
+    prepared = {stop["slug"]: stop["cover"] for stop in panorama["stops"]} | panorama.get("covers", {})
+
+    def local_cover(slug: str) -> str:
+        """WebGL needs same-origin textures: a prepared derivative, else the Worker's media proxy."""
+        if slug in prepared:
+            return base + prepared[slug]
+        return base + "api/media/" + urlsplit(covers[slug]).path.lstrip("/")
+
+    recent = sorted(stories, key=lambda story: story["createdAt"], reverse=True)[:10]
+    atlas = panorama["atlas"]
+    return {"base": base, "total": len(stories), "artworks": len(art), "pool": pool,
+            "recent": [story_fields(story) | {"cover": local_cover(story["slug"])} for story in recent],
+            "atlasSrc": base + atlas["src"],
+            "atlas": {"cols": atlas["cols"], "rows": atlas["rows"], "tiles": atlas["tiles"]},
+            "titles": {story["slug"]: story["title"] for story in stories}}
+
+
+def build_horizon_home(base: str, site_url: str, stories: list[dict], covers: dict[str, str],
+                       art: list[dict]) -> str:
+    data = json.dumps(horizon_data(stories, covers, art, base), ensure_ascii=False, separators=(",", ":"))
+    data = data.replace("</", "<\\/")
+    head = (f'<link rel="preconnect" href="https://fonts.googleapis.com">'
+            f'<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+            f'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;0,600;1,400;1,500;1,600&display=swap">'
+            f'<link rel="stylesheet" href="{base}horizon.css?v={HORIZON_CSS_VERSION}">'
+            f'<link rel="preconnect" href="https://art.rgbknights.com">'
+            f'<link rel="modulepreload" href="{base}vendor/three.module.min.js">')
+    count, total, artworks = HORIZON_STOPS, len(stories), len(art)
+    body = f"""<section class="horizon" id="horizon" aria-labelledby="hz-title">
+<canvas class="hz-canvas" id="hz-canvas" aria-hidden="true"></canvas>
+<div class="hz-grain" aria-hidden="true"></div>
+<div class="hz-loading" id="hz-loading" aria-hidden="true"><span>Hanging the exhibition</span><i><b id="hz-load-bar"></b></i></div>
+<div class="hz-intro" id="hz-intro">
+<p class="hz-kicker">Story Computing Machine · An exhibition in one world</p>
+<h1 id="hz-title">The Long <em>Horizon</em></h1>
+<p class="hz-lede">This landscape is made of every story in the collection. Scroll and it comes apart, and you walk through {count} of those stories from morning into night, each one standing in a place it painted.</p>
+<p class="hz-count"><span id="hz-count">{count} of {total} stories hang on this horizon</span><span id="hz-fresh" hidden></span></p>
+<button class="hz-begin" id="hz-begin" type="button">Begin the walk <span aria-hidden="true">↓</span></button>
+<p class="hz-hint"><span class="hz-mouse">Hover the mosaic to find a story. Scroll to walk; move the mouse to look around.</span><span class="hz-touch">Tap the mosaic to open a story. Swipe to walk.</span></p>
 </div>
-<div class="mobile-story" id="mobile-story" role="group" hidden><img class="mobile-art-backdrop" id="mobile-art-backdrop" src="{base}book-cover-9x16.png" alt=""><img class="mobile-cover" id="mobile-cover" src="{base}book-cover-9x16.png" alt=""><button class="mobile-bookmark-return" id="mobile-bookmark-return" type="button" hidden>← Book cover</button><section class="mobile-prompt-side" id="mobile-prompt-side" aria-label="Writing prompt"><span class="mobile-prompt-kicker">[WP]</span><p id="mobile-side-copy"></p><a id="mobile-side-read" href="{base}library/">Read the story ↗</a></section><button class="mobile-wp-toggle" id="mobile-wp-toggle" type="button" aria-label="Show writing prompt" aria-controls="mobile-prompt-overlay" aria-expanded="false" hidden>[WP] <span>Writing prompt</span></button><section class="mobile-prompt-overlay" id="mobile-prompt-overlay" aria-label="Writing prompt" hidden><button class="mobile-prompt-close" id="mobile-prompt-close" type="button" aria-label="Close writing prompt">×</button><span class="mobile-prompt-kicker">[WP]</span><p id="mobile-overlay-copy"></p><a id="mobile-overlay-read" href="{base}library/">Read the story ↗</a></section></div>
-<div class="scroll-bookmarks" id="scroll-bookmarks" aria-label="New stories" hidden><div class="scroll-bookmarks-list" id="scroll-bookmarks-list"></div></div>
-<aside class="scroll-bookmark-hint" id="scroll-bookmark-hint" aria-label="New stories" hidden><p>Click a bookmark to open a new story.</p></aside>
-<div class="scroll-intro" id="scroll-intro"><h1>Scroll to open the cover and step inside our story world</h1></div>
-<section class="scroll-end" id="about" aria-labelledby="about-heading" hidden><p class="scroll-end-kicker">About the project</p><h2 id="about-heading">Stories begin with a prompt.<br><em>Then they become part of a shared story world.</em></h2><p class="scroll-end-lede">Story Computing Machine is a growing collection of original fiction and artwork. Each writing prompt becomes a story woven into a shared world.</p><p class="scroll-end-meta"><strong>{len(stories)}</strong> stories</p><div class="scroll-end-links"><a href="{base}library/">Enter the library ↗</a><a href="{base}art/">Explore the artwork ↗</a></div><p class="scroll-end-source">Curious how it is made? <a href="{SOURCE_REPO}">Explore the story source ↗</a></p></section>
-<div class="scroll-bottom" id="scroll-details" hidden><div class="scroll-actions"><button class="scroll-bookmark-return" id="scroll-bookmark-return" type="button" hidden>← Return to book</button><a id="scroll-read" href="{base}library/" hidden>Read the story <span aria-hidden="true">↗</span></a></div></div>
+<div class="hz-tip" id="hz-tip" hidden></div>
+<aside class="hz-label" id="hz-label" aria-hidden="true"><p class="hz-label-no" id="hz-label-no"></p><h2 id="hz-label-title"></h2><p class="hz-label-meta" id="hz-label-meta"></p><p class="hz-label-prompt"><b>[WP]</b> <span id="hz-label-prompt"></span></p><p class="hz-label-place">Painted at <em id="hz-label-place"></em></p><a id="hz-label-read" href="{base}library/" tabindex="-1">Step through <span aria-hidden="true">→</span></a></aside>
+<section class="hz-end" id="hz-end" aria-labelledby="about-heading"><div class="hz-end-inner" id="about">
+<p class="hz-kicker">Curator’s note</p>
+<h2 id="about-heading">Night falls here. <em>The world keeps going.</em></h2>
+<p class="hz-end-lede">Story Computing Machine is a growing collection of original fiction. Each story begins as a single writing prompt and is written, read, argued over, and revised until it is ready. Everything on this walk comes from the stories themselves: the covers, the sketchbooks, and the places they happened.</p>
+<div class="hz-end-links"><a href="{base}library/">Enter the library <small>{total} stories</small></a><a href="{base}art/">Explore the gallery <small>{artworks:,} works</small></a><button type="button" id="hz-again">Walk a new horizon <span aria-hidden="true">↻</span></button></div>
+<p class="hz-end-source">Curious how it is made? <a href="{SOURCE_REPO}">Explore the story source ↗</a></p>
 </div></section>
-<script defer src="{base}book-scroll.js?v={COVER_JS_VERSION}"></script>"""
-    return shell("Discover", "Open a book of original story covers and explore the Story Computing Machine project.", body,
-                 "Discover", base, site_url, immersive=True)
+<nav class="hz-map" aria-label="Stops on this horizon"><span class="hz-counter" id="hz-counter" aria-hidden="true">Overture</span><div class="hz-rule"><div class="hz-ticks" id="hz-ticks"></div><span class="hz-marker" id="hz-marker"></span></div><span class="hz-place" id="hz-place" aria-hidden="true"></span></nav>
+<ol class="hz-stops" id="hz-stops" aria-label="Stories on this horizon"></ol>
+<div class="hz-fallback" id="hz-fallback" hidden><p>This exhibition needs WebGL, which this browser has turned off.</p><p><a href="{base}library/">Browse all {total} stories in the library</a></p></div>
+<noscript><div class="hz-fallback"><p>The Long Horizon needs JavaScript.</p><p><a href="{base}library/">Browse all {total} stories in the library</a></p></div></noscript>
+<div class="hz-track" id="hz-track"></div>
+</section>
+<script type="application/json" id="horizon-data">{data}</script>
+<script type="module" src="{base}horizon.js?v={HORIZON_JS_VERSION}"></script>"""
+    return shell("The Long Horizon", "Walk one painted horizon from morning into night, past original stories standing in the places they happened.",
+                 body, "Discover", base, site_url, immersive=True, head_extra=head, body_class="horizon-body")
 
 
 def prompt_markup(prompt: str) -> str:
@@ -324,11 +393,13 @@ def build(output: Path, base: str, site_url: str, media_index: dict | None = Non
     (output / "art").mkdir(parents=True)
     (output / "library").mkdir()
     (output / "stories").mkdir()
-    for filename in ("styles.css", "app.js", "book-scroll.js", "book-cover-9x16.png", "book-back-cover-9x16.png", "favicon.svg", "favicon-32.png",
+    for filename in ("styles.css", "app.js", "horizon.js", "horizon.css", "favicon.svg", "favicon-32.png",
                      "apple-touch-icon.png", "social-card.jpg"):
         shutil.copy2(STATIC / filename, output / filename)
+    shutil.copytree(STATIC / "panorama", output / "panorama")
+    shutil.copytree(STATIC / "vendor", output / "vendor")
     (output / "index.html").write_text(
-        build_scroll_home(base, site_url, stories, covers), encoding="utf-8")
+        build_horizon_home(base, site_url, stories, covers, art), encoding="utf-8")
     (output / "cover-feed.json").write_text(json.dumps([
         {"title": story["title"], "rating": story["rating"], "prompt": story["prompt"],
          "createdAt": story["createdAt"],

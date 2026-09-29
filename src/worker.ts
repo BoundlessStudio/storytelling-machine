@@ -77,12 +77,30 @@ async function recommend(
   return makeMatches(selection, chosen, rating);
 }
 
+/* Same-origin copies of published art, so the home page's WebGL scene can use covers
+ * that have not been prepared by scripts/sync_panorama.py yet. Only content-addressed
+ * image paths on the art origin are allowed. */
+const MEDIA_ORIGIN = 'https://art.rgbknights.com';
+const MEDIA_PATH = /^\/api\/media\/(assets\/[a-f0-9]{64}\/[A-Za-z0-9._-]+\.(?:jpe?g|png|webp))$/;
+
+async function proxyMedia(request: Request, key: string): Promise<Response> {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return json({ error: 'Method not allowed' }, 405);
+  const upstream = await fetch(`${MEDIA_ORIGIN}/${key}`);
+  const type = upstream.headers.get('Content-Type') || '';
+  if (!upstream.ok || !type.startsWith('image/')) return new Response('Not found', { status: 404 });
+  return new Response(request.method === 'HEAD' ? null : upstream.body, {
+    headers: { 'Content-Type': type, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff' },
+  });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === '/' && (url.searchParams.has('q') || url.searchParams.has('rating'))) {
       return Response.redirect(new URL(`/library/${url.search}`, url.origin), 302);
     }
+    const media = url.pathname.match(MEDIA_PATH);
+    if (media) return proxyMedia(request, media[1]);
     if (!url.pathname.startsWith('/api/guide/')) return env.ASSETS.fetch(request);
     if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
     const origin = request.headers.get('Origin');
