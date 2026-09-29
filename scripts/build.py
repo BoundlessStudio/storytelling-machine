@@ -25,7 +25,7 @@ ICON_VERSION = sha256((STATIC / "favicon.svg").read_bytes()).hexdigest()[:12]
 JS_VERSION = sha256((STATIC / "app.js").read_bytes()).hexdigest()[:12]
 HORIZON_JS_VERSION = sha256((STATIC / "horizon.js").read_bytes()).hexdigest()[:12]
 HORIZON_CSS_VERSION = sha256((STATIC / "horizon.css").read_bytes()).hexdigest()[:12]
-HORIZON_STOPS = 12
+HORIZON_RANDOM_STOPS = 10
 SOURCE_REPO = "https://github.com/BoundlessStudio/story-computing-machine"
 DEFAULT_SITE_URL = "https://stories.rgbknights.com"
 DEFAULT_INDEX_URL = "https://art.rgbknights.com/manifests/story-computing-machine-art-v1.json"
@@ -238,6 +238,8 @@ def build_index(stories: list[dict], covers: dict[str, str], base: str, site_url
 def horizon_data(stories: list[dict], covers: dict[str, str], art: list[dict], base: str) -> dict:
     """Inline data for the Long Horizon: the prepared pool plus the newest stories."""
     panorama = read_json("panorama.json")
+    location_manifest = read_json("story-locations.json")
+    locations = location_manifest["locations"]
     by_slug = {story["slug"]: story for story in stories}
     art_slugs = {item["slug"] for item in art if item["type"] != "Covers"}
 
@@ -255,25 +257,30 @@ def horizon_data(stories: list[dict], covers: dict[str, str], art: list[dict], b
         entry = story_fields(story) | {
             "cover": base + stop["cover"],
             "land": {"src": base + land["src"], "title": land["title"], "sky": land["sky"], "ground": land["ground"]},
-            "study": ({"src": base + stop["study"]["src"], "title": stop["study"]["title"]}
-                      if "study" in stop else None),
             "art": base + "art/?story=" + quote(story["slug"]) if story["slug"] in art_slugs else base + "art/",
         }
         pool.append(entry)
-    if len(pool) < HORIZON_STOPS + 2:
+    if len(pool) < HORIZON_RANDOM_STOPS + 2:
         raise ValueError("The Long Horizon needs more prepared stops; run scripts/sync_panorama.py")
-    prepared = {stop["slug"]: stop["cover"] for stop in panorama["stops"]} | panorama.get("covers", {})
+    prepared = location_manifest["covers"]
 
     def local_cover(slug: str) -> str:
-        """WebGL needs same-origin textures: a prepared derivative, else the Worker's media proxy."""
-        if slug in prepared:
-            return base + prepared[slug]
-        return base + "api/media/" + urlsplit(covers[slug]).path.lstrip("/")
+        """Every WebGL cover has a prepared same-origin derivative."""
+        return base + prepared[slug]
 
-    recent = sorted(stories, key=lambda story: story["createdAt"], reverse=True)[:10]
+    catalog = sorted(stories, key=lambda story: story["createdAt"], reverse=True)
+    if missing := set(by_slug) - set(locations):
+        raise ValueError(f"Missing Long Horizon locations: {', '.join(sorted(missing))}")
+    for slug in by_slug:
+        source = locations[slug].get("source")
+        if source is not None and not source.startswith(f"stories/{slug}/art/"):
+            raise ValueError(f"Location for {slug} belongs to another story: {source}")
     atlas = panorama["atlas"]
     return {"base": base, "total": len(stories), "artworks": len(art), "pool": pool,
-            "recent": [story_fields(story) | {"cover": local_cover(story["slug"])} for story in recent],
+            "locations": {slug: {"src": base + item["src"], "title": item["title"],
+                                 "sky": item["sky"], "ground": item["ground"]}
+                          for slug, item in locations.items() if slug in by_slug},
+            "stories": [story_fields(story) | {"cover": local_cover(story["slug"])} for story in catalog],
             "atlasSrc": base + atlas["src"],
             "atlas": {"cols": atlas["cols"], "rows": atlas["rows"], "tiles": atlas["tiles"]},
             "titles": {story["slug"]: story["title"] for story in stories}}
@@ -289,25 +296,23 @@ def build_horizon_home(base: str, site_url: str, stories: list[dict], covers: di
             f'<link rel="stylesheet" href="{base}horizon.css?v={HORIZON_CSS_VERSION}">'
             f'<link rel="preconnect" href="https://art.rgbknights.com">'
             f'<link rel="modulepreload" href="{base}vendor/three.module.min.js">')
-    count, total, artworks = HORIZON_STOPS, len(stories), len(art)
+    total, artworks = len(stories), len(art)
     body = f"""<section class="horizon" id="horizon" aria-labelledby="hz-title">
 <canvas class="hz-canvas" id="hz-canvas" aria-hidden="true"></canvas>
 <div class="hz-grain" aria-hidden="true"></div>
 <div class="hz-loading" id="hz-loading" aria-hidden="true"><span>Hanging the exhibition</span><i><b id="hz-load-bar"></b></i></div>
 <div class="hz-intro" id="hz-intro">
-<p class="hz-kicker">Story Computing Machine · An exhibition in one world</p>
+<p class="hz-kicker">A story exhibition</p>
 <h1 id="hz-title">The Long <em>Horizon</em></h1>
-<p class="hz-lede">This landscape is made of every story in the collection. Scroll and it comes apart, and you walk through {count} of those stories from morning into night, each one standing in a place it painted.</p>
-<p class="hz-count"><span id="hz-count">{count} of {total} stories hang on this horizon</span><span id="hz-fresh" hidden></span></p>
-<button class="hz-begin" id="hz-begin" type="button">Begin the walk <span aria-hidden="true">↓</span></button>
-<p class="hz-hint"><span class="hz-mouse">Hover the mosaic to find a story. Scroll to walk; move the mouse to look around.</span><span class="hz-touch">Tap the mosaic to open a story. Swipe to walk.</span></p>
+<p class="hz-lede">Choose a cover to read. Scroll to walk through the collection.</p>
+<p class="hz-count"><span id="hz-count">Highlighted stories</span><span id="hz-fresh" hidden></span></p>
 </div>
 <div class="hz-tip" id="hz-tip" hidden></div>
 <aside class="hz-label" id="hz-label" aria-hidden="true"><p class="hz-label-no" id="hz-label-no"></p><h2 id="hz-label-title"></h2><p class="hz-label-meta" id="hz-label-meta"></p><p class="hz-label-prompt"><b>[WP]</b> <span id="hz-label-prompt"></span></p><p class="hz-label-place">Painted at <em id="hz-label-place"></em></p><a id="hz-label-read" href="{base}library/" tabindex="-1">Step through <span aria-hidden="true">→</span></a></aside>
 <section class="hz-end" id="hz-end" aria-labelledby="about-heading"><div class="hz-end-inner" id="about">
 <p class="hz-kicker">Curator’s note</p>
 <h2 id="about-heading">Night falls here. <em>The world keeps going.</em></h2>
-<p class="hz-end-lede">Story Computing Machine is a growing collection of original fiction. Each story begins as a single writing prompt and is written, read, argued over, and revised until it is ready. Everything on this walk comes from the stories themselves: the covers, the sketchbooks, and the places they happened.</p>
+<p class="hz-end-lede">Every story begins with a prompt and grows through writing, reading, and revision. Explore the fiction and the art behind it.</p>
 <div class="hz-end-links"><a href="{base}library/">Enter the library <small>{total} stories</small></a><a href="{base}art/">Explore the gallery <small>{artworks:,} works</small></a><button type="button" id="hz-again">Walk a new horizon <span aria-hidden="true">↻</span></button></div>
 <p class="hz-end-source">Curious how it is made? <a href="{SOURCE_REPO}">Explore the story source ↗</a></p>
 </div></section>
@@ -394,9 +399,12 @@ def build(output: Path, base: str, site_url: str, media_index: dict | None = Non
     (output / "library").mkdir()
     (output / "stories").mkdir()
     for filename in ("styles.css", "app.js", "horizon.js", "horizon.css", "favicon.svg", "favicon-32.png",
-                     "apple-touch-icon.png", "social-card.jpg"):
+                     "apple-touch-icon.png", "social-card.jpg", "open-book-pages-wide.webp", "open-book-pages-tall.webp",
+                     "location-fallback.webp"):
         shutil.copy2(STATIC / filename, output / filename)
     shutil.copytree(STATIC / "panorama", output / "panorama")
+    shutil.copytree(STATIC / "story-locations", output / "story-locations")
+    shutil.copytree(STATIC / "story-covers", output / "story-covers")
     shutil.copytree(STATIC / "vendor", output / "vendor")
     (output / "index.html").write_text(
         build_horizon_home(base, site_url, stories, covers, art), encoding="utf-8")
