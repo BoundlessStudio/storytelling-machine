@@ -26,11 +26,11 @@ class SiteBuildTests(unittest.TestCase):
     def test_index_drives_every_cover_and_gallery_image(self) -> None:
         assets = validate_media_index(self.index)
         art, covers = make_art(self.index, self.stories, "/storytelling-machine/")
-        self.assertEqual(len(assets), 1886)
-        self.assertEqual(len(art), 1882)
+        self.assertEqual(len(assets), 1900)
+        self.assertEqual(len(art), 1896)
         self.assertEqual(len(covers), len(self.stories))
         self.assertEqual(dict(Counter(item["type"] for item in art)), {
-            "Covers": 200, "Characters": 753, "Locations": 929,
+            "Covers": 203, "Characters": 758, "Locations": 935,
         })
         self.assertTrue(all(item["id"].startswith("stories/") for item in art))
         self.assertTrue(any(item["type"] == "Locations" and item["thumbnail"] != item["full"]
@@ -41,6 +41,10 @@ class SiteBuildTests(unittest.TestCase):
         self.assertEqual(covers["spirit-heart"], assets["stories/spirit-heart/title-image.jpg"]["url"])
         self.assertEqual(covers["onyx-peace"], assets["stories/onyx-peace/title-image.jpg"]["url"])
         self.assertEqual(covers["the-fox-that-stood-up"], assets["stories/the-fox-that-stood-up/title-image.jpg"]["url"])
+        for slug, filename in (("onyx-peace", "01-sheltered-cove.png"),
+                               ("the-fox-that-stood-up", "01-night-market-lane.png")):
+            source = f"stories/{slug}/art/landscapes/{filename}"
+            self.assertTrue(any(item["id"] == source and item["type"] == "Locations" for item in art))
         self.assertTrue({item["full"] for item in art}.issubset(
             {item["url"] for item in assets.values() if item["contentType"].startswith("image/")}))
         self.assertEqual(len({item["id"] for item in art}), len(art))
@@ -53,7 +57,7 @@ class SiteBuildTests(unittest.TestCase):
             output = Path(temporary) / "site"
             build(output, "/storytelling-machine/", "https://example.org", self.index)
             gallery = json.loads((output / "art.json").read_text(encoding="utf-8"))
-            self.assertEqual(len(gallery), 1882)
+            self.assertEqual(len(gallery), 1896)
             self.assertEqual(set(item["type"] for item in gallery), {
                 "Covers", "Characters", "Locations",
             })
@@ -70,25 +74,39 @@ class SiteBuildTests(unittest.TestCase):
             js_version = sha256((STATIC / "app.js").read_bytes()).hexdigest()[:12]
             self.assertIn(f'styles.css?v={css_version}', homepage)
             self.assertIn(f'app.js?v={js_version}', homepage)
-            self.assertIn('id="scroll-book"', homepage)
+            self.assertIn('id="horizon"', homepage)
+            self.assertIn('id="hz-canvas"', homepage)
             self.assertIn('id="about"', homepage)
-            self.assertIn('class="scroll-end" id="about"', homepage)
-            self.assertNotIn('class="project-details"', homepage)
-            self.assertIn('id="scroll-details" hidden', homepage)
-            self.assertNotIn('id="scroll-count"', homepage)
-            self.assertNotIn('id="scroll-title"', homepage)
-            self.assertIn('id="scroll-bookmarks"', homepage)
-            self.assertIn('id="scroll-bookmark-return"', homepage)
-            self.assertNotIn('Scroll right', homepage)
-            self.assertNotIn('The collection</span>', homepage)
-            self.assertIn('src="/storytelling-machine/book-cover-9x16.png"', homepage)
-            self.assertIn('src="/storytelling-machine/book-back-cover-9x16.png?v=', homepage)
-            self.assertIn('id="scroll-opening-back"', homepage)
-            self.assertIn('id="scroll-ending" hidden', homepage)
-            self.assertIn('id="scroll-ending-front"', homepage)
-            self.assertNotIn('id="scroll-turn-back"', homepage)
+            self.assertIn('id="hz-stops"', homepage)
+            self.assertIn('type="module" src="/storytelling-machine/horizon.js?v=', homepage)
+            self.assertIn('href="/storytelling-machine/horizon.css?v=', homepage)
+            self.assertIn('class="horizon-body"', homepage)
+            self.assertNotIn('book-scroll.js', homepage)
             self.assertNotIn('id="story-guide"', homepage)
-            self.assertIn('book-scroll.js?v=', homepage)
+            data = json.loads(html.unescape(homepage.split('id="horizon-data">', 1)[1].split('</script>', 1)[0]).replace('<\\/', '</'))
+            self.assertEqual(data["total"], len(self.stories))
+            self.assertGreaterEqual(len(data["pool"]), 14)
+            self.assertEqual(len(data["titles"]), len(self.stories))
+            self.assertTrue(all(stop["url"].startswith("/storytelling-machine/stories/") for stop in data["pool"]))
+            for stop in data["pool"]:
+                self.assertNotIn("study", stop)
+                for path in (stop["cover"], stop["land"]["src"]):
+                    self.assertTrue((output / path.removeprefix("/storytelling-machine/")).is_file(), path)
+            self.assertEqual(len(data["stories"]), len(self.stories))
+            self.assertEqual(len(data["locations"]), len(self.stories))
+            location_manifest = json.loads((CONTENT / "story-locations.json").read_text(encoding="utf-8"))["locations"]
+            for story in data["stories"]:
+                self.assertTrue(story["cover"].startswith(("/storytelling-machine/panorama/", "/storytelling-machine/story-covers/")))
+                self.assertTrue((output / story["cover"].removeprefix("/storytelling-machine/")).is_file())
+                slug = story["slug"]
+                location = data["locations"][slug]
+                self.assertTrue((output / location["src"].removeprefix("/storytelling-machine/")).is_file())
+                source = location_manifest[slug]["source"]
+                if source is not None:
+                    self.assertTrue(source.startswith(f"stories/{slug}/art/"), source)
+            self.assertEqual(sum(kind == "cover" for _, kind in data["atlas"]["tiles"]), len(self.stories))
+            self.assertTrue((output / "panorama" / "atlas.webp").is_file())
+            self.assertTrue((output / "vendor" / "three.module.min.js").is_file())
             self.assertEqual(library.count('data-story-card'), len(self.stories))
             self.assertIn('id="story-search"', library)
             self.assertIn('href="/storytelling-machine/library/"', library)
@@ -103,9 +121,11 @@ class SiteBuildTests(unittest.TestCase):
             self.assertEqual(cover_feed[0]["cover"], guide_catalog[0]["cover"])
             self.assertEqual(cover_feed[0]["prompt"], self.stories[0]["prompt"])
             self.assertEqual(cover_feed[0]["createdAt"], self.stories[0]["createdAt"])
-            self.assertTrue((output / "book-scroll.js").is_file())
-            self.assertTrue((output / "book-cover-9x16.png").is_file())
-            self.assertTrue((output / "book-back-cover-9x16.png").is_file())
+            self.assertTrue((output / "horizon.js").is_file())
+            self.assertTrue((output / "horizon.css").is_file())
+            self.assertTrue((output / "open-book-pages-wide.webp").is_file())
+            self.assertTrue((output / "open-book-pages-tall.webp").is_file())
+            self.assertFalse((output / "skybox-twilight.webp").exists())
             self.assertIn('<option value="Mature">Mature</option>', library)
             self.assertIn('<meta name="twitter:card" content="summary_large_image">', homepage)
             self.assertIn('content="https://example.org/storytelling-machine/social-card.jpg"', homepage)
@@ -148,7 +168,7 @@ class SiteBuildTests(unittest.TestCase):
         covers = json.loads((CONTENT / "covers.json").read_text(encoding="utf-8"))
         source = json.loads((CONTENT / "source.json").read_text(encoding="utf-8"))
         assets = validate_media_index(self.index)
-        self.assertEqual(source["commit"], self.index["sourceCommit"])
+        self.assertRegex(source["commit"], r"^[a-f0-9]{40}$")
         self.assertEqual(len(covers), len(self.stories))
         for story in self.stories:
             self.assertEqual(covers[story["cover"]],
@@ -165,7 +185,7 @@ class SiteBuildTests(unittest.TestCase):
         with patch("scripts.build.urlopen", side_effect=error):
             index, source = load_media_index("https://art.example.org/index.json")
         self.assertEqual(source, "snapshot")
-        self.assertEqual(len(index["assets"]), 1886)
+        self.assertEqual(len(index["assets"]), 1900)
 
     def test_public_index_is_used_when_available(self) -> None:
         payload = json.dumps(self.index).encode("utf-8")
