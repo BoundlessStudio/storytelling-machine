@@ -22,6 +22,7 @@
   const bookmarkHint = document.getElementById('scroll-bookmark-hint');
   const bookmarkReturn = document.getElementById('scroll-bookmark-return');
   const mobile = matchMedia('(max-width: 600px)');
+  const portraitPhone = matchMedia('(max-width: 600px) and (orientation: portrait)');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   let stories = [];
   let feed = [];
@@ -36,9 +37,19 @@
     if (bookmarkRail.hidden) return;
     const sceneBounds = scene.getBoundingClientRect();
     const viewport = bookmarkRail.parentElement.getBoundingClientRect();
-    const closedBookWidth = mobile.matches
+    const closedBookWidth = portraitPhone.matches
+      ? book.offsetWidth
+      : mobile.matches
       ? Math.min(viewport.width * 1.4, viewport.height * .72) : book.offsetWidth;
     const pageWidth = closedBookWidth / 2;
+    if (portraitPhone.matches) {
+      const pageLeft = (viewport.width - pageWidth) / 2;
+      bookmarkRail.style.left = `${pageLeft + 8}px`;
+      bookmarkRail.style.top = `${Math.max(52, (viewport.height - book.offsetHeight) / 2 - 32)}px`;
+      bookmarkRail.style.width = `${pageWidth - 16}px`;
+      bookmarkRail.classList.toggle('is-overflowing', bookmarkList.scrollWidth > bookmarkList.clientWidth + 2);
+      return;
+    }
     const closedRight = sceneBounds.left - viewport.left + sceneBounds.width / 2 + pageWidth / 2;
     const closedTop = sceneBounds.top - viewport.top + sceneBounds.height / 2 - closedBookWidth * 4 / 9;
     const leftEdge = Math.max(8, closedRight - pageWidth + 8);
@@ -154,6 +165,7 @@
     if (left.dataset.prompt === story.url) return;
     const panel = document.createElement('div');
     panel.className = 'scroll-prompt';
+    panel.classList.toggle('is-long', story.prompt.length > 350);
     if (animate) panel.classList.add('scroll-prompt-entering');
     const label = document.createElement('span');
     label.className = 'scroll-prompt-label';
@@ -212,12 +224,64 @@
     ending.hidden = true;
     setCover(right, story);
     displayStory(story, `New story. ${story.title}.`, true);
+    if (portraitPhone.matches) {
+      renderPortraitPage(story, false);
+    } else {
+      book.classList.remove('portrait-prompt-page', 'portrait-cover-page');
+    }
+  }
+
+  function renderPortraitPage(story, promptPage) {
+    book.classList.toggle('portrait-prompt-page', promptPage);
+    book.classList.toggle('portrait-cover-page', !promptPage);
+    book.style.top = '50%';
+    book.style.transform = promptPage ? 'translate(-25%, -50%)' : 'translate(-75%, -50%)';
+    opening.hidden = true;
+    turn.hidden = true;
+    ending.hidden = true;
+    left.style.opacity = promptPage ? '1' : '0';
+    right.style.opacity = promptPage ? '0' : '1';
+    setPrompt(story);
+    setCover(right, story);
+  }
+
+  function renderPortrait(progress) {
+    const step = Math.round(progress);
+    const finalStep = stories.length * 2 + 1;
+    const atEnd = step >= finalStep;
+    const index = Math.min(stories.length - 1, Math.max(0, Math.floor((step - 1) / 2)));
+    const promptPage = step > 0 && step % 2 === 1;
+    const story = stories[index];
+    book.classList.toggle('scroll-book-open', !atEnd);
+    book.style.setProperty('--open', '1');
+    book.style.setProperty('--end', atEnd ? '1' : '0');
+    renderPortraitPage(story, promptPage);
+    book.style.opacity = atEnd ? '0' : '1';
+    intro.style.opacity = '0';
+    end.hidden = !atEnd;
+    end.inert = !atEnd;
+    end.style.opacity = atEnd ? '1' : '0';
+    end.style.top = '4.25rem';
+    if (atEnd) {
+      details.hidden = true;
+      scene.setAttribute('aria-label', 'About the project.');
+    } else {
+      displayStory(story, `${promptPage ? 'Writing prompt' : 'Cover image'} for ${story.title}, ${index + 1} of ${stories.length}.`);
+      activeIndex = index;
+      preload(index);
+    }
   }
 
   function render(progress) {
     if (!stories.length) return;
     if (bookmarkedStory) {
       renderBookmark();
+      return;
+    }
+    book.style.opacity = '1';
+    book.classList.remove('portrait-prompt-page', 'portrait-cover-page');
+    if (portraitPhone.matches) {
+      renderPortrait(progress);
       return;
     }
     left.classList.toggle('scroll-awaiting-open', progress < 1);
@@ -296,8 +360,9 @@
   }
 
   function progressNow() {
-    return Math.max(0, Math.min(stories.length + 1,
-      track.scrollLeft / (home.offsetWidth / (stories.length + 2))));
+    const steps = portraitPhone.matches ? stories.length * 2 + 2 : stories.length + 2;
+    return Math.max(0, Math.min(steps - 1,
+      track.scrollLeft / (home.offsetWidth / steps)));
   }
 
   function schedule() {
@@ -355,6 +420,7 @@
       }
       feed = items;
       stories = candidates.slice(0, 10);
+      home.style.setProperty('--portrait-steps', String(stories.length * 2 + 2));
       refreshBookmarks();
       setInterval(refreshBookmarks, 60 * 1000);
       schedule();

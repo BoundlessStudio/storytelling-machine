@@ -164,3 +164,30 @@ body.immersive-body{height:100svh;overflow:hidden;background:#f5f3ee;color:#202a
 .scroll-end-source{margin:1.45rem 0 0;color:#667167;font-size:.8rem}
 .scroll-end-source a{color:#315d4c}
 @media(max-width:600px){.scroll-end{left:1.25rem;right:1.25rem;top:4.25rem;bottom:.75rem;width:auto;max-height:none;transform:none;padding:.5rem 0 1rem}.scroll-end-kicker,.scroll-end h2{margin-left:calc(32vw + .25rem)}.scroll-end-kicker{font-size:.58rem}.scroll-end h2{font-size:clamp(1.25rem,5.4vw,1.8rem);min-height:11.5rem}.scroll-end-lede{font-size:.95rem}.scroll-end-links{gap:.75rem 1.2rem}}
+@media(max-width:600px) and (orientation:portrait){
+  .scroll-home{width:calc(var(--portrait-steps,22)*100vw);flex-basis:calc(var(--portrait-steps,22)*100vw)}
+  .scroll-scene{transform:none}
+  .scroll-book{width:min(188vw,calc(112.5svh - 7rem))}
+  .scroll-book::before{display:none}
+  .scroll-book.portrait-cover-page .scroll-left,.scroll-book.portrait-prompt-page .scroll-right{visibility:hidden}
+  .scroll-book .scroll-page{border-radius:8px;box-shadow:12px 20px 35px #211c1638}
+  .scroll-book .scroll-page::after{display:none}
+  .scroll-prompt{gap:clamp(.7rem,2svh,1.2rem);padding:clamp(1rem,5vw,2rem)}
+  .scroll-prompt-label{font-size:clamp(1.2rem,3svh,1.7rem)}
+  .scroll-prompt p{font-size:clamp(.75rem,1.9svh,1.05rem);line-height:1.42;-webkit-line-clamp:32}
+  .scroll-end{left:1.25rem;right:1.25rem;top:4.25rem;bottom:1rem}
+  .scroll-end-kicker,.scroll-end h2{margin-left:0}
+  .scroll-end h2{min-height:0}
+}
+@media(orientation:landscape) and (max-width:1000px) and (max-height:600px){
+  .immersive-header{display:none}
+  .scroll-scene{transform:none}
+  .scroll-book{width:min(94vw,105svh)}
+  .scroll-prompt{gap:.45rem;padding:clamp(.5rem,1.8svh,1rem)}
+  .scroll-prompt-label{font-size:clamp(.9rem,3svh,1.4rem)}
+  .scroll-prompt p{font-size:clamp(.8rem,3svh,1rem);line-height:1.3;-webkit-line-clamp:20}
+  .scroll-prompt.is-long p{font-size:clamp(.65rem,2.7svh,.75rem);line-height:1.22;-webkit-line-clamp:27}
+}
+@media(max-width:600px) and (orientation:portrait),(orientation:landscape) and (max-width:1000px) and (max-height:600px){
+  .scroll-intro,.scroll-bookmark-hint{display:none}
+}
