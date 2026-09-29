@@ -242,9 +242,10 @@ def build_scroll_home(base: str, site_url: str, stories: list[dict], covers: dic
 <div class="scroll-scene" id="scroll-scene" role="group" aria-label="Story cover book">
 <div class="scroll-book" id="scroll-book" aria-hidden="true"><div class="scroll-page scroll-left" id="scroll-left"></div><div class="scroll-page scroll-right" id="scroll-right"></div><div class="scroll-leaf scroll-opening" id="scroll-opening"><div class="scroll-face scroll-front">{front}</div><div class="scroll-face scroll-back" id="scroll-opening-back"></div></div><div class="scroll-leaf scroll-turn" id="scroll-turn" hidden><div class="scroll-face scroll-front" id="scroll-turn-front"></div></div><div class="scroll-leaf scroll-ending" id="scroll-ending" hidden><div class="scroll-face scroll-front" id="scroll-ending-front"></div><div class="scroll-face scroll-back">{back}</div></div></div>
 </div>
+<div class="scroll-bookmarks" id="scroll-bookmarks" aria-label="New stories" hidden><div class="scroll-bookmarks-list" id="scroll-bookmarks-list"></div></div>
 <div class="scroll-intro" id="scroll-intro"><h1>Scroll to open the cover and step inside our story world</h1></div>
 <section class="scroll-end" id="about" aria-labelledby="about-heading" hidden><p class="scroll-end-kicker">About the project</p><h2 id="about-heading">Stories begin with a prompt.<br><em>Then they become part of a shared story world.</em></h2><p class="scroll-end-lede">Story Computing Machine is a growing collection of original fiction and artwork. Each writing prompt becomes a story woven into a shared world.</p><p class="scroll-end-meta"><strong>{len(stories)}</strong> stories</p><div class="scroll-end-links"><a href="{base}library/">Enter the library ↗</a><a href="{base}art/">Explore the artwork ↗</a></div><p class="scroll-end-source">Curious how it is made? <a href="{SOURCE_REPO}">Explore the story source ↗</a></p></section>
-<div class="scroll-bottom" id="scroll-details" hidden><div class="scroll-actions"><a id="scroll-read" href="{base}library/" hidden>Read the story <span aria-hidden="true">↗</span></a></div></div>
+<div class="scroll-bottom" id="scroll-details" hidden><div class="scroll-actions"><button class="scroll-bookmark-return" id="scroll-bookmark-return" type="button" hidden>← Return to book</button><a id="scroll-read" href="{base}library/" hidden>Read the story <span aria-hidden="true">↗</span></a></div></div>
 </div></section>
 <script defer src="{base}book-scroll.js?v={COVER_JS_VERSION}"></script>"""
     return shell("Discover", "Open a book of original story covers and explore the Story Computing Machine project.", body,
@@ -328,6 +329,7 @@ def build(output: Path, base: str, site_url: str, media_index: dict | None = Non
         build_scroll_home(base, site_url, stories, covers), encoding="utf-8")
     (output / "cover-feed.json").write_text(json.dumps([
         {"title": story["title"], "rating": story["rating"], "prompt": story["prompt"],
+         "createdAt": story["createdAt"],
          "cover": covers[story["slug"]], "url": base + "stories/" + quote(story["slug"]) + "/"}
         for story in stories
     ], ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
