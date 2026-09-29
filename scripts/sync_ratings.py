@@ -17,7 +17,7 @@ RATINGS = {"General", "Teen", "Mature", "Explicit"}
 
 def git_bytes(repository: Path, commit: str, path: str) -> bytes:
     return subprocess.check_output(
-        ["git", "-C", str(repository), "show", f"{commit}:{path}"]
+        ["git", "-C", str(repository), "show", f"{commit}:{path}"], stderr=subprocess.PIPE
     )
 
 
@@ -26,7 +26,20 @@ def git_text(repository: Path, commit: str, path: str) -> str:
 
 
 def source_rating(repository: Path, commit: str, slug: str) -> str:
-    source = git_text(repository, commit, f"stories/{slug}/ratings.md")
+    try:
+        source = git_text(repository, commit, f"stories/{slug}/ratings.md")
+    except subprocess.CalledProcessError as error:
+        existing = subprocess.check_output(
+            ["git", "-C", str(repository), "ls-tree", "--name-only", commit,
+             f"stories/{slug}/ratings.md"], text=True
+        ).strip()
+        if existing:
+            raise
+        overrides = json.loads((ROOT / "content" / "rating-overrides.json").read_text(encoding="utf-8"))
+        rating = overrides.get(slug)
+        if rating in RATINGS:
+            return rating
+        raise ValueError(f"Missing source rating for {slug}") from error
     match = re.search(r"^- \*\*Rating:\*\* (.+)$", source, re.MULTILINE)
     if match:
         rating = match.group(1).strip()
@@ -106,7 +119,8 @@ def sync(repository: Path, revision: str, add_stories: list[str] | None = None) 
     )
     (ROOT / "content" / "ratings-source.json").write_text(
         json.dumps({"repository": "BoundlessStudio/story-computing-machine", "commit": commit,
-                    "stories": len(stories), "counts": dict(sorted(Counter(s["rating"] for s in stories).items()))},
+                    "stories": len(stories), "counts": dict(sorted(Counter(s["rating"] for s in stories).items())),
+                    "localOverrides": json.loads((ROOT / "content" / "rating-overrides.json").read_text(encoding="utf-8"))},
                    indent=2) + "\n", encoding="utf-8"
     )
     print(f"Updated {len(stories)} ratings from {commit[:12]}")

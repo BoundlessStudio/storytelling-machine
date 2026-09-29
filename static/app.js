@@ -153,9 +153,6 @@
       const typeAliases = {
         Landscapes: 'Landscapes & interiors',
         Interiors: 'Landscapes & interiors',
-        'Edition covers': 'Covers',
-        'Comic covers': 'Comics',
-        'Comic pages': 'Comics',
       };
       const requestedType = params.get('type');
       const selectedType = typeAliases[requestedType] || requestedType;
