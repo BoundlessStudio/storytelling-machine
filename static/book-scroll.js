@@ -14,12 +14,12 @@
   const endingFront = document.getElementById('scroll-ending-front');
   const details = document.getElementById('scroll-details');
   const read = document.getElementById('scroll-read');
-  const ambient = document.getElementById('scroll-ambient-image');
   const intro = document.getElementById('scroll-intro');
   const scene = document.getElementById('scroll-scene');
   const end = document.getElementById('about');
   const bookmarkRail = document.getElementById('scroll-bookmarks');
   const bookmarkList = document.getElementById('scroll-bookmarks-list');
+  const bookmarkHint = document.getElementById('scroll-bookmark-hint');
   const bookmarkReturn = document.getElementById('scroll-bookmark-return');
   const mobile = matchMedia('(max-width: 600px)');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -34,20 +34,37 @@
 
   function positionBookmarks() {
     if (bookmarkRail.hidden) return;
-    const bounds = book.getBoundingClientRect();
+    const sceneBounds = scene.getBoundingClientRect();
     const viewport = bookmarkRail.parentElement.getBoundingClientRect();
-    const top = Math.max(78, bounds.top - viewport.top + 10);
-    bookmarkRail.style.left = `${Math.min(viewport.width - 44, bounds.right - viewport.left - 6)}px`;
+    const closedBookWidth = mobile.matches
+      ? Math.min(viewport.width * 1.4, viewport.height * .72) : book.offsetWidth;
+    const pageWidth = closedBookWidth / 2;
+    const closedRight = sceneBounds.left - viewport.left + sceneBounds.width / 2 + pageWidth / 2;
+    const closedTop = sceneBounds.top - viewport.top + sceneBounds.height / 2 - closedBookWidth * 4 / 9;
+    const leftEdge = Math.max(8, closedRight - pageWidth + 8);
+    const top = Math.max(54, closedTop - 38);
+    bookmarkRail.style.left = `${leftEdge}px`;
     bookmarkRail.style.top = `${top}px`;
-    bookmarkList.style.maxHeight = `${Math.max(90, Math.min(bounds.height * .72, viewport.height - top - 28))}px`;
-    bookmarkRail.classList.toggle('is-overflowing', bookmarkList.scrollHeight > bookmarkList.clientHeight + 2);
+    bookmarkRail.style.width = `${Math.max(50, Math.min(pageWidth - 16, viewport.width - leftEdge - 12))}px`;
+    bookmarkRail.classList.toggle('is-overflowing', bookmarkList.scrollWidth > bookmarkList.clientWidth + 2);
+    if (mobile.matches) {
+      bookmarkHint.style.left = '';
+      bookmarkHint.style.top = '';
+    } else {
+      const hintLeft = Math.min(viewport.width - bookmarkHint.offsetWidth - 24,
+        closedRight + 56);
+      bookmarkHint.style.left = `${hintLeft}px`;
+      bookmarkHint.style.top = `${intro.getBoundingClientRect().top - viewport.top}px`;
+    }
   }
 
   function showBookmarks(progress) {
     const opening = Math.min(1, Math.max(0, progress));
-    bookmarkRail.hidden = !bookmarkSignature || !!bookmarkedStory || opening >= .8;
-    bookmarkRail.style.opacity = String(Math.max(0, 1 - opening * 1.25));
-    bookmarkRail.style.pointerEvents = opening > .25 ? 'none' : '';
+    bookmarkRail.hidden = !bookmarkSignature || !!bookmarkedStory || opening >= .15;
+    bookmarkRail.style.opacity = String(Math.max(0, 1 - opening * 7));
+    bookmarkRail.style.pointerEvents = opening > .03 ? 'none' : '';
+    bookmarkHint.hidden = !bookmarkSignature || !!bookmarkedStory || opening >= .2;
+    bookmarkHint.style.opacity = String(Math.max(0, 1 - opening * 5));
   }
 
   function updateBookmarkSelection() {
@@ -82,8 +99,11 @@
     if (bookmarkOpenFromCover) {
       bookmarkTimer = setTimeout(() => {
         bookmarkOpenFromCover = false;
+        book.classList.remove('bookmark-preview');
         schedule();
       }, reducedMotion.matches ? 0 : 570);
+    } else {
+      book.classList.remove('bookmark-preview');
     }
   }
 
@@ -157,7 +177,6 @@
     read.href = story.url;
     read.hidden = false;
     details.hidden = false;
-    ambient.src = story.cover;
     scene.setAttribute('aria-label', label);
   }
 
@@ -180,7 +199,6 @@
     book.style.top = '50%';
     book.style.transform = 'translate(-50%, -50%)';
     intro.style.opacity = '0';
-    intro.style.transform = 'translateY(-24px)';
     end.hidden = true;
     end.inert = true;
     left.classList.remove('scroll-awaiting-open');
@@ -217,8 +235,7 @@
       scene.clientWidth / 2 - book.offsetWidth / 2 - 80);
     const endShift = endMargin - (scene.clientWidth / 2 - book.offsetWidth / 2);
     book.style.transform = `translate(-50%, -50%) translateX(${closing ? 0 : -25 * (1 - open)}%) translateX(${endShift * closing}px)`;
-    intro.style.opacity = closing ? '0' : String(Math.max(0, 1 - open * 3));
-    intro.style.transform = `translateY(${-24 * open}px)`;
+    intro.style.opacity = closing ? '0' : String(Math.max(0, 1 - open * 5));
     end.hidden = closing <= .72;
     end.inert = closing < .95;
     end.style.opacity = String(Math.min(1, Math.max(0, (closing - .72) / .28)));
@@ -311,7 +328,7 @@
   track.addEventListener('scroll', schedule, { passive: true });
   bookmarkList.addEventListener('wheel', (event) => {
     if (event.ctrlKey) return;
-    if (bookmarkList.scrollHeight > bookmarkList.clientHeight + 1) {
+    if (bookmarkList.scrollWidth > bookmarkList.clientWidth + 1) {
       event.stopPropagation();
     }
   }, { passive: true });
