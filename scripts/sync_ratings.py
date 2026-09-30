@@ -45,9 +45,13 @@ def source_rating(repository: Path, commit: str, slug: str) -> str:
         rating = match.group(1).strip()
     else:
         lines = [line.strip() for line in source.splitlines()]
+        inline = re.search(r"^#\s*(?:AO3\s+)?rating\s*:\s*(General|Teen|Mature|Explicit)\s*$",
+                           source, re.IGNORECASE | re.MULTILINE)
         heading = next((i for i, line in enumerate(lines)
                         if line.lower() in {"# rating", "# content rating"}), None)
-        rating = next((line for line in lines[heading + 1:] if line), None) if heading is not None else None
+        first = next((line for line in lines[heading + 1:] if line), None) if heading is not None else None
+        bold = re.match(r"\*\*(General|Teen|Mature|Explicit)\.?\*\*(?:\s|$)", first or "")
+        rating = inline.group(1).title() if inline else bold.group(1) if bold else first
     if rating not in RATINGS:
         raise ValueError(f"Missing or unsupported rating for {slug}")
     return rating

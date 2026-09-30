@@ -1,0 +1,94 @@
+name: Import published stories
+
+on:
+  repository_dispatch:
+    types: [story-art-published]
+  workflow_dispatch:
+  schedule:
+    # Backup for a missed cross-repository dispatch or an unconfigured token.
+    - cron: '17 */3 * * *'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: import-published-stories
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - name: Check verified public art index
+        id: check
+        run: python -m scripts.import_published --check
+      - name: Fetch source history without checking out artwork
+        if: steps.check.outputs.has_new == 'true'
+        env:
+          SOURCE_COMMIT: ${{ steps.check.outputs.source_commit }}
+        shell: bash
+        run: |
+          git clone --filter=blob:none --no-checkout --quiet \
+            https://github.com/BoundlessStudio/story-computing-machine.git "$RUNNER_TEMP/story-source"
+          git -C "$RUNNER_TEMP/story-source" cat-file -e "${SOURCE_COMMIT}^{commit}"
+      - name: Import stories from the index commit
+        if: steps.check.outputs.has_new == 'true'
+        id: apply
+        shell: bash
+        run: python -m scripts.import_published --apply --repository "$RUNNER_TEMP/story-source"
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.has_new == 'true'
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+        if: steps.check.outputs.has_new == 'true'
+      - name: Prepare same-origin story art
+        if: steps.check.outputs.has_new == 'true'
+        run: |
+          python scripts/sync_panorama.py
+          python -m scripts.sync_story_locations
+      - name: Test the exact publication snapshot
+        if: steps.check.outputs.has_new == 'true'
+        run: |
+          python -m unittest discover -s tests -p 'test_*.py'
+          npm run check
+          npm run test:ts
+          npm run build:site:offline
+      - name: Open or update publication PR
+        if: steps.check.outputs.has_new == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -C codex/published-stories
+          git add content static/panorama static/story-locations static/story-covers
+          if git diff --cached --quiet; then
+            echo 'No publication changes to propose.'
+            exit 0
+          fi
+          git commit -m "Import published stories from verified R2 index"
+          if git ls-remote --exit-code --heads origin codex/published-stories >/dev/null; then
+            git fetch origin refs/heads/codex/published-stories:refs/remotes/origin/codex/published-stories
+            git push --force-with-lease origin HEAD:refs/heads/codex/published-stories
+          else
+            git push origin HEAD:refs/heads/codex/published-stories
+          fi
+          pr=$(gh pr list --base main --head codex/published-stories --state open --json number --jq '.[0].number')
+          if [[ -n "$pr" ]]; then
+            gh pr edit "$pr" --body-file .cache/publication-pr.md
+          else
+            gh pr create --base main --head codex/published-stories \
+              --title 'Publish new stories from verified R2 art' \
+              --body-file .cache/publication-pr.md
+          fi

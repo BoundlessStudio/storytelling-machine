@@ -1,12 +1,12 @@
 {
   "repository": "BoundlessStudio/story-computing-machine",
-  "commit": "731adcfb09332dcea2b538fa8b3b6e91b3f34fd5",
-  "stories": 200,
+  "commit": "46f7ae38c8fdba97cfd056d974b2daab767f2630",
+  "stories": 205,
   "counts": {
     "Explicit": 5,
-    "General": 109,
+    "General": 113,
     "Mature": 9,
-    "Teen": 77
+    "Teen": 78
   },
   "localOverrides": {
     "onyx-peace": "General"

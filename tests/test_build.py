@@ -14,6 +14,7 @@ from urllib.error import HTTPError
 
 from scripts.build import (CONTENT, ICON_VERSION, STATIC, asset_url, build, load_media_index, make_art,
                            prompt_markup, prose_markup, validate_media_index)
+from scripts.import_published import published_new_slugs
 from scripts.sync_ratings import source_rating
 
 
@@ -26,12 +27,12 @@ class SiteBuildTests(unittest.TestCase):
     def test_index_drives_every_cover_and_gallery_image(self) -> None:
         assets = validate_media_index(self.index)
         art, covers = make_art(self.index, self.stories, "/storytelling-machine/")
-        self.assertEqual(len(assets), 1900)
-        self.assertEqual(len(art), 1896)
+        self.assertEqual(len(assets), len(self.index["assets"]))
+        self.assertGreaterEqual(len(art), len(self.stories))
         self.assertEqual(len(covers), len(self.stories))
-        self.assertEqual(dict(Counter(item["type"] for item in art)), {
-            "Covers": 203, "Characters": 758, "Locations": 935,
-        })
+        types = Counter(item["type"] for item in art)
+        self.assertEqual(set(types), {"Covers", "Characters", "Locations"})
+        self.assertGreaterEqual(types["Covers"], len(self.stories))
         self.assertTrue(all(item["id"].startswith("stories/") for item in art))
         self.assertTrue(any(item["type"] == "Locations" and item["thumbnail"] != item["full"]
                             for item in art))
@@ -57,7 +58,7 @@ class SiteBuildTests(unittest.TestCase):
             output = Path(temporary) / "site"
             build(output, "/storytelling-machine/", "https://example.org", self.index)
             gallery = json.loads((output / "art.json").read_text(encoding="utf-8"))
-            self.assertEqual(len(gallery), 1896)
+            self.assertEqual(len(gallery), len(make_art(self.index, self.stories, "/storytelling-machine/")[0]))
             self.assertEqual(set(item["type"] for item in gallery), {
                 "Covers", "Characters", "Locations",
             })
@@ -114,8 +115,8 @@ class SiteBuildTests(unittest.TestCase):
             self.assertEqual(len(guide_catalog), len(self.stories))
             self.assertEqual(guide_catalog[0]["prompt"], self.stories[0]["prompt"])
             self.assertEqual([story["slug"] for story in guide_catalog[:2]],
-                             ["the-fox-that-stood-up", "onyx-peace"])
-            self.assertEqual(guide_catalog[0]["rating"], "General")
+                             [story["slug"] for story in self.stories[:2]])
+            self.assertEqual(guide_catalog[0]["rating"], self.stories[0]["rating"])
             cover_feed = json.loads((output / "cover-feed.json").read_text(encoding="utf-8"))
             self.assertEqual(len(cover_feed), len(self.stories))
             self.assertEqual(cover_feed[0]["cover"], guide_catalog[0]["cover"])
@@ -159,7 +160,7 @@ class SiteBuildTests(unittest.TestCase):
         source = json.loads((CONTENT / "ratings-source.json").read_text(encoding="utf-8"))
         self.assertEqual(len(self.stories), source["stories"])
         self.assertEqual(dict(Counter(story["rating"] for story in self.stories)), source["counts"])
-        self.assertEqual(source["counts"], {"General": 109, "Teen": 77, "Mature": 9, "Explicit": 5})
+        self.assertEqual(set(source["counts"]) - {"General", "Teen", "Mature", "Explicit"}, set())
         self.assertEqual(source["localOverrides"], {"onyx-peace": "General"})
         for story in self.stories[:2]:
             self.assertEqual(story["body"].splitlines().count(f"# {story['title']}"), 1)
@@ -174,18 +175,41 @@ class SiteBuildTests(unittest.TestCase):
             self.assertEqual(covers[story["cover"]],
                              assets[f"stories/{story['slug']}/title-image.jpg"]["sha256"])
 
+    def test_publication_waits_for_a_published_cover(self) -> None:
+        index = copy.deepcopy(self.index)
+        published = {item["path"].split("/")[1] for item in index["assets"]
+                     if item["path"].endswith("/title-image.jpg")}
+        catalog = {"stories": [{"slug": slug} for slug in published]
+                   + [{"slug": "prose-without-cover"}]}
+        self.assertEqual(published_new_slugs(index, catalog), [])
+        digest = "a" * 64
+        index["assets"].append({
+            "path": "stories/new-story/title-image.jpg", "sha256": digest, "size": 1,
+            "key": f"assets/{digest}/title-image.jpg", "contentType": "image/jpeg",
+            "url": f"{index['baseUrl']}/assets/{digest}/title-image.jpg",
+        })
+        self.assertEqual(published_new_slugs(index, catalog), ["new-story"])
+        catalog["stories"].append({"slug": "new-story"})
+        self.assertEqual(published_new_slugs(index, catalog), [])
+
     def test_source_rating_accepts_both_published_formats(self) -> None:
         with patch("scripts.sync_ratings.git_text", return_value="# Content rating\n\n- **Rating:** Mature\n"):
             self.assertEqual(source_rating(Path("."), "commit", "older-story"), "Mature")
         with patch("scripts.sync_ratings.git_text", return_value="# Rating\n\nGeneral\n"):
             self.assertEqual(source_rating(Path("."), "commit", "newer-story"), "General")
+        with patch("scripts.sync_ratings.git_text", return_value="# Rating\n\n**General.** Suitable for all ages.\n"):
+            self.assertEqual(source_rating(Path("."), "commit", "newer-story"), "General")
+        with patch("scripts.sync_ratings.git_text", return_value="# Rating\n\n**Teen** — Contains peril.\n"):
+            self.assertEqual(source_rating(Path("."), "commit", "newer-story"), "Teen")
+        with patch("scripts.sync_ratings.git_text", return_value="# AO3 rating: Explicit\n"):
+            self.assertEqual(source_rating(Path("."), "commit", "newer-story"), "Explicit")
 
     def test_remote_404_uses_verified_snapshot(self) -> None:
         error = HTTPError("https://art.example.org/index.json", 404, "missing", {}, None)
         with patch("scripts.build.urlopen", side_effect=error):
             index, source = load_media_index("https://art.example.org/index.json")
         self.assertEqual(source, "snapshot")
-        self.assertEqual(len(index["assets"]), 1900)
+        self.assertEqual(len(index["assets"]), len(self.index["assets"]))
 
     def test_public_index_is_used_when_available(self) -> None:
         payload = json.dumps(self.index).encode("utf-8")
