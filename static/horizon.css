@@ -1,5 +1,7 @@
 /* The Long Horizon — WebGL exhibition overlay. */
 :root{--hz-cream:#f4ede0;--hz-ink:#211c16;--hz-gold:#e0b168;--hz-display:"Cormorant Garamond","Cormorant",Georgia,"Times New Roman",serif;--hz-ui:Inter,"Segoe UI",system-ui,sans-serif}
+html:has(> body.horizon-body){scrollbar-width:none}
+html:has(> body.horizon-body)::-webkit-scrollbar{display:none}
 body.horizon-body{margin:0;background:#15110d;color:var(--hz-cream);overscroll-behavior-y:none}
 .horizon-body .site-header{position:fixed;top:0;left:0;right:0;z-index:40;padding-bottom:2.2rem;background:linear-gradient(180deg,#0c0a08a6,#0c0a0800);pointer-events:none}
 .horizon-body .site-header>*{pointer-events:auto}
