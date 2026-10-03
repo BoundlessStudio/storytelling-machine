@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 
 from scripts.build import CONTENT, ROOT, validate_media_index
-from scripts.sync_panorama import band_colour, fetch, place_title, to_webp
+from scripts.sync_panorama import art_path_order, band_colour, fetch, place_title, to_webp
 
 
 def main() -> None:
@@ -47,14 +47,15 @@ def main() -> None:
             entries[slug] = prepared[slug]
             continue
         prefixes = [f"stories/{slug}/art/{kind}/" for kind in ("landscapes", "interiors")]
-        source = next((path for prefix in prefixes for path in sorted(assets)
+        source = next((path for prefix in prefixes for path in sorted(assets, key=art_path_order)
                        if path.startswith(prefix) and assets[path]["contentType"].startswith("image/")), None)
         local_source = None
         if source is None and args.repository:
             for prefix in prefixes:
                 directory = args.repository / prefix
-                candidates = sorted(path for path in directory.glob("*")
-                                    if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"})
+                candidates = sorted((path for path in directory.glob("*")
+                                     if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}),
+                                    key=lambda path: art_path_order(path.as_posix()))
                 if candidates:
                     local_source = candidates[0]
                     source = local_source.relative_to(args.repository).as_posix()

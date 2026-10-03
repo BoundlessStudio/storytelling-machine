@@ -15,6 +15,7 @@ from urllib.error import HTTPError
 from scripts.build import (CONTENT, ICON_VERSION, STATIC, asset_url, build, load_media_index, make_art,
                            prompt_markup, prose_markup, validate_media_index)
 from scripts.sync_ratings import source_rating
+from scripts.sync_panorama import choose_pool
 
 
 class SiteBuildTests(unittest.TestCase):
@@ -26,11 +27,11 @@ class SiteBuildTests(unittest.TestCase):
     def test_index_drives_every_cover_and_gallery_image(self) -> None:
         assets = validate_media_index(self.index)
         art, covers = make_art(self.index, self.stories, "/storytelling-machine/")
-        self.assertEqual(len(assets), 1919)
-        self.assertEqual(len(art), 1915)
+        self.assertEqual(len(assets), 1935)
+        self.assertEqual(len(art), 1931)
         self.assertEqual(len(covers), len(self.stories))
         self.assertEqual(dict(Counter(item["type"] for item in art)), {
-            "Covers": 207, "Characters": 765, "Locations": 943,
+            "Covers": 211, "Characters": 769, "Locations": 951,
         })
         self.assertTrue(all(item["id"].startswith("stories/") for item in art))
         self.assertTrue(any(item["type"] == "Locations" and item["thumbnail"] != item["full"]
@@ -41,6 +42,8 @@ class SiteBuildTests(unittest.TestCase):
         self.assertEqual(covers["spirit-heart"], assets["stories/spirit-heart/title-image.jpg"]["url"])
         self.assertEqual(covers["onyx-peace"], assets["stories/onyx-peace/title-image.jpg"]["url"])
         self.assertEqual(covers["the-fox-that-stood-up"], assets["stories/the-fox-that-stood-up/title-image.jpg"]["url"])
+        for slug in ("right-of-way", "the-engine-under-the-sand", "the-unspent-star", "the-weight-of-here"):
+            self.assertEqual(covers[slug], assets[f"stories/{slug}/title-image.jpg"]["url"])
         for slug, filename in (("onyx-peace", "01-sheltered-cove.png"),
                                ("the-fox-that-stood-up", "01-night-market-lane.png")):
             source = f"stories/{slug}/art/landscapes/{filename}"
@@ -57,7 +60,7 @@ class SiteBuildTests(unittest.TestCase):
             output = Path(temporary) / "site"
             build(output, "/storytelling-machine/", "https://example.org", self.index)
             gallery = json.loads((output / "art.json").read_text(encoding="utf-8"))
-            self.assertEqual(len(gallery), 1915)
+            self.assertEqual(len(gallery), 1931)
             self.assertEqual(set(item["type"] for item in gallery), {
                 "Covers", "Characters", "Locations",
             })
@@ -113,7 +116,9 @@ class SiteBuildTests(unittest.TestCase):
             guide_catalog = json.loads((output / "guide-catalog.json").read_text(encoding="utf-8"))
             self.assertEqual(len(guide_catalog), len(self.stories))
             self.assertEqual(guide_catalog[0]["prompt"], self.stories[0]["prompt"])
-            self.assertEqual([story["slug"] for story in guide_catalog[:7]], [
+            self.assertEqual([story["slug"] for story in guide_catalog[:11]], [
+                "the-weight-of-here", "the-unspent-star",
+                "the-engine-under-the-sand", "right-of-way",
                 "faith-and-demon", "the-bait-remembers", "the-eyes-of-god",
                 "what-counts-as-morning", "spells-from-every-block",
                 "the-cat-who-kept-up", "where-the-gods-left-their-doors",
@@ -162,7 +167,7 @@ class SiteBuildTests(unittest.TestCase):
         source = json.loads((CONTENT / "ratings-source.json").read_text(encoding="utf-8"))
         self.assertEqual(len(self.stories), source["stories"])
         self.assertEqual(dict(Counter(story["rating"] for story in self.stories)), source["counts"])
-        self.assertEqual(source["counts"], {"General": 114, "Teen": 79, "Mature": 9, "Explicit": 5})
+        self.assertEqual(source["counts"], {"General": 118, "Teen": 79, "Mature": 9, "Explicit": 5})
         self.assertEqual(source["localOverrides"], {"onyx-peace": "General"})
         for story in self.stories[:2]:
             self.assertEqual(story["body"].splitlines().count(f"# {story['title']}"), 1)
@@ -188,7 +193,27 @@ class SiteBuildTests(unittest.TestCase):
         with patch("scripts.build.urlopen", side_effect=error):
             index, source = load_media_index("https://art.example.org/index.json")
         self.assertEqual(source, "snapshot")
-        self.assertEqual(len(index["assets"]), 1919)
+        self.assertEqual(len(index["assets"]), 1935)
+
+    def test_homepage_uses_selected_location_corrections(self) -> None:
+        expected = {
+            "the-weight-of-here": "landscapes/den-selected.webp",
+            "the-unspent-star": "landscapes/01-ring-universe-selected.png",
+            "right-of-way": "landscapes/ridge-over-town-selected.webp",
+            "the-engine-under-the-sand": "landscapes/02-big-sleeper-basin-selected.png",
+            "the-eyes-of-god": "landscapes/02-open-square-selected.png",
+            "the-bait-remembers": "interiors/02-post-office-selected.png",
+            "what-counts-as-morning": "interiors/02-station-selected.png",
+            "where-the-gods-left-their-doors": "interiors/02-hearth-nine-hall-selected.png",
+        }
+        locations = json.loads((CONTENT / "story-locations.json").read_text(encoding="utf-8"))["locations"]
+        pool = choose_pool(self.stories, validate_media_index(self.index), 40, 6)
+        landscapes = {entry["story"]["slug"]: entry["landscape"] for entry in pool}
+        for slug, path in expected.items():
+            source = f"stories/{slug}/art/{path}"
+            self.assertEqual(locations[slug]["source"], source)
+            if path.startswith("landscapes/"):
+                self.assertEqual(landscapes[slug], source)
 
     def test_public_index_is_used_when_available(self) -> None:
         payload = json.dumps(self.index).encode("utf-8")

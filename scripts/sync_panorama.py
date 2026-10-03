@@ -118,12 +118,17 @@ def build_atlas(stories: list[dict], assets: dict[str, dict], extras: list[tuple
             "width": atlas.width, "height": atlas.height, "tiles": tiles}
 
 
+def art_path_order(path: str) -> tuple[bool, str]:
+    """Use the selected correction before its preserved original painting."""
+    return (not PurePosixPath(path).stem.endswith("-selected"), path)
+
+
 def choose_pool(stories: list[dict], assets: dict[str, dict], pool: int, newest: int) -> list[dict]:
     def art(slug: str, kind: str) -> list[str]:
         prefix = f"stories/{slug}/art/{kind}/"
-        return sorted(path for path, item in assets.items()
-                      if path.startswith(prefix) and path.count("/") == 4
-                      and item["contentType"].startswith("image/"))
+        return sorted((path for path, item in assets.items()
+                       if path.startswith(prefix) and path.count("/") == 4
+                       and item["contentType"].startswith("image/")), key=art_path_order)
 
     eligible = [story for story in stories if art(story["slug"], "landscapes")]
     chosen = eligible[:newest]
