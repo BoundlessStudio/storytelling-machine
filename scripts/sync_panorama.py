@@ -118,9 +118,10 @@ def build_atlas(stories: list[dict], assets: dict[str, dict], extras: list[tuple
             "width": atlas.width, "height": atlas.height, "tiles": tiles}
 
 
-def art_path_order(path: str) -> tuple[bool, str]:
-    """Use the selected correction before its preserved original painting."""
-    return (not PurePosixPath(path).stem.endswith("-selected"), path)
+def art_path_order(path: str) -> tuple[bool, bool, str]:
+    """Prefer selected corrections and keep preserved originals last."""
+    stem = PurePosixPath(path).stem
+    return (not stem.endswith("-selected"), stem.endswith("-original"), path)
 
 
 def choose_pool(stories: list[dict], assets: dict[str, dict], pool: int, newest: int) -> list[dict]:
