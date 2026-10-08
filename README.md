@@ -12,6 +12,8 @@ There is no category taxonomy or scheduled story classification. New stories bec
 
 Ratings use the source collection's AO3 scale: General, Teen, Mature, and Explicit. The guide treats the reader's choice as the highest acceptable rating and filters stories on the server before asking the model to select any. `content/source.json`, `content/covers.json`, and `content/ratings-source.json` record the pinned revision, cover hashes, and rating counts. Onyx's source package does not yet have `ratings.md`; `content/rating-overrides.json` records its General rating, supported by the source editorial notes. To refresh from a reviewed source commit, run `python scripts/sync_ratings.py --repository PATH_TO_SOURCE --revision COMMIT`; pass `--add-story SLUG` for each new published story, oldest first. Refresh `content/media-index.json` from the public R2 index after its covers are published there.
 
+The public gallery shows finished location art once. Preserved earlier images with a `-original` filename suffix are excluded, and version labels such as `Selected` are removed from public location titles.
+
 ## Run locally
 
 Install Python and Node.js 24, then:

@@ -197,11 +197,15 @@ def make_art(index: dict, stories: list[dict], base: str) -> tuple[list[dict], d
             kind = "Locations" if source_kind in {"Landscapes", "Interiors"} else source_kind
         if not kind or item["contentType"] not in IMAGE_TYPES:
             continue
+        if kind == "Locations" and PurePosixPath(path).stem.casefold().endswith("-original"):
+            continue
         story_title = story_by_slug[slug]["title"] if slug in story_by_slug else friendly_name(slug)
         title = f"{story_title} cover" if source_kind == "Covers" else friendly_name(path)
         previous = old_meta.get((slug, source_kind, item["sha256"]))
         if previous:
             title = previous["title"]
+        if kind == "Locations":
+            title = re.sub(r"\s+(?:Original|Selected)$", "", title, flags=re.IGNORECASE)
         alt = previous["alt"] if previous else f"{title} — artwork for {story_title}"
         reader = (base + "stories/" + quote(slug) + "/" if slug in story_by_slug else
                   SOURCE_REPO + "/tree/main/stories/" + quote(slug))
