@@ -27,11 +27,11 @@ class SiteBuildTests(unittest.TestCase):
     def test_index_drives_every_cover_and_gallery_image(self) -> None:
         assets = validate_media_index(self.index)
         art, covers = make_art(self.index, self.stories, "/storytelling-machine/")
-        self.assertEqual(len(assets), 1982)
-        self.assertEqual(len(art), 1978)
+        self.assertEqual(len(assets), 2003)
+        self.assertEqual(len(art), 1999)
         self.assertEqual(len(covers), len(self.stories))
         self.assertEqual(dict(Counter(item["type"] for item in art)), {
-            "Covers": 222, "Characters": 783, "Locations": 973,
+            "Covers": 227, "Characters": 789, "Locations": 983,
         })
         self.assertTrue(all(item["id"].startswith("stories/") for item in art))
         self.assertTrue(any(item["type"] == "Locations" and item["thumbnail"] != item["full"]
@@ -44,7 +44,9 @@ class SiteBuildTests(unittest.TestCase):
         self.assertEqual(covers["the-fox-that-stood-up"], assets["stories/the-fox-that-stood-up/title-image.jpg"]["url"])
         for slug in ("the-statue-at-the-corner", "found-the-spares", "magical-girl-pr",
                      "the-second-door", "the-last-watch", "no-vacancy", "great-winter-contest",
-                     "rgbknights", "an-opening", "the-return-tray", "the-last-passenger"):
+                     "rgbknights", "an-opening", "the-return-tray", "the-last-passenger",
+                     "shenanigans", "catch-me", "the-other-half", "feast-of-the-noble-blades",
+                     "the-other-hand"):
             self.assertEqual(covers[slug], assets[f"stories/{slug}/title-image.jpg"]["url"])
         for slug, filename in (("onyx-peace", "01-sheltered-cove.png"),
                                ("the-fox-that-stood-up", "01-night-market-lane.png")):
@@ -62,7 +64,7 @@ class SiteBuildTests(unittest.TestCase):
             output = Path(temporary) / "site"
             build(output, "/storytelling-machine/", "https://example.org", self.index)
             gallery = json.loads((output / "art.json").read_text(encoding="utf-8"))
-            self.assertEqual(len(gallery), 1978)
+            self.assertEqual(len(gallery), 1999)
             self.assertEqual(set(item["type"] for item in gallery), {
                 "Covers", "Characters", "Locations",
             })
@@ -118,7 +120,9 @@ class SiteBuildTests(unittest.TestCase):
             guide_catalog = json.loads((output / "guide-catalog.json").read_text(encoding="utf-8"))
             self.assertEqual(len(guide_catalog), len(self.stories))
             self.assertEqual(guide_catalog[0]["prompt"], self.stories[0]["prompt"])
-            self.assertEqual([story["slug"] for story in guide_catalog[:11]], [
+            self.assertEqual([story["slug"] for story in guide_catalog[:16]], [
+                "the-other-hand", "feast-of-the-noble-blades", "the-other-half",
+                "catch-me", "shenanigans",
                 "the-last-passenger", "the-return-tray", "an-opening", "rgbknights",
                 "great-winter-contest", "no-vacancy", "the-last-watch", "the-second-door",
                 "magical-girl-pr", "found-the-spares", "the-statue-at-the-corner",
@@ -167,9 +171,9 @@ class SiteBuildTests(unittest.TestCase):
         source = json.loads((CONTENT / "ratings-source.json").read_text(encoding="utf-8"))
         self.assertEqual(len(self.stories), source["stories"])
         self.assertEqual(dict(Counter(story["rating"] for story in self.stories)), source["counts"])
-        self.assertEqual(source["counts"], {"General": 128, "Teen": 80, "Mature": 9, "Explicit": 5})
+        self.assertEqual(source["counts"], {"General": 131, "Teen": 82, "Mature": 9, "Explicit": 5})
         self.assertEqual(source["localOverrides"], {"onyx-peace": "General"})
-        for story in self.stories[:2]:
+        for story in self.stories[:5]:
             self.assertEqual(story["body"].splitlines().count(f"# {story['title']}"), 1)
 
     def test_pinned_cover_hashes_match_media_index(self) -> None:
@@ -193,10 +197,15 @@ class SiteBuildTests(unittest.TestCase):
         with patch("scripts.build.urlopen", side_effect=error):
             index, source = load_media_index("https://art.example.org/index.json")
         self.assertEqual(source, "snapshot")
-        self.assertEqual(len(index["assets"]), 1982)
+        self.assertEqual(len(index["assets"]), 2003)
 
     def test_homepage_uses_selected_location_corrections(self) -> None:
         expected = {
+            "the-other-hand": "landscapes/island-city-selected.webp",
+            "feast-of-the-noble-blades": "interiors/feast-hall-selected.png",
+            "the-other-half": "interiors/02-food-court-open-curtain.png",
+            "catch-me": "landscapes/cinema-street-selected.png",
+            "shenanigans": "landscapes/02-reviewing-ring-selected.png",
             "the-last-passenger": "landscapes/the-crossing-selected.webp",
             "the-return-tray": "interiors/02-kitchen-cushion-exchange.png",
             "an-opening": "interiors/02-guild-hall-selected.png",
