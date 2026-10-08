@@ -28,10 +28,10 @@ class SiteBuildTests(unittest.TestCase):
         assets = validate_media_index(self.index)
         art, covers = make_art(self.index, self.stories, "/storytelling-machine/")
         self.assertEqual(len(assets), 2003)
-        self.assertEqual(len(art), 1999)
+        self.assertEqual(len(art), 1974)
         self.assertEqual(len(covers), len(self.stories))
         self.assertEqual(dict(Counter(item["type"] for item in art)), {
-            "Covers": 227, "Characters": 789, "Locations": 983,
+            "Covers": 227, "Characters": 789, "Locations": 958,
         })
         self.assertTrue(all(item["id"].startswith("stories/") for item in art))
         self.assertTrue(any(item["type"] == "Locations" and item["thumbnail"] != item["full"]
@@ -59,12 +59,30 @@ class SiteBuildTests(unittest.TestCase):
         self.assertFalse(any("/references/" in item["id"] for item in art))
         self.assertFalse(any(item["id"] == "stories/a-crown-for-the-endless-fire/art/landscapes/03-black-bridge-across-the-gulf.png" for item in art))
 
+    def test_gallery_shows_finished_locations_without_version_labels(self) -> None:
+        art, _ = make_art(self.index, self.stories, "/")
+        locations = [item for item in art if item["type"] == "Locations"]
+        self.assertFalse(any(Path(item["id"]).stem.endswith("-original") for item in locations))
+        self.assertFalse(any(item["title"].endswith((" Original", " Selected")) for item in locations))
+        for slug, title, filename in (
+            ("the-last-watch", "Rift Watch", "02-rift-watch-selected.png"),
+            ("the-second-door", "Bellwether", "bellwether-selected.webp"),
+            ("magical-girl-pr", "Bakery Square", "bakery-square-selected.webp"),
+            ("the-other-half", "Food Court Open Curtain", "02-food-court-open-curtain.png"),
+            ("great-winter-contest", "Seven Steps", "seven-steps.png"),
+        ):
+            with self.subTest(story=slug):
+                images = [item for item in locations if item["slug"] == slug]
+                self.assertEqual([item["title"] for item in images], [title])
+                self.assertTrue(images[0]["id"].endswith("/" + filename))
+                self.assertNotIn("Selected", images[0]["alt"])
+
     def test_build_keeps_readers_and_old_links(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "site"
             build(output, "/storytelling-machine/", "https://example.org", self.index)
             gallery = json.loads((output / "art.json").read_text(encoding="utf-8"))
-            self.assertEqual(len(gallery), 1999)
+            self.assertEqual(len(gallery), 1974)
             self.assertEqual(set(item["type"] for item in gallery), {
                 "Covers", "Characters", "Locations",
             })
