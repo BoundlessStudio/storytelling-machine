@@ -1,0 +1,116 @@
+/* The Living Library — the interface is part of the reading desk. */
+.living-library-body{--ll-ink:#44372a;--ll-gold:#947342;--ll-paper:#f7f0e3;overflow:hidden;background:#e5d5bc;color:var(--ll-ink);font-family:'Cormorant Garamond',Georgia,serif}
+.living-library-body main{height:100svh}
+.living-library-body .site-header{position:fixed;inset:0 0 auto;z-index:12;padding:25px 3.3vw;font-family:'Segoe UI',sans-serif;font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;background:linear-gradient(#f4ecdc,#eee3d0);border-bottom:1px solid #8b704630}
+.living-library-body .site-header a{color:#493c2e}
+.living-library-body .site-mark{gap:10px}
+.living-library-body .brand-icon{width:25px;height:25px;filter:sepia(.7)}
+.living-library-body .site-header nav{gap:32px}
+.living-library-body .site-header nav a{border-bottom:1px solid transparent;padding:7px 0}
+.living-library-body .site-header nav a:hover{border-color:#80653e}
+.living-library-body .skip-link{z-index:40}
+.living-library{position:fixed;inset:0;isolation:isolate;overflow:hidden}
+#ll-canvas{display:block;width:100%;height:100%;position:absolute;inset:0;outline:none;touch-action:pan-x}
+.ll-atmosphere{pointer-events:none;position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,transparent 30%,#3c211911 100%),linear-gradient(0deg,#eee4d2eb 0%,transparent 12%);z-index:1}
+.ll-intro{position:absolute;z-index:2;top:91px;left:50%;width:80%;transform:translateX(-50%);text-align:center;pointer-events:none;text-shadow:0 1px 12px #f6e9dca6}
+.ll-eyebrow{font:500 10px/1.4 'Segoe UI',sans-serif;text-transform:uppercase;letter-spacing:.32em;color:#705738;margin:0 0 5px}
+.ll-intro h1{font-size:clamp(30px,3.2vw,52px);line-height:1.05;font-weight:400;letter-spacing:-.025em;margin:0 0 9px}
+.ll-intro h1 em{font-weight:400}
+.ll-intro>p:last-child{font-size:14px;letter-spacing:.04em;margin:0;color:#79634a}
+.ll-motion{position:absolute;z-index:13;right:3.3vw;top:85px;display:flex;align-items:center;gap:7px;border:0;background:#f4e9d95c;color:#65513d;padding:7px 10px;border-radius:3px;font:400 10px/1.5 'Segoe UI',sans-serif;letter-spacing:.03em}
+.ll-motion:hover{background:#f7efdfdf}
+.ll-loading{position:fixed;inset:0;z-index:100;display:grid;place-items:center;margin:0;padding:32px;background:radial-gradient(ellipse at 50% 42%,#fff8ec,#f0e5d2);text-align:center;transition:opacity .5s ease,visibility 0s .5s}
+.ll-loading-inner{width:min(100%,390px)}
+.ll-loading-book{display:block;position:relative;width:54px;height:42px;margin:0 auto 22px;color:#a3824b}
+.ll-loading-book:before,.ll-loading-book:after{content:'';position:absolute;top:4px;width:25px;height:33px;border:1px solid currentColor;background:#fff7e899}
+.ll-loading-book:before{left:2px;transform:skewY(10deg);border-radius:4px 0 0 2px}
+.ll-loading-book:after{right:2px;transform:skewY(-10deg);border-radius:0 4px 2px 0}
+.ll-loading-title{font-size:30px;line-height:1.2;font-weight:500;letter-spacing:.01em;margin:0 0 12px;color:#54432e}
+.ll-loading-detail{min-height:42px;margin:0;font:13px/1.6 'Segoe UI',sans-serif;color:#857055}
+.ll-loading-track{display:block;width:160px;height:2px;margin:24px auto;background:#b59b6a33;overflow:hidden}
+.ll-loading-track span{display:block;width:50%;height:100%;background:#aa8347;animation:ll-load 1.8s ease-in-out infinite}
+.ll-loading-actions{display:flex;gap:20px;align-items:center;justify-content:center;margin-top:26px;font:12px/1.5 'Segoe UI',sans-serif}
+.ll-loading-actions a{color:#806644;text-decoration-color:#b8a17a}
+.ll-loading-actions button{font:inherit;color:#6b5333;padding:7px 13px;border:1px solid #baa17b;background:#fff8ed;border-radius:2px}
+body:not(.is-library-loading) .ll-loading{opacity:0;visibility:hidden;pointer-events:none}
+@keyframes ll-load{0%,100%{transform:translateX(-100%)}50%{transform:translateX(200%)}}
+.ll-desk-content{position:absolute;inset:0;z-index:3;pointer-events:none}
+.ll-prompt{position:absolute;left:0;top:0;transform-origin:0 0;width:360px;height:500px;padding:27px 28px 22px;display:flex;flex-direction:column;background:linear-gradient(110deg,#f6eedf,#fff8eb 40%,#efe3ce);border:1px solid #fff9eb;box-shadow:inset 0 0 0 7px #eee2ce22,0 5px 12px #37231015;pointer-events:auto;text-align:center;will-change:transform}
+.ll-prompt-copy{min-height:0;flex:1;display:flex;align-items:center;justify-content:center;overflow:visible}
+.ll-prompt-copy p{font-size:21px;line-height:1.3;font-weight:500;margin:0;white-space:pre-line}
+.ll-prompt-label{position:absolute;left:0;top:0;transform-origin:0 0;width:300px;height:70px;margin:0;display:grid;place-items:center;font-size:41px;line-height:1;letter-spacing:.14em;font-weight:400;color:#80623d;pointer-events:none}
+.ll-book-link{position:absolute;left:0;top:0;transform-origin:0 0;width:360px;height:640px;pointer-events:auto;cursor:pointer;text-decoration:none}
+.ll-book-link:focus-visible{outline:3px solid #c6a468;outline-offset:7px}
+.is-book-flying .ll-book-link{pointer-events:none}
+.is-fallback .ll-book-link{display:none}
+.ll-card-eyebrow{font:9px/1.5 'Segoe UI',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#897151;margin:0 0 7px}
+.ll-prompt h2{font-size:39px;line-height:1.1;letter-spacing:.12em;font-weight:400;margin:0}
+.ll-ornament{display:block;font-size:25px;color:#9e7a43;line-height:1.7}
+.ll-prompt-scroll{min-height:0;flex:1;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#baa783 transparent;outline-offset:5px}
+.ll-prompt-scroll p{font-size:21px;line-height:1.35;font-weight:500;margin:0;white-space:pre-line}
+.ll-card-footer{font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:#947c5e;border-top:1px solid #b59b6a4d;padding-top:14px;margin:17px 0 0}
+.ll-references{position:absolute;inset:0;pointer-events:none}
+.ll-photo{position:absolute;left:0;top:0;width:300px;height:218px;transform-origin:0 0;will-change:transform;padding:10px 10px 25px;border:1px solid #fffaf0;background:#f6f1e7;box-shadow:0 5px 12px #3020143d;pointer-events:auto;transition:filter .25s}
+.ll-photo:hover{filter:brightness(1.09)}
+.ll-photo img{width:100%;height:100%;display:block;object-fit:contain;background:#e6dfd0;pointer-events:none}
+.ll-photo span{position:absolute;bottom:4px;left:12px;right:12px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;color:#675741;font-size:11px;letter-spacing:.035em}
+.ll-photo[aria-busy=true] img{opacity:.35}
+.ll-story{position:relative;margin-top:17px;padding-top:14px;border-top:1px solid #b59b6a4d;text-align:center;pointer-events:auto;width:100%;flex:none}
+.ll-story-meta{font:9px/1.5 'Segoe UI',sans-serif;color:#836c4b;letter-spacing:.15em;text-transform:uppercase;margin:0 0 3px}
+.ll-story h3{font-size:26px;font-weight:500;line-height:1.06;letter-spacing:-.02em;margin:4px 0 0}
+.ll-read{display:inline-flex;align-items:center;justify-content:center;gap:23px;padding:11px 19px;color:#f8f1e5;background:#58452c;text-decoration:none;font:400 13px/1.5 'Segoe UI',sans-serif;letter-spacing:.04em;border:1px solid #bfa273;box-shadow:0 3px 12px #523c2620;transition:background .2s,transform .2s}
+.ll-read:hover{background:#7c5d35;transform:translateY(-2px)}
+.ll-read span{font-size:15px;line-height:1}
+.ll-art-link{position:absolute;left:23%;bottom:17%;font:400 10px/1.5 'Segoe UI',sans-serif;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:#725739;pointer-events:auto;padding:8px}
+.ll-art-link:hover{text-decoration:underline}
+/* The paper stays solid and fixed; only the writing and studies dissolve. */
+.ll-prompt-copy,.ll-photo,.ll-story,.ll-art-link{transition:opacity .18s ease,filter .18s ease}
+.is-dissolving .ll-prompt-copy,.is-dissolving .ll-photo,.is-dissolving .ll-story,.is-dissolving .ll-art-link{opacity:0;filter:blur(3px)}
+.ll-scroll-hint{position:absolute;left:0;top:0;transform-origin:0 0;width:360px;height:60px;margin:0;display:flex;align-items:center;justify-content:center;gap:15px;font:400 20px/1.5 'Segoe UI',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#725739;pointer-events:none}
+.ll-mouse{position:relative;display:block;flex:none;width:17px;height:30px;border:1.5px solid currentColor;border-radius:9px}
+.ll-mouse:after{content:'';position:absolute;left:6px;top:5px;width:1.5px;height:7px;background:currentColor;animation:ll-scroll 2.4s ease-in-out infinite}
+.ll-lightbox button{border:1px solid #9a81574d;color:#6d5432;background:#fff7e731;display:grid;place-items:center;width:35px;height:35px;border-radius:50%;font-size:17px;transition:background .2s}
+.ll-announcement{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.ll-book-fallback{display:none;position:absolute;z-index:2;top:39%;left:50%;transform:translateX(-50%) rotate(-6deg);width:150px;box-shadow:8px 10px 0 #ccba9c,12px 17px 25px #49382340}
+.ll-book-fallback img{display:block;width:100%}
+.ll-fallback,.ll-noscript{position:absolute;z-index:14;left:50%;top:26%;transform:translateX(-50%);background:#f8eedfef;border:1px solid #ad91695c;padding:14px 24px;max-width:520px;width:90%;text-align:center;font-size:16px}
+.is-fallback .ll-book-fallback{display:block}
+.is-fallback .ll-prompt{transform:none!important;left:69%;top:37%;width:27%;height:44%;padding:20px}
+.is-fallback .ll-prompt-label{transform:none!important;left:69%;top:82%;width:27%;height:auto;font-size:25px}
+.is-fallback .ll-scroll-hint{transform:none!important;left:calc(50% - 120px);top:84%;width:240px;height:30px;font-size:10px;gap:10px}
+.is-fallback .ll-motion{display:none}
+.is-fallback .ll-prompt-scroll{max-height:calc(100% - 130px)}
+.is-fallback .ll-references{left:3%;top:45%;width:27%;height:32%;display:flex;gap:10px}
+.is-fallback .ll-photo{transform:none!important;position:relative;width:100%;height:100%;padding:7px 7px 20px}
+.is-fallback .ll-photo:not(:first-child){display:none}
+.ll-lightbox{max-width:min(1000px,92vw);width:fit-content;max-height:90svh;border:1px solid #b59b6a;background:#f4ead8;color:#493c2e;padding:33px 33px 15px;box-shadow:0 20px 100px #23160c70;overflow:auto}
+.ll-lightbox::backdrop{background:#241e18ba;backdrop-filter:blur(7px)}
+.ll-lightbox>img{display:block;margin:auto;max-width:100%;max-height:72svh;object-fit:contain}
+.ll-lightbox .ll-lightbox-close{position:absolute;right:6px;top:5px;width:25px;height:25px;border:0;background:#f9f1e5e6;font-size:24px}
+.ll-lightbox-caption{display:flex;justify-content:space-between;gap:20px;align-items:center;font-size:19px;text-align:center}
+.ll-lightbox-caption p{margin:12px 0;flex:1}
+.ll-lightbox-caption button{flex:none}
+.living-library button:focus-visible,.living-library a:focus-visible,.living-library select:focus-visible{outline:2px solid #806036;outline-offset:4px}
+@keyframes ll-scroll{0%,100%{transform:translateY(0);opacity:.5}50%{transform:translateY(4px);opacity:1}}
+@media(min-width:701px) and (max-height:700px){.ll-intro{top:72px}.ll-intro h1{font-size:32px}.ll-intro>p:last-child{font-size:12px}.ll-motion{top:70px}}
+@media(max-width:700px),(max-aspect-ratio:1/1){
+ .living-library-body .site-header{padding:18px 20px;font-size:9px;letter-spacing:.06em}
+ .living-library-body .site-mark-long{display:none}.living-library-body .site-mark-short{display:inline}
+ .living-library-body .brand-icon{width:21px;height:21px}.living-library-body .site-header nav{gap:19px}
+ #ll-canvas{height:65%}.ll-atmosphere{background:linear-gradient(0deg,#eee4d2 31%,transparent 40%)}
+ .ll-intro{top:83px;width:95%}.ll-eyebrow{font-size:8px}.ll-intro h1{font-size:32px}.ll-intro>p:last-child{font-size:12px}
+ .ll-motion{top:55px;right:16px;font-size:8px;background:transparent}
+ .ll-prompt,.is-fallback .ll-prompt{transform:none!important;top:55%;left:39%;width:56%;height:calc(45% - 76px);min-height:220px;padding:11px 13px 10px;border-color:#b49b7136;box-shadow:0 5px 20px #49321c0b}
+ .ll-card-eyebrow{font-size:7px;letter-spacing:.1em;margin-bottom:2px}.ll-prompt h2{font-size:24px}.ll-ornament{font-size:17px;line-height:1.1}
+ .ll-prompt-scroll{max-height:none}.ll-prompt-scroll p{font-size:15px;line-height:1.25}.ll-card-footer{display:none}
+ .ll-references,.is-fallback .ll-references{left:5%;top:57%;width:29%;height:calc(43% - 100px);display:block}
+ .ll-photo,.is-fallback .ll-photo{transform:none!important;top:0;left:0;width:100%;height:40%;padding:5px 5px 16px;box-shadow:0 3px 10px #49321c20}
+ .ll-photo:nth-child(2){transform:rotate(-5deg)!important;top:30%;z-index:1}.ll-photo:nth-child(3){transform:rotate(4deg)!important;top:60%;z-index:2}
+ .ll-photo span{font-size:8px;left:6px;right:6px;bottom:4px}
+ .ll-story{margin-top:9px;padding-top:9px}.ll-story-meta{font-size:7px}.ll-story h3{font-size:19px;margin-bottom:8px}.ll-read{padding:8px 12px;font-size:9px;gap:18px;min-height:36px}
+ .ll-art-link{bottom:82px;left:5%;font-size:7px;max-width:30%;padding:0}
+ .ll-scroll-hint{display:none}
+ .ll-lightbox{padding:30px 12px 10px}.ll-lightbox-caption{font-size:16px;gap:10px}
+ .ll-book-fallback{top:28%;width:110px}.ll-fallback,.ll-noscript{top:20%;font-size:13px;padding:10px}
+}
+@media(prefers-reduced-motion:reduce){.living-library *{animation:none!important;scroll-behavior:auto!important}.ll-loading{transition:opacity .15s,visibility 0s .15s}.ll-loading-track span{animation:none;transform:none}.ll-prompt-copy,.ll-photo,.ll-story,.ll-art-link{transition:opacity .075s}.is-dissolving .ll-prompt-copy,.is-dissolving .ll-photo,.is-dissolving .ll-story{filter:none}}

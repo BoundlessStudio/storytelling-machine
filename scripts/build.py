@@ -23,9 +23,8 @@ STATIC = ROOT / "static"
 CSS_VERSION = sha256((STATIC / "styles.css").read_bytes()).hexdigest()[:12]
 ICON_VERSION = sha256((STATIC / "favicon.svg").read_bytes()).hexdigest()[:12]
 JS_VERSION = sha256((STATIC / "app.js").read_bytes()).hexdigest()[:12]
-HORIZON_JS_VERSION = sha256((STATIC / "horizon.js").read_bytes()).hexdigest()[:12]
-HORIZON_CSS_VERSION = sha256((STATIC / "horizon.css").read_bytes()).hexdigest()[:12]
-HORIZON_RANDOM_STOPS = 10
+LIBRARY_JS_VERSION = sha256((STATIC / "living-library.js").read_bytes()).hexdigest()[:12]
+LIBRARY_CSS_VERSION = sha256((STATIC / "living-library.css").read_bytes()).hexdigest()[:12]
 SOURCE_REPO = "https://github.com/BoundlessStudio/story-computing-machine"
 DEFAULT_SITE_URL = "https://stories.rgbknights.com"
 DEFAULT_INDEX_URL = "https://art.rgbknights.com/manifests/story-computing-machine-art-v1.json"
@@ -239,97 +238,122 @@ def build_index(stories: list[dict], covers: dict[str, str], base: str, site_url
                  "Library", base, site_url, "library/")
 
 
-def horizon_data(stories: list[dict], covers: dict[str, str], art: list[dict], base: str) -> dict:
-    """Inline data for the Long Horizon: the prepared pool plus the newest stories."""
+def library_scene_data(stories: list[dict], art: list[dict], base: str) -> dict:
+    """Every published book, with same-story references and same-origin cover textures."""
     panorama = read_json("panorama.json")
     location_manifest = read_json("story-locations.json")
     locations = location_manifest["locations"]
     by_slug = {story["slug"]: story for story in stories}
-    art_slugs = {item["slug"] for item in art if item["type"] != "Covers"}
+    references = defaultdict(list)
+    for item in art:
+        if item["type"] != "Covers" and item["slug"] in by_slug:
+            references[item["slug"]].append(item)
 
     def story_fields(story: dict) -> dict:
         return {"slug": story["slug"], "title": story["title"], "rating": story["rating"],
                 "prompt": " ".join(story["prompt"].split()), "created": story["created"],
                 "createdAt": story["createdAt"], "url": base + "stories/" + quote(story["slug"]) + "/"}
 
-    pool = []
-    for stop in panorama["stops"]:
-        story = by_slug.get(stop["slug"])
-        if not story:
-            continue
-        land = stop["landscape"]
-        entry = story_fields(story) | {
-            "cover": base + stop["cover"],
-            "land": {"src": base + land["src"], "title": land["title"], "sky": land["sky"], "ground": land["ground"]},
-            "art": base + "art/?story=" + quote(story["slug"]) if story["slug"] in art_slugs else base + "art/",
-        }
-        pool.append(entry)
-    if len(pool) < HORIZON_RANDOM_STOPS + 2:
-        raise ValueError("The Long Horizon needs more prepared stops; run scripts/sync_panorama.py")
     prepared = location_manifest["covers"]
-
-    def local_cover(slug: str) -> str:
-        """Every WebGL cover has a prepared same-origin derivative."""
-        return base + prepared[slug]
-
     catalog = sorted(stories, key=lambda story: story["createdAt"], reverse=True)
-    if missing := set(by_slug) - set(locations):
-        raise ValueError(f"Missing Long Horizon locations: {', '.join(sorted(missing))}")
+    if missing := set(by_slug) - (set(locations) & set(prepared)):
+        raise ValueError(f"Missing living library art: {', '.join(sorted(missing))}")
     for slug in by_slug:
         source = locations[slug].get("source")
         if source is not None and not source.startswith(f"stories/{slug}/art/"):
             raise ValueError(f"Location for {slug} belongs to another story: {source}")
     atlas = panorama["atlas"]
-    return {"base": base, "total": len(stories), "artworks": len(art), "pool": pool,
-            "locations": {slug: {"src": base + item["src"], "title": item["title"],
-                                 "sky": item["sky"], "ground": item["ground"]}
-                          for slug, item in locations.items() if slug in by_slug},
-            "stories": [story_fields(story) | {"cover": local_cover(story["slug"])} for story in catalog],
-            "atlasSrc": base + atlas["src"],
-            "atlas": {"cols": atlas["cols"], "rows": atlas["rows"], "tiles": atlas["tiles"]},
-            "titles": {story["slug"]: story["title"] for story in stories}}
+    cover_slots = {slug: slot for slot, (slug, kind) in enumerate(atlas["tiles"]) if kind == "cover"}
+    if missing := set(by_slug) - set(cover_slots):
+        raise ValueError(f"Missing flock cover atlas entries: {', '.join(sorted(missing))}")
+    books = []
+    for story in catalog:
+        slug = story["slug"]
+        location = locations[slug]
+        # The prepared location loads immediately. Remaining studies retain their
+        # source's own title and slug; never borrow another story's artwork.
+        studies = [{"src": base + location["src"], "full": base + location["src"],
+                    "title": re.sub(r"\s+(?:Original|Selected)$", "", location["title"]),
+                    "slug": slug}]
+        other = sorted(references[slug], key=lambda item: item["type"] != "Characters")
+        for item in other:
+            if item["id"] == location.get("source"):
+                continue
+            studies.append({"src": item["thumbnail"], "full": item["full"],
+                            "title": item["title"], "slug": slug})
+            if len(studies) == 3:
+                break
+        books.append(story_fields(story) | {"cover": base + prepared[slug],
+                     "slot": cover_slots[slug], "references": studies,
+                     "art": base + "art/?story=" + quote(slug)})
+    return {"base": base, "total": len(books), "stories": books,
+            "atlasSrc": base + atlas["src"], "atlas": {"cols": atlas["cols"], "rows": atlas["rows"]}}
 
 
-def build_horizon_home(base: str, site_url: str, stories: list[dict], covers: dict[str, str],
-                       art: list[dict]) -> str:
-    data = json.dumps(horizon_data(stories, covers, art, base), ensure_ascii=False, separators=(",", ":"))
-    data = data.replace("</", "<\\/")
-    head = (f'<link rel="preconnect" href="https://fonts.googleapis.com">'
+def build_living_library(base: str, site_url: str, stories: list[dict], art: list[dict]) -> str:
+    scene = library_scene_data(stories, art, base)
+    first = scene["stories"][0]
+    data = json.dumps(scene, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    # Keep the loading gate in the document so delayed CSS or modules cannot
+    # expose unpositioned paper and controls before the first rendered frame.
+    loading_style = """<style>
+.is-library-loading .site-header{visibility:hidden}
+#living-library.is-loading>:not(noscript){visibility:hidden;pointer-events:none}
+.ll-loading{position:fixed;inset:0;z-index:100;display:grid;place-items:center;margin:0;padding:32px;background:#f4ecde;color:#54432e;text-align:center}
+body:not(.is-library-loading) .ll-loading{opacity:0;visibility:hidden;pointer-events:none}
+</style><noscript><style>.ll-loading{display:none!important}.is-library-loading .site-header{visibility:visible!important}</style></noscript>"""
+    loading_bootstrap = """<script>
+(() => {
+  const room = document.getElementById('living-library');
+  const detail = document.getElementById('ll-loading-detail');
+  const retry = document.getElementById('ll-loading-retry');
+  retry.addEventListener('click', () => location.reload());
+  const slow = setTimeout(() => {
+    if (!room.classList.contains('is-loading')) return;
+    detail.textContent = 'The library is taking a little longer to open. You can retry or browse the stories below.';
+    retry.hidden = false;
+  }, 12000);
+  room.addEventListener('library-ready', () => clearTimeout(slow), { once: true });
+  window.addEventListener('error', event => {
+    if (!room.classList.contains('is-loading') || (event.target?.id !== 'll-scene-script' && !String(event.filename || '').includes('living-library.js'))) return;
+    clearTimeout(slow);
+    document.getElementById('ll-loading-title').textContent = 'The library could not open';
+    detail.textContent = 'Please try again, or browse the stories below.';
+    retry.hidden = false;
+  }, true);
+})();
+</script>"""
+    head = (loading_style + f'<link rel="preconnect" href="https://fonts.googleapis.com">'
             f'<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
             f'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;0,600;1,400;1,500;1,600&display=swap">'
-            f'<link rel="stylesheet" href="{base}horizon.css?v={HORIZON_CSS_VERSION}">'
+            f'<link rel="stylesheet" href="{base}living-library.css?v={LIBRARY_CSS_VERSION}">'
             f'<link rel="preconnect" href="https://art.rgbknights.com">'
             f'<link rel="modulepreload" href="{base}vendor/three.module.min.js">')
-    total, artworks = len(stories), len(art)
-    body = f"""<section class="horizon" id="horizon" aria-labelledby="hz-title">
-<canvas class="hz-canvas" id="hz-canvas" aria-hidden="true"></canvas>
-<div class="hz-grain" aria-hidden="true"></div>
-<div class="hz-loading" id="hz-loading" aria-hidden="true"><span>Hanging the exhibition</span><i><b id="hz-load-bar"></b></i></div>
-<div class="hz-intro" id="hz-intro">
-<p class="hz-kicker">A story exhibition</p>
-<h1 id="hz-title">The Long <em>Horizon</em></h1>
-<p class="hz-lede">Choose a cover to read. Scroll to walk through the collection.</p>
-<p class="hz-count"><span id="hz-count">Highlighted stories</span><span id="hz-fresh" hidden></span></p>
+    body = f"""<section class="living-library is-loading" id="living-library" aria-labelledby="ll-title" aria-busy="true">
+<canvas id="ll-canvas" aria-label="A marble library with a school of floating books and a reading desk"></canvas>
+<div class="ll-atmosphere" aria-hidden="true"></div>
+<h1 class="ll-announcement" id="ll-title">The Living Library</h1>
+<button class="ll-motion" id="ll-motion" type="button" aria-pressed="false"><span aria-hidden="true">Ⅱ</span> <span id="ll-motion-label">Pause motion</span></button>
+<div class="ll-desk-content" id="ll-desk-content">
+<div class="ll-references" id="ll-references" aria-label="Reference images for the selected story"></div>
+<aside class="ll-prompt" id="ll-prompt" aria-labelledby="ll-prompt-heading"><div class="ll-prompt-copy"><p id="ll-prompt-text">{esc(first['prompt'])}</p></div><div class="ll-story" id="ll-story"><p class="ll-story-meta" id="ll-story-meta">{esc(first['rating'])} · Original fiction</p><h3 id="ll-story-title">{esc(first['title'])}</h3></div></aside>
+<h2 class="ll-prompt-label" id="ll-prompt-heading">[WP]</h2>
+<a class="ll-book-link" id="ll-read" href="{first['url']}" aria-label="Read {esc(first['title'])}"><span class="ll-announcement">Read this story</span></a>
+<a class="ll-art-link" id="ll-art-link" href="{first['art']}">Reference studies <span aria-hidden="true">↗</span></a>
+<p class="ll-scroll-hint" id="ll-scroll-hint"><span class="ll-mouse" aria-hidden="true"></span><span>Scroll to Discover</span></p>
 </div>
-<div class="hz-tip" id="hz-tip" hidden></div>
-<aside class="hz-label" id="hz-label" aria-hidden="true"><p class="hz-label-no" id="hz-label-no"></p><h2 id="hz-label-title"></h2><p class="hz-label-meta" id="hz-label-meta"></p><p class="hz-label-prompt"><b>[WP]</b> <span id="hz-label-prompt"></span></p><p class="hz-label-place">Painted at <em id="hz-label-place"></em></p><a id="hz-label-read" href="{base}library/" tabindex="-1">Step through <span aria-hidden="true">→</span></a></aside>
-<section class="hz-end" id="hz-end" aria-labelledby="about-heading"><div class="hz-end-inner" id="about">
-<p class="hz-kicker">Curator’s note</p>
-<h2 id="about-heading">Night falls here. <em>The world keeps going.</em></h2>
-<p class="hz-end-lede">Every story begins with a prompt and grows through writing, reading, and revision. Explore the fiction and the art behind it.</p>
-<div class="hz-end-links"><a href="{base}library/">Enter the library <small>{total} stories</small></a><a href="{base}art/">Explore the gallery <small>{artworks:,} works</small></a><button type="button" id="hz-again">Walk a new horizon <span aria-hidden="true">↻</span></button></div>
-<p class="hz-end-source">Curious how it is made? <a href="{SOURCE_REPO}">Explore the story source ↗</a></p>
-</div></section>
-<nav class="hz-map" aria-label="Stops on this horizon"><span class="hz-counter" id="hz-counter" aria-hidden="true">Overture</span><div class="hz-rule"><div class="hz-ticks" id="hz-ticks"></div><span class="hz-marker" id="hz-marker"></span></div><span class="hz-place" id="hz-place" aria-hidden="true"></span></nav>
-<ol class="hz-stops" id="hz-stops" aria-label="Stories on this horizon"></ol>
-<div class="hz-fallback" id="hz-fallback" hidden><p>This exhibition needs WebGL, which this browser has turned off.</p><p><a href="{base}library/">Browse all {total} stories in the library</a></p></div>
-<noscript><div class="hz-fallback"><p>The Long Horizon needs JavaScript.</p><p><a href="{base}library/">Browse all {total} stories in the library</a></p></div></noscript>
-<div class="hz-track" id="hz-track"></div>
+<a class="ll-book-fallback" id="ll-book-fallback" href="{first['url']}" aria-label="Read {esc(first['title'])}"><img id="ll-fallback-cover" src="{first['cover']}" alt="Cover of {esc(first['title'])}"></a>
+<p class="ll-fallback" id="ll-fallback" hidden>The 3D room is unavailable. You can still explore every story here or <a href="{base}library/">browse the library</a>.</p>
+<noscript><p class="ll-noscript">Enable JavaScript to enter the room, or <a href="{base}library/">browse all {len(stories)} stories</a>.</p></noscript>
+<p class="ll-announcement" id="ll-announcement" role="status" aria-live="polite" aria-atomic="true"></p>
+<dialog class="ll-lightbox" id="ll-lightbox" aria-labelledby="ll-image-title"><button class="ll-lightbox-close" id="ll-lightbox-close" type="button" aria-label="Close image">×</button><img id="ll-lightbox-image" alt=""><div class="ll-lightbox-caption"><button type="button" id="ll-image-prev" aria-label="Previous reference image">←</button><p id="ll-image-title"></p><button type="button" id="ll-image-next" aria-label="Next reference image">→</button></div></dialog>
 </section>
-<script type="application/json" id="horizon-data">{data}</script>
-<script type="module" src="{base}horizon.js?v={HORIZON_JS_VERSION}"></script>"""
-    return shell("The Long Horizon", "Walk one painted horizon from morning into night, past original stories standing in the places they happened.",
-                 body, "Discover", base, site_url, immersive=True, head_extra=head, body_class="horizon-body")
+<div class="ll-loading" id="ll-loading" role="status" aria-live="polite"><div class="ll-loading-inner"><span class="ll-loading-book" aria-hidden="true"></span><p class="ll-loading-title" id="ll-loading-title">Opening the library</p><p class="ll-loading-detail" id="ll-loading-detail">Preparing your reading room.</p><span class="ll-loading-track" aria-hidden="true"><span></span></span><div class="ll-loading-actions"><button id="ll-loading-retry" type="button" hidden>Try again</button><a href="{base}library/">Browse the library</a></div></div></div>
+<script type="application/json" id="living-library-data">{data}</script>
+{loading_bootstrap}
+<script type="module" src="{base}living-library.js?v={LIBRARY_JS_VERSION}" id="ll-scene-script"></script>"""
+    return shell("The Living Library", "A library in motion. Discover original stories, their writing prompts, and the art of their worlds in an immersive reading room.",
+                 body, "Discover", base, site_url, immersive=True, head_extra=head, body_class="living-library-body is-library-loading")
 
 
 def prompt_markup(prompt: str) -> str:
@@ -402,8 +426,8 @@ def build(output: Path, base: str, site_url: str, media_index: dict | None = Non
     (output / "art").mkdir(parents=True)
     (output / "library").mkdir()
     (output / "stories").mkdir()
-    for filename in ("styles.css", "app.js", "horizon.js", "horizon.css", "favicon.svg", "favicon-32.png",
-                     "apple-touch-icon.png", "social-card.jpg", "open-book-pages-wide.webp", "open-book-pages-tall.webp",
+    for filename in ("styles.css", "app.js", "living-library.js", "living-library.css", "favicon.svg", "favicon-32.png",
+                     "apple-touch-icon.png", "social-card.jpg",
                      "location-fallback.webp"):
         shutil.copy2(STATIC / filename, output / filename)
     shutil.copytree(STATIC / "panorama", output / "panorama")
@@ -411,7 +435,7 @@ def build(output: Path, base: str, site_url: str, media_index: dict | None = Non
     shutil.copytree(STATIC / "story-covers", output / "story-covers")
     shutil.copytree(STATIC / "vendor", output / "vendor")
     (output / "index.html").write_text(
-        build_horizon_home(base, site_url, stories, covers, art), encoding="utf-8")
+        build_living_library(base, site_url, stories, art), encoding="utf-8")
     (output / "cover-feed.json").write_text(json.dumps([
         {"title": story["title"], "rating": story["rating"], "prompt": story["prompt"],
          "createdAt": story["createdAt"],
