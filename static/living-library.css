@@ -11,7 +11,7 @@
 .living-library-body .skip-link{z-index:40}
 .living-library{position:fixed;inset:0;isolation:isolate;overflow:hidden}
 #ll-canvas{display:block;width:100%;height:100%;position:absolute;inset:0;outline:none;touch-action:pan-x}
-.ll-atmosphere{pointer-events:none;position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,transparent 30%,#3c211911 100%),linear-gradient(0deg,#eee4d2eb 0%,transparent 12%);z-index:1}
+.ll-atmosphere{pointer-events:none;position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,transparent 30%,#3c211911 100%);z-index:1}
 .ll-intro{position:absolute;z-index:2;top:91px;left:50%;width:80%;transform:translateX(-50%);text-align:center;pointer-events:none;text-shadow:0 1px 12px #f6e9dca6}
 .ll-eyebrow{font:500 10px/1.4 'Segoe UI',sans-serif;text-transform:uppercase;letter-spacing:.32em;color:#705738;margin:0 0 5px}
 .ll-intro h1{font-size:clamp(30px,3.2vw,52px);line-height:1.05;font-weight:400;letter-spacing:-.025em;margin:0 0 9px}
@@ -63,6 +63,7 @@ body:not(.is-library-loading) .ll-loading{opacity:0;visibility:hidden;pointer-ev
 .ll-read span{font-size:15px;line-height:1}
 .ll-art-link{position:absolute;left:23%;bottom:17%;font:400 10px/1.5 'Segoe UI',sans-serif;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:#725739;pointer-events:auto;padding:8px}
 .ll-art-link:hover{text-decoration:underline}
+@media(min-width:701px) and (min-aspect-ratio:1/1){.living-library:not(.is-fallback) .ll-art-link{left:0;top:0;bottom:auto;width:300px;height:60px;transform-origin:0 0;display:flex;align-items:center;justify-content:center;gap:8px;padding:0;font-size:18px}}
 /* The paper stays solid and fixed; only the writing and studies dissolve. */
 .ll-prompt-copy,.ll-photo,.ll-story,.ll-art-link{transition:opacity .18s ease,filter .18s ease}
 .is-dissolving .ll-prompt-copy,.is-dissolving .ll-photo,.is-dissolving .ll-story,.is-dissolving .ll-art-link{opacity:0;filter:blur(3px)}

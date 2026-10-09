@@ -128,12 +128,14 @@ class SiteBuildTests(unittest.TestCase):
                 self.assertEqual(atlas["tiles"][story["slot"]], [slug, "cover"])
                 self.assertTrue(story["url"].startswith("/storytelling-machine/stories/"))
                 self.assertEqual(story["art"], f"/storytelling-machine/art/?story={slug}")
-                self.assertTrue(1 <= len(story["references"]) <= 3)
+                source = location_manifest[slug]["source"]
+                available = sum(item["slug"] == slug and item["type"] != "Covers" and item["id"] != source
+                                for item in gallery)
+                self.assertEqual(len(story["references"]), min(6, 1 + available))
                 self.assertTrue(all(ref["slug"] == slug for ref in story["references"]))
                 self.assertEqual(len({ref["src"] for ref in story["references"]}), len(story["references"]))
                 location = story["references"][0]
                 self.assertTrue((output / location["src"].removeprefix("/storytelling-machine/")).is_file())
-                source = location_manifest[slug]["source"]
                 if source is not None:
                     self.assertTrue(source.startswith(f"stories/{slug}/art/"), source)
             self.assertTrue((output / "panorama" / "atlas.webp").is_file())

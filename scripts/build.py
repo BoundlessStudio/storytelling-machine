@@ -275,13 +275,16 @@ def library_scene_data(stories: list[dict], art: list[dict], base: str) -> dict:
         studies = [{"src": base + location["src"], "full": base + location["src"],
                     "title": re.sub(r"\s+(?:Original|Selected)$", "", location["title"]),
                     "slug": slug}]
-        other = sorted(references[slug], key=lambda item: item["type"] != "Characters")
+        remaining = [item for item in references[slug] if item["id"] != location.get("source")]
+        characters = [item for item in remaining if item["type"] == "Characters"]
+        settings = [item for item in remaining if item["type"] != "Characters"]
+        # Give the wider desk a mix of characters and places before filling
+        # any remaining spaces from whichever kind this story has available.
+        other = characters[:3] + settings[:2] + characters[3:] + settings[2:]
         for item in other:
-            if item["id"] == location.get("source"):
-                continue
             studies.append({"src": item["thumbnail"], "full": item["full"],
                             "title": item["title"], "slug": slug})
-            if len(studies) == 3:
+            if len(studies) == 6:
                 break
         books.append(story_fields(story) | {"cover": base + prepared[slug],
                      "slot": cover_slots[slug], "references": studies,
