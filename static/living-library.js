@@ -460,6 +460,7 @@ function createLibrary() {
       const faceUv = faceGeo.getAttribute('uv'), tile = uvSlots.subarray(storyIndex * 4, storyIndex * 4 + 4);
       for (let i = 0; i < faceUv.count; i++) faceUv.setXY(i, tile[0] + faceUv.getX(i) * tile[2], tile[1] + faceUv.getY(i) * tile[3]);
       const faceMat = keep(shelfCoverMaterial.clone());
+      faceMat.onBeforeCompile = muteSchoolCover;
       const front = new THREE.Mesh(faceGeo, faceMat); front.position.z = source.d * .52 + .014; front.userData.storyIndex = storyIndex; group.add(front);
       group.position.set(source.x, source.y, source.z);
       group.rotation.set(0, source.x < 0 ? Math.PI : 0, source.x < 0 ? -source.tilt : source.tilt);
@@ -718,8 +719,16 @@ function createLibrary() {
   frontGeometry.setAttribute('aCoverUv', new THREE.InstancedBufferAttribute(uvSlots, 4));
   const frontMat = keep(new THREE.MeshStandardMaterial({ map: atlas, roughness: .74, metalness: .03, envMapIntensity: .25, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
   const shelfCoverMaterial = keep(new THREE.MeshStandardMaterial({ map: atlas, transparent: true, opacity: 0, depthWrite: false, roughness: .74, metalness: .03, envMapIntensity: .25, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
+  function muteSchoolCover(shader) {
+    // Preserve the artwork's brightness while softening its color to suit the room.
+    // Only flock and shelf-traveler materials use this; desk artwork stays vivid.
+    shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      float coverLuminance = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+      diffuseColor.rgb = mix(vec3(coverLuminance), diffuseColor.rgb, 0.35);`);
+  }
   frontMat.onBeforeCompile = shader => {
     shader.vertexShader = `attribute vec4 aCoverUv;\n${shader.vertexShader}`.replace('#include <uv_vertex>', '#include <uv_vertex>\n#ifdef USE_MAP\nvMapUv = aCoverUv.xy + uv * aCoverUv.zw;\n#endif');
+    muteSchoolCover(shader);
   };
   // Separate covers and spine leave the page block exposed. The cover image
   // has a real gap above the binding rather than almost sharing its depth.
