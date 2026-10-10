@@ -1,4 +1,44 @@
 (() => {
+  const deviceTheme = matchMedia('(prefers-color-scheme: dark)');
+  const themeKey = 'living-library-theme';
+  const themeButtons = [...document.querySelectorAll('[data-theme-toggle]')];
+  let themeSaved = false;
+  function savedTheme() {
+    try {
+      const saved = localStorage.getItem(themeKey);
+      return saved === 'light' || saved === 'dark' ? saved : null;
+    } catch { return null; }
+  }
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+    themeButtons.forEach(button => {
+      const label = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+      button.setAttribute('aria-pressed', String(theme === 'dark'));
+      button.setAttribute('aria-label', label); button.title = label;
+    });
+    window.dispatchEvent(new CustomEvent('site-theme-change', { detail: { theme } }));
+  }
+  themeSaved = savedTheme() !== null;
+  applyTheme(document.documentElement.dataset.theme || (deviceTheme.matches ? 'dark' : 'light'));
+  themeButtons.forEach(button => button.addEventListener('click', () => {
+    themeSaved = true;
+    const theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    applyTheme(theme);
+    try { localStorage.setItem(themeKey, theme); } catch { /* The device remains the fallback on reload. */ }
+  }));
+  deviceTheme.addEventListener('change', event => { if (!themeSaved) applyTheme(event.matches ? 'dark' : 'light'); });
+  window.addEventListener('storage', event => {
+    if (event.key !== themeKey && event.key !== null) return;
+    const saved = savedTheme(); themeSaved = saved !== null;
+    applyTheme(saved || (deviceTheme.matches ? 'dark' : 'light'));
+  });
+  window.addEventListener('pageshow', event => {
+    if (!event.persisted) return;
+    const saved = savedTheme(); themeSaved = saved !== null;
+    applyTheme(saved || (deviceTheme.matches ? 'dark' : 'light'));
+  });
+
   const storySearch = document.getElementById('story-search');
   if (storySearch) {
     const rating = document.getElementById('rating-filter');

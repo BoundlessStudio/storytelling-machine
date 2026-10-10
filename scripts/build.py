@@ -101,6 +101,23 @@ def esc(value: object) -> str:
     return html.escape(str(value), quote=True)
 
 
+THEME_BOOTSTRAP = """<script>
+(() => {
+  let theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  try {
+    const saved = localStorage.getItem('living-library-theme');
+    if (saved === 'light' || saved === 'dark') theme = saved;
+  } catch { /* Use the device setting when storage is unavailable. */ }
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme;
+})();
+</script>"""
+
+
+def theme_toggle() -> str:
+    return """<button class="theme-toggle" id="site-theme" data-theme-toggle type="button" aria-label="Switch to dark mode" title="Switch to dark mode" aria-pressed="false"><svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.1A8.6 8.6 0 0 1 10.9 3.4a8.6 8.6 0 1 0 9.7 9.7Z"/></svg><svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.8"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>"""
+
+
 def shell(title: str, description: str, body: str, active: str, base: str,
           site_url: str, page_path: str = "", image: str | None = None,
           immersive: bool = False, head_extra: str = "", body_class: str = "immersive-body") -> str:
@@ -123,7 +140,7 @@ def shell(title: str, description: str, body: str, active: str, base: str,
               f'src="{base}favicon.svg?v={ICON_VERSION}" alt="">'
               '<span class="site-mark-long">Story Computing Machine</span>'
               '<span class="site-mark-short">Story Machine</span></a>'
-              f'<nav aria-label="Main navigation">{nav}</nav></header>')
+              f'<div class="site-header-actions"><nav aria-label="Main navigation">{nav}</nav>{theme_toggle()}</div></header>')
     if immersive:
         footer = ""
         body_class = f' class="{body_class}"'
@@ -143,6 +160,7 @@ def shell(title: str, description: str, body: str, active: str, base: str,
 <link rel="canonical" href="{esc(canonical)}"><link rel="icon" type="image/svg+xml" href="{base}favicon.svg?v={ICON_VERSION}">
 <link rel="icon" type="image/png" sizes="32x32" href="{base}favicon-32.png?v={ICON_VERSION}">
 <link rel="apple-touch-icon" sizes="180x180" href="{base}apple-touch-icon.png?v={ICON_VERSION}">
+{THEME_BOOTSTRAP}
 <link rel="stylesheet" href="{base}styles.css?v={CSS_VERSION}"><script defer src="{base}app.js?v={JS_VERSION}"></script>
 {head_extra}<title>{esc(page_title)}</title></head><body{body_class}>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -303,6 +321,7 @@ def build_living_library(base: str, site_url: str, stories: list[dict], art: lis
 .is-library-loading .site-header{visibility:hidden}
 #living-library.is-loading>:not(noscript){visibility:hidden;pointer-events:none}
 .ll-loading{position:fixed;inset:0;z-index:100;display:grid;place-items:center;margin:0;padding:32px;background:#f4ecde;color:#54432e;text-align:center}
+[data-theme="dark"] .ll-loading{background:#101216;color:#e8dcc3}
 body:not(.is-library-loading) .ll-loading{opacity:0;visibility:hidden;pointer-events:none}
 </style><noscript><style>.ll-loading{display:none!important}.is-library-loading .site-header{visibility:visible!important}</style></noscript>"""
     loading_bootstrap = """<script>
@@ -336,7 +355,9 @@ body:not(.is-library-loading) .ll-loading{opacity:0;visibility:hidden;pointer-ev
 <canvas id="ll-canvas" aria-label="A marble library with a school of floating books and a reading desk"></canvas>
 <div class="ll-atmosphere" aria-hidden="true"></div>
 <h1 class="ll-announcement" id="ll-title">The Living Library</h1>
-<button class="ll-motion" id="ll-motion" type="button" aria-pressed="false"><span aria-hidden="true">Ⅱ</span> <span id="ll-motion-label">Pause motion</span></button>
+<div class="ll-room-controls" role="group" aria-label="Room controls" hidden>
+<button class="ll-icon-button ll-motion" id="ll-motion" type="button" aria-label="Pause animations" title="Pause animations" aria-pressed="false"><svg id="ll-motion-pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="5" width="3" height="14" rx=".6"/><rect x="14" y="5" width="3" height="14" rx=".6"/></svg><svg id="ll-motion-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" hidden><path d="m8 5 12 7-12 7Z"/></svg></button>
+</div>
 <div class="ll-desk-content" id="ll-desk-content">
 <div class="ll-references" id="ll-references" aria-label="Reference images for the selected story"></div>
 <aside class="ll-prompt" id="ll-prompt" aria-labelledby="ll-prompt-heading"><div class="ll-prompt-copy"><p id="ll-prompt-text">{esc(first['prompt'])}</p></div><div class="ll-story" id="ll-story"><p class="ll-story-meta" id="ll-story-meta">{esc(first['rating'])} · Original fiction</p><h3 id="ll-story-title">{esc(first['title'])}</h3></div></aside>

@@ -70,13 +70,17 @@ function revealLibrary() {
 }
 
 function motionLabel() {
-  $('ll-motion').setAttribute('aria-pressed', String(paused));
-  $('ll-motion-label').textContent = paused ? 'Resume motion' : 'Pause motion';
-  $('ll-motion').firstElementChild.textContent = paused ? '▷' : 'Ⅱ';
+  const button = $('ll-motion');
+  const label = paused ? 'Resume animations' : 'Pause animations';
+  button.setAttribute('aria-pressed', String(paused));
+  button.setAttribute('aria-label', label); button.title = label;
+  $('ll-motion-pause').toggleAttribute('hidden', paused); $('ll-motion-play').toggleAttribute('hidden', !paused);
 }
 motionLabel();
 $('ll-motion').addEventListener('click', () => { paused = !paused; motionLabel(); sceneController?.wake(); });
 reducedMotion.addEventListener('change', event => { paused = event.matches; motionLabel(); sceneController?.wake(); });
+
+window.addEventListener('site-theme-change', event => sceneController?.setTheme(event.detail.theme));
 
 function openReference(number) {
   referenceIndex = (number + photos.length) % photos.length;
@@ -259,22 +263,26 @@ function createLibrary() {
   const glow = keep(new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffd89a').multiplyScalar(2.5), toneMapped: false }));
   const threadMat = keep(new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: .9, toneMapped: false, fog: false }));
 
-  // A softly lit studio environment gives the stone and brass real reflections.
-  const envScene = new THREE.Scene();
-  envScene.background = new THREE.Color('#b7a68d');
-  const envPanel = (color, strength, x, y, z, sx, sy, sz) => {
-    const mesh = new THREE.Mesh(geometry.box, new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(strength) }));
-    mesh.position.set(x, y, z); mesh.scale.set(sx, sy, sz); envScene.add(mesh); return mesh;
-  };
-  envPanel('#fff4dc', 3, 0, 10, 0, 18, 1, 18);
-  envPanel('#ffcb85', 4, -8, 3, -3, 1, 7, 10);
-  envPanel('#ffe6bf', 3, 8, 3, 2, 1, 7, 10);
-  envPanel('#fff5df', 2, 0, 4, 9, 12, 8, 1);
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  const environment = keep(pmrem.fromScene(envScene, .05, .1, 40));
-  scene.environment = environment.texture;
-  envScene.children.forEach(mesh => mesh.material.dispose());
-  pmrem.dispose();
+  // Cache both reflection environments. Changing the room never rebuilds
+  // the scene or interrupts a book's flight.
+  function studioEnvironment(dark) {
+    const envScene = new THREE.Scene();
+    envScene.background = new THREE.Color(dark ? '#151b26' : '#b7a68d');
+    const envPanel = (color, strength, x, y, z, sx, sy, sz) => {
+      const mesh = new THREE.Mesh(geometry.box, new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(strength) }));
+      mesh.position.set(x, y, z); mesh.scale.set(sx, sy, sz); envScene.add(mesh);
+    };
+    envPanel(dark ? '#e8eeff' : '#fff4dc', dark ? 1.2 : 3, 0, 10, 0, 18, 1, 18);
+    envPanel(dark ? '#e6b965' : '#ffcb85', dark ? 1.7 : 4, -8, 3, -3, 1, 7, 10);
+    envPanel(dark ? '#d6e1ff' : '#ffe6bf', dark ? 1.2 : 3, 8, 3, 2, 1, 7, 10);
+    envPanel(dark ? '#fff1ce' : '#fff5df', dark ? .8 : 2, 0, 4, 9, 12, 8, 1);
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const environment = keep(pmrem.fromScene(envScene, .05, .1, 40));
+    envScene.children.forEach(mesh => mesh.material.dispose()); pmrem.dispose();
+    return environment.texture;
+  }
+  const lightEnvironment = studioEnvironment(false), darkEnvironment = studioEnvironment(true);
+  scene.environment = lightEnvironment;
 
   // Canvas marble uses continuous branching veins, not a tiled photograph.
   function marbleTexture() {
@@ -324,9 +332,29 @@ function createLibrary() {
     return texture;
   }
   const stoneTexture = marbleTexture();
+  // The black stone shares the same fractures, with pale mineral veins in a
+  // charcoal base. A separate texture preserves the original white marble.
+  function blackMarbleTexture() {
+    const c = document.createElement('canvas'); c.width = c.height = 1024;
+    const ctx = c.getContext('2d'); ctx.drawImage(stoneTexture.image, 0, 0);
+    const pixels = ctx.getImageData(0, 0, 1024, 1024);
+    for (let i = 0; i < pixels.data.length; i += 4) {
+      const luminance = pixels.data[i] * .2126 + pixels.data[i + 1] * .7152 + pixels.data[i + 2] * .0722;
+      const vein = Math.pow(clamp((244 - luminance) / 80, 0, 1), 1.3);
+      pixels.data[i] = 15 + vein * 98;
+      pixels.data[i + 1] = 18 + vein * 96;
+      pixels.data[i + 2] = 23 + vein * 93;
+    }
+    ctx.putImageData(pixels, 0, 0);
+    const texture = keep(new THREE.CanvasTexture(c)); texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping; texture.anisotropy = stoneTexture.anisotropy;
+    return texture;
+  }
+  const blackStoneTexture = blackMarbleTexture();
   const stone = keep(new THREE.MeshStandardMaterial({ map: stoneTexture, bumpMap: stoneTexture, bumpScale: .018, roughness: .24, metalness: 0, envMapIntensity: .45 }));
   const paleStone = keep(stone.clone());
   const floorMap = keep(stoneTexture.clone());
+  const blackFloorMap = keep(blackStoneTexture.clone());
   const floorMat = keep(new THREE.MeshStandardMaterial({ map: floorMap, bumpMap: floorMap, bumpScale: .012, roughness: .22, metalness: 0, envMapIntensity: .45 }));
   const room = new THREE.Group(); scene.add(room);
   function box(w, h, d, x, y, z, mat = stone, parent = room) {
@@ -372,10 +400,12 @@ function createLibrary() {
   Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 14, bottom: -12, near: .5, far: 45 });
   sun.shadow.bias = -.0003; sun.shadow.normalBias = .035; sun.shadow.radius = 3;
   sun.target.position.set(0, 1, -5); scene.add(sun, sun.target);
-  scene.add(new THREE.HemisphereLight('#ffefd5', '#a48b68', .85));
+  const ambient = new THREE.HemisphereLight('#ffefd5', '#a48b68', .85); scene.add(ambient);
   const backlight = new THREE.PointLight('#ffc572', 90, 26, 2); backlight.position.set(0, 6.4, -16.5); scene.add(backlight);
+  const sideLights = [];
   for (const side of [-1, 1]) {
     const light = new THREE.PointLight('#ffd69a', 35, 18, 2); light.position.set(side * 7.5, 5, -3); scene.add(light);
+    sideLights.push(light);
   }
 
   // Deep shelf bays and marble piers establish the same symmetrical hall.
@@ -1267,6 +1297,33 @@ function createLibrary() {
   let previousTime = performance.now();
   let lastDraw = 0;
   let lost = false;
+  function setTheme(nextTheme) {
+    const dark = nextTheme === 'dark';
+    scene.background.set(dark ? '#0d1017' : '#e8d9bf');
+    scene.fog.color.set(dark ? '#10131b' : '#e6d5b8');
+    scene.environment = dark ? darkEnvironment : lightEnvironment;
+    // Restrained daylight fill preserves the marble's shadows and the covers'
+    // darker tones, while the directional sun keeps the light room bright.
+    scene.environmentIntensity = dark ? 1 : .34;
+    renderer.toneMappingExposure = dark ? .85 : .86;
+    for (const surface of [stone, paleStone, floorMat]) {
+      surface.map = dark ? (surface === floorMat ? blackFloorMap : blackStoneTexture) : (surface === floorMat ? floorMap : stoneTexture);
+      surface.envMapIntensity = dark ? (surface === floorMat ? .12 : .22) : .45;
+      surface.bumpScale = dark ? (surface === floorMat ? .003 : .005) : (surface === floorMat ? .012 : .018);
+      surface.needsUpdate = true;
+    }
+    // Keep the dark floor reflection soft, without a bright backlight hotspot.
+    floorMat.roughness = dark ? .72 : .36;
+    sun.color.set(dark ? '#e4eaff' : '#fff5e6'); sun.intensity = dark ? 1.45 : 2.2;
+    ambient.color.set(dark ? '#aabbdc' : '#dbe5f2'); ambient.groundColor.set(dark ? '#24202d' : '#66594a'); ambient.intensity = dark ? .55 : .36;
+    backlight.color.set(dark ? '#e7ad50' : '#ffd18a'); backlight.intensity = dark ? 65 : 55;
+    sideLights.forEach(light => { light.color.set(dark ? '#f4c983' : '#ffdfac'); light.intensity = dark ? 50 : 28; });
+    porcelain.color.set(dark ? '#262a33' : '#e7ddc7');
+    for (const wood of [walnut, walnutLegs]) {
+      wood.color.set(dark ? '#b5a38c' : '#ffffff'); wood.envMapIntensity = dark ? .18 : .3;
+    }
+    wake();
+  }
   function resize() {
     const width = canvas.clientWidth, height = canvas.clientHeight;
     renderer.setSize(width, height, false); camera.aspect = width / height;
@@ -1307,6 +1364,7 @@ function createLibrary() {
   canvas.addEventListener('webglcontextlost', event => { event.preventDefault(); lost = true; if (frame) cancelAnimationFrame(frame); frame = null; fallback(); });
   canvas.addEventListener('webglcontextrestored', () => { lost = false; root.classList.remove('is-fallback'); $('ll-fallback').hidden = true; wake(); });
   resize();
+  setTheme(document.documentElement.dataset.theme);
   updateSchool(0);
   const initialStudy = $('ll-references').querySelector('img');
   $('ll-loading-detail').textContent = 'Gathering the books and preparing your desk.';
@@ -1316,7 +1374,7 @@ function createLibrary() {
     positionDeskContent(); fitPromptText();
     startupReady = true; wake();
   });
-  return { select, wake, positionDeskContent,
+  return { select, wake, positionDeskContent, setTheme,
     dispose() {
       if (frame) cancelAnimationFrame(frame); if (revealFrame) cancelAnimationFrame(revealFrame); resizeObserver.disconnect(); document.removeEventListener('visibilitychange', visibility);
       disposeBook(hero); disposeBook(outgoing); resources.forEach(resource => resource.dispose()); renderer.dispose();
