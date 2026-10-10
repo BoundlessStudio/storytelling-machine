@@ -258,7 +258,6 @@ function createLibrary() {
   const gold = material('#bc9252', .3, .78);
   const inlayGold = material('#ffd700', .27, .78); inlayGold.envMapIntensity = .65;
   const bronze = material('#6b4b2e', .38, .68);
-  const leaf = material('#506047', .85);
   const porcelain = material('#e7ddc7', .25);
   const glow = keep(new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffd89a').multiplyScalar(2.5), toneMapped: false }));
   const threadMat = keep(new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: .9, toneMapped: false, fog: false }));
@@ -665,20 +664,6 @@ function createLibrary() {
   room.add(new THREE.LineSegments(keep(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(weftPositions, 3))),
     keep(new THREE.LineBasicMaterial({ color: '#eac779', transparent: true, opacity: .35, toneMapped: false, fog: false }))));
   torus(2.35, .025, 0, 7.4, -18.3, glow);
-
-  function plant(x, z, scale = 1) {
-    const pot = new THREE.Mesh(keep(new THREE.CylinderGeometry(.4, .29, .65, 16)), porcelain);
-    pot.position.set(x, .33, z); room.add(pot);
-    for (let branch = 0; branch < 20; branch++) {
-      const theta = random() * Math.PI * 2; const height = .65 + random() * 1.7;
-      const radius = .15 + random() * .55;
-      const stem = cylinder(.012, height, x + Math.cos(theta) * radius / 2, .7 + height / 2, z + Math.sin(theta) * radius / 2, leaf);
-      stem.rotation.z = Math.cos(theta) * .3; stem.rotation.x = Math.sin(theta) * .3;
-      const frond = new THREE.Mesh(geometry.sphere, leaf); frond.position.set(x + Math.cos(theta) * radius, .8 + height, z + Math.sin(theta) * radius);
-      frond.scale.set(.13 * scale, .5 * scale, .06 * scale); frond.rotation.set(Math.sin(theta) * .7, theta, -Math.cos(theta) * .7); room.add(frond);
-    }
-  }
-  plant(-5.3, -15.7); plant(5.3, -15.7);
 
   // The foreground desk is a beveled slab; book, studies, and card share its
   // world coordinates. HTML is projected onto the paper so text stays crisp.
