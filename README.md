@@ -16,6 +16,8 @@ Ratings use the source collection's AO3 scale: General, Teen, Mature, and Explic
 
 The public gallery shows finished location art once. Preserved earlier images with a `-original` filename suffix are excluded, and version labels such as `Selected` are removed from public location titles.
 
+The 3D renderer chooses a full, balanced, or economy budget from device memory/CPU hints, touch input, and WebGL limits rather than screen width. Sustained slow frames lower pixel density and shadow cost without removing any library books or changing the selected story. Constrained devices use smaller surface, reflection, atlas, and cover textures with a five-cover cache. Devices without floating-point render targets use direct lighting; devices without WebGL 2 retain the usable story fallback. Immutable room geometry is batched by material, static shadows are cached until a book or shelf slot changes, and spatial grids reduce flock neighbor and collision work. Rendering waits for the prepared assets before allocating the first complete scene frame. The performance policy in `static/library-performance.js` is versioned with the scene and covered by deterministic budget and broad-phase tests.
+
 ## Run locally
 
 Install Python and Node.js 24, then:

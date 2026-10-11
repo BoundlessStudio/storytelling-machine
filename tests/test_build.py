@@ -162,6 +162,8 @@ class SiteBuildTests(unittest.TestCase):
             self.assertEqual(cover_feed[0]["prompt"], self.stories[0]["prompt"])
             self.assertEqual(cover_feed[0]["createdAt"], self.stories[0]["createdAt"])
             self.assertTrue((output / "living-library.js").is_file())
+            self.assertTrue((output / "library-performance.js").is_file())
+            self.assertIn("'./library-performance.js?v=", (output / "living-library.js").read_text(encoding="utf-8"))
             self.assertTrue((output / "living-library.css").is_file())
             self.assertFalse((output / "horizon.js").exists())
             self.assertFalse((output / "skybox-twilight.webp").exists())

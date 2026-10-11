@@ -7,7 +7,7 @@
     "build:site": "python scripts/build.py --output _site --base-path / --site-url https://stories.rgbknights.com && npm run build:client",
     "build:site:offline": "python scripts/build.py --output _site --base-path / --site-url https://stories.rgbknights.com --offline && npm run build:client",
     "check": "tsc --noEmit",
-    "test:ts": "tsx --test tests/*.test.ts",
+    "test:ts": "tsx --test tests/*.test.ts tests/*.test.js",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy"
   },

@@ -23,7 +23,9 @@ STATIC = ROOT / "static"
 CSS_VERSION = sha256((STATIC / "styles.css").read_bytes()).hexdigest()[:12]
 ICON_VERSION = sha256((STATIC / "favicon.svg").read_bytes()).hexdigest()[:12]
 JS_VERSION = sha256((STATIC / "app.js").read_bytes()).hexdigest()[:12]
-LIBRARY_JS_VERSION = sha256((STATIC / "living-library.js").read_bytes()).hexdigest()[:12]
+LIBRARY_PERFORMANCE_VERSION = sha256((STATIC / "library-performance.js").read_bytes()).hexdigest()[:12]
+LIBRARY_JS_VERSION = sha256((STATIC / "living-library.js").read_bytes() +
+                            (STATIC / "library-performance.js").read_bytes()).hexdigest()[:12]
 LIBRARY_CSS_VERSION = sha256((STATIC / "living-library.css").read_bytes()).hexdigest()[:12]
 SOURCE_REPO = "https://github.com/BoundlessStudio/story-computing-machine"
 DEFAULT_SITE_URL = "https://stories.rgbknights.com"
@@ -450,10 +452,15 @@ def build(output: Path, base: str, site_url: str, media_index: dict | None = Non
     (output / "art").mkdir(parents=True)
     (output / "library").mkdir()
     (output / "stories").mkdir()
-    for filename in ("styles.css", "app.js", "living-library.js", "living-library.css", "favicon.svg", "favicon-32.png",
+    for filename in ("styles.css", "app.js", "living-library.js", "living-library.css", "library-performance.js", "favicon.svg", "favicon-32.png",
                      "apple-touch-icon.png", "social-card.jpg",
                      "location-fallback.webp"):
         shutil.copy2(STATIC / filename, output / filename)
+    # The scene and its performance policy are versioned together, including
+    # the module import so cached deployments cannot mix two policy versions.
+    scene_source = (STATIC / "living-library.js").read_text(encoding="utf-8")
+    (output / "living-library.js").write_text(scene_source.replace(
+        "'./library-performance.js'", f"'./library-performance.js?v={LIBRARY_PERFORMANCE_VERSION}'"), encoding="utf-8")
     shutil.copytree(STATIC / "panorama", output / "panorama")
     shutil.copytree(STATIC / "story-locations", output / "story-locations")
     shutil.copytree(STATIC / "story-covers", output / "story-covers")

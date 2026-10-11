@@ -1,4 +1,5 @@
 import * as THREE from './vendor/three.module.min.js';
+import { initialRenderQuality, RenderBudget, SpatialGrid } from './library-performance.js';
 
 /* The Living Library. All 230 covers share one atlas in the school. Only the
  * book on the desk uses its larger cover, and only nearby studies are loaded. */
@@ -54,6 +55,7 @@ let photos = [];
 let referenceIndex = 0;
 let destroyed = false;
 let ready = false;
+let releaseRenderer = () => {};
 const dialog = $('ll-lightbox');
 
 function revealLibrary() {
@@ -232,16 +234,25 @@ function fallback() {
   revealLibrary();
 }
 
-try { sceneController = createLibrary(); } catch (error) { console.warn('Reading room unavailable:', error); fallback(); }
+try { sceneController = createLibrary(); } catch (error) { releaseRenderer(); console.warn('Reading room unavailable:', error); fallback(); }
 
 function createLibrary() {
   const canvas = $('ll-canvas');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, mobile.matches ? 1.5 : 1.75));
+  const hints = { memory: navigator.deviceMemory, cores: navigator.hardwareConcurrency, coarsePointer: matchMedia('(pointer: coarse)').matches };
+  const context = canvas.getContext('webgl2', { antialias: initialRenderQuality(hints) !== 'economy', alpha: false, powerPreference: 'high-performance' });
+  if (!context) throw new Error('WebGL 2 is unavailable');
+  const floatTargets = !!context.getExtension('EXT_color_buffer_float');
+  const budget = new RenderBudget(initialRenderQuality({ ...hints, floatTargets, maxTextureSize: context.getParameter(context.MAX_TEXTURE_SIZE) }));
+  const assetProfile = budget.profile;
+  const renderer = new THREE.WebGLRenderer({ canvas, context, alpha: false });
+  let rendererReleased = false;
+  releaseRenderer = () => renderer.dispose();
+  renderer.setPixelRatio(Math.min(devicePixelRatio, budget.profile.pixelRatio));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = .95;
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = budget.profile.shadowSize > 0;
+  renderer.shadowMap.autoUpdate = false;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#e8d9bf');
@@ -249,6 +260,7 @@ function createLibrary() {
   const camera = new THREE.PerspectiveCamera(43, 1, .75, 75);
   const resources = new Set();
   const keep = resource => { resources.add(resource); return resource; };
+  releaseRenderer = () => { if (rendererReleased) return; rendererReleased = true; resources.forEach(resource => resource.dispose()); resources.clear(); renderer.dispose(); };
   const geometry = {
     box: keep(new THREE.BoxGeometry(1, 1, 1)),
     sphere: keep(new THREE.SphereGeometry(1, 12, 10)),
@@ -258,13 +270,18 @@ function createLibrary() {
   const gold = material('#bc9252', .3, .78);
   const inlayGold = material('#ffd700', .27, .78); inlayGold.envMapIntensity = .65;
   const bronze = material('#6b4b2e', .38, .68);
+  if (!floatTargets) for (const metal of [gold, inlayGold, bronze]) metal.metalness = .15;
   const porcelain = material('#e7ddc7', .25);
   const glow = keep(new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffd89a').multiplyScalar(2.5), toneMapped: false }));
   const threadMat = keep(new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: .9, toneMapped: false, fog: false }));
 
   // Cache both reflection environments. Changing the room never rebuilds
   // the scene or interrupts a book's flight.
+  const environmentTargets = new Map();
   function studioEnvironment(dark) {
+    // Some WebGL 2 phones cannot render the floating-point targets used by
+    // filtered reflections. Direct lighting still renders the complete room.
+    if (!floatTargets) return null;
     const envScene = new THREE.Scene();
     envScene.background = new THREE.Color(dark ? '#151b26' : '#b7a68d');
     const envPanel = (color, strength, x, y, z, sx, sy, sz) => {
@@ -276,33 +293,44 @@ function createLibrary() {
     envPanel(dark ? '#d6e1ff' : '#ffe6bf', dark ? 1.2 : 3, 8, 3, 2, 1, 7, 10);
     envPanel(dark ? '#fff1ce' : '#fff5df', dark ? .8 : 2, 0, 4, 9, 12, 8, 1);
     const pmrem = new THREE.PMREMGenerator(renderer);
-    const environment = keep(pmrem.fromScene(envScene, .05, .1, 40));
+    let environment;
+    if (budget.profile.environmentSize === 256) environment = pmrem.fromScene(envScene, .05, .1, 40);
+    else {
+      const cube = new THREE.WebGLCubeRenderTarget(budget.profile.environmentSize, { type: THREE.HalfFloatType });
+      new THREE.CubeCamera(.1, 40, cube).update(renderer, envScene);
+      environment = pmrem.fromCubemap(cube.texture); cube.dispose();
+    }
+    const previous = environmentTargets.get(dark);
+    if (previous) { previous.dispose(); resources.delete(previous); }
+    keep(environment);
+    environmentTargets.set(dark, environment);
     envScene.children.forEach(mesh => mesh.material.dispose()); pmrem.dispose();
     return environment.texture;
   }
-  const lightEnvironment = studioEnvironment(false), darkEnvironment = studioEnvironment(true);
+  let lightEnvironment = studioEnvironment(false), darkEnvironment = studioEnvironment(true);
   scene.environment = lightEnvironment;
 
   // Canvas marble uses continuous branching veins, not a tiled photograph.
   function marbleTexture() {
-    const c = document.createElement('canvas'); c.width = c.height = 1024;
+    const c = document.createElement('canvas'); const size = assetProfile.textureSize; c.width = c.height = size;
     const ctx = c.getContext('2d');
     ctx.fillStyle = '#e9e0cf'; ctx.fillRect(0, 0, 1024, 1024);
-    const mineral = ctx.createImageData(1024, 1024);
-    for (let y = 0; y < 1024; y++) for (let x = 0; x < 1024; x++) {
-      const u = x / 1024 * Math.PI * 2, v = y / 1024 * Math.PI * 2;
+    const mineral = ctx.createImageData(size, size);
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const u = x / size * Math.PI * 2, v = y / size * Math.PI * 2;
       const phase = u + v * 2 + Math.sin(u - v) * .9 + Math.sin(u * 2 + v) * 1.1 + Math.sin(u * 5 - v * 3) * .25;
       const ridge = 1 - Math.abs(Math.sin(phase));
       const vein = Math.pow(ridge, 22) * 63 + Math.pow(ridge, 5) * 10;
       const cloud = Math.sin(u) * Math.sin(v) * 4 + Math.sin(u * 2 - v) * 2;
       const noise = (random() - .5) * 3;
-      const i = (y * 1024 + x) * 4;
+      const i = (y * size + x) * 4;
       mineral.data[i] = 243 + cloud + noise - vein;
       mineral.data[i + 1] = 244 + cloud + noise - vein * .94;
       mineral.data[i + 2] = 240 + cloud + noise - vein * .86;
       mineral.data[i + 3] = 255;
     }
     ctx.putImageData(mineral, 0, 0);
+    ctx.scale(size / 1024, size / 1024);
     const cloud = ctx.createLinearGradient(0, 0, 1024, 720);
     cloud.addColorStop(0, '#ffffff12'); cloud.addColorStop(.4, '#6d7a7d0a'); cloud.addColorStop(.7, '#f3f7f412'); cloud.addColorStop(1, '#6d7a7d08');
     ctx.fillStyle = cloud; ctx.fillRect(0, 0, 1024, 1024);
@@ -327,16 +355,16 @@ function createLibrary() {
     }
     const texture = keep(new THREE.CanvasTexture(c));
     texture.colorSpace = THREE.SRGBColorSpace; texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
+    texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), budget.quality === 'full' ? 8 : 2);
     return texture;
   }
   const stoneTexture = marbleTexture();
   // The black stone shares the same fractures, with pale mineral veins in a
   // charcoal base. A separate texture preserves the original white marble.
   function blackMarbleTexture() {
-    const c = document.createElement('canvas'); c.width = c.height = 1024;
+    const c = document.createElement('canvas'); const size = assetProfile.textureSize; c.width = c.height = size;
     const ctx = c.getContext('2d'); ctx.drawImage(stoneTexture.image, 0, 0);
-    const pixels = ctx.getImageData(0, 0, 1024, 1024);
+    const pixels = ctx.getImageData(0, 0, size, size);
     for (let i = 0; i < pixels.data.length; i += 4) {
       const luminance = pixels.data[i] * .2126 + pixels.data[i + 1] * .7152 + pixels.data[i + 2] * .0722;
       const vein = Math.pow(clamp((244 - luminance) / 80, 0, 1), 1.3);
@@ -395,7 +423,7 @@ function createLibrary() {
   }
 
   const sun = new THREE.DirectionalLight('#fff0d3', 1.8); sun.position.set(-3, 13, 5);
-  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  sun.castShadow = true; sun.shadow.mapSize.set(assetProfile.shadowSize || 512, assetProfile.shadowSize || 512);
   Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 14, bottom: -12, near: .5, far: 45 });
   sun.shadow.bias = -.0003; sun.shadow.normalBias = .035; sun.shadow.radius = 3;
   sun.target.position.set(0, 1, -5); scene.add(sun, sun.target);
@@ -499,6 +527,7 @@ function createLibrary() {
   let nextShelfTransfer = 1.5 + random();
   let lastShelfSide = 1;
   function updateShelfSlot(slot, hidden) {
+    renderer.shadowMap.needsUpdate = true;
     const book = shelfBooks[slot];
     shelfDummy.position.set(book.x, book.y, book.z); shelfDummy.rotation.set(0, 0, book.tilt);
     shelfDummy.scale.set(book.w, book.h, book.d).multiplyScalar(hidden ? 0 : 1); shelfDummy.updateMatrix(); shelfMesh.setMatrixAt(slot, shelfDummy.matrix);
@@ -672,12 +701,13 @@ function createLibrary() {
   const deskOffsetZ = 2.1;
   const deskSetup = new THREE.Group(); deskSetup.position.z = deskOffsetZ; room.add(deskSetup);
   function walnutTexture() {
-    const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
+    const c = document.createElement('canvas'); c.width = assetProfile.textureSize; c.height = c.width / 2;
     const ctx = c.getContext('2d'); const pixels = ctx.createImageData(c.width, c.height);
     for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
-      const bend = Math.sin(x * .004) * 13 + Math.sin(x * .012 + y * .006) * 3;
-      const grain = Math.sin((y + bend) * .17) * 5 + Math.sin((y + bend) * .047) * 10;
-      const fine = Math.sin((y + bend) * 1.7 + Math.sin(x * .02)) * 2;
+      const u = x * 1024 / c.width, v = y * 512 / c.height;
+      const bend = Math.sin(u * .004) * 13 + Math.sin(u * .012 + v * .006) * 3;
+      const grain = Math.sin((v + bend) * .17) * 5 + Math.sin((v + bend) * .047) * 10;
+      const fine = Math.sin((v + bend) * 1.7 + Math.sin(u * .02)) * 2;
       const pore = random() > .96 ? -random() * 14 : 0;
       const tone = grain + fine + pore + (random() - .5) * 4;
       const i = (y * c.width + x) * 4;
@@ -685,7 +715,7 @@ function createLibrary() {
     }
     ctx.putImageData(pixels, 0, 0);
     const texture = keep(new THREE.CanvasTexture(c)); texture.colorSpace = THREE.SRGBColorSpace;
-    texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8); return texture;
+    texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), budget.quality === 'full' ? 8 : 2); return texture;
   }
   const walnutMap = walnutTexture();
   const walnut = keep(new THREE.MeshStandardMaterial({ map: walnutMap, roughness: .43, metalness: .02, envMapIntensity: .3 }));
@@ -787,28 +817,43 @@ function createLibrary() {
 
   const textureLoader = new THREE.TextureLoader();
   const coverCache = new Map();
+  function limitTexture(texture, maximum) {
+    const image = texture.image;
+    if (!image || Math.max(image.width, image.height) <= maximum) return;
+    const scale = maximum / Math.max(image.width, image.height);
+    const smaller = document.createElement('canvas'); smaller.width = Math.max(1, Math.round(image.width * scale)); smaller.height = Math.max(1, Math.round(image.height * scale));
+    smaller.getContext('2d').drawImage(image, 0, 0, smaller.width, smaller.height);
+    texture.dispose(); texture.image = smaller; texture.needsUpdate = true;
+  }
+  function trimCoverCache() {
+    const protectedKeys = [index, wrap(index - 1), wrap(index + 1), hero?.storyIndex, outgoing?.storyIndex].filter(n => n !== undefined).map(n => stories[n].cover);
+    for (const [key, promise] of coverCache) {
+      if (coverCache.size <= budget.profile.coverCache) break;
+      if (protectedKeys.includes(key)) continue;
+      coverCache.delete(key);
+      promise.then(texture => { if (texture) { texture.dispose(); resources.delete(texture); } });
+    }
+  }
   function coverTexture(storyIndex) {
     const key = stories[storyIndex].cover;
     if (coverCache.has(key)) return coverCache.get(key);
     const promise = textureLoader.loadAsync(key).then(texture => {
-      if (destroyed) { texture.dispose(); return null; }
+      if (destroyed || rendererReleased) { texture.dispose(); return null; }
       texture.colorSpace = THREE.SRGBColorSpace;
-      texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
+      limitTexture(texture, budget.profile.coverSize);
+      texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), budget.quality === 'full' ? 8 : 2);
       keep(texture); return texture;
     }).catch(() => null);
     coverCache.set(key, promise);
     // A long session shouldn't retain 230 large textures. Active books and
     // their immediate neighbors are protected while older covers are evicted.
-    if (coverCache.size > 9) for (const [oldKey, old] of coverCache) {
-      const protectedKeys = [index, wrap(index - 1), wrap(index + 1), hero?.storyIndex, outgoing?.storyIndex].filter(n => n !== undefined).map(n => stories[n].cover);
-      if (!protectedKeys.includes(oldKey)) { coverCache.delete(oldKey); old.then(texture => { if (texture) { texture.dispose(); resources.delete(texture); } }); break; }
-    }
+    trimCoverCache();
     return promise;
   }
   let atlasReady;
   const atlasPromise = new Promise(resolve => { atlasReady = resolve; });
   const atlas = textureLoader.load(data.atlasSrc, () => atlasReady(), undefined, () => atlasReady());
-  keep(atlas); atlas.colorSpace = THREE.SRGBColorSpace; atlas.anisotropy = 4;
+  keep(atlas); atlas.colorSpace = THREE.SRGBColorSpace; atlas.anisotropy = budget.quality === 'full' ? 4 : 2;
   function sampleBindingColors() {
     if (!atlas.image?.width) return;
     const tileW = atlas.image.width / data.atlas.cols, tileH = atlas.image.height / data.atlas.rows;
@@ -1010,24 +1055,31 @@ function createLibrary() {
       }
     }
   }
+  const collisionGrid = new SpatialGrid(), neighborGrid = new SpatialGrid();
+  const neighborRadius = Math.sqrt(1.6);
   function separateBooks(members, iterations) {
-    for (let pass = 0; pass < iterations; pass++) for (let i = 0; i < members.length; i++) for (let j = i + 1; j < members.length; j++) {
-      const a = members[i], b = members[j];
-      difference.subVectors(a.position, b.position);
-      const distanceSquared = difference.lengthSq();
-      // Conservative enclosing spheres cover each tilted book's full diagonal.
-      const minimum = a.radius + b.radius + .035;
-      if (distanceSquared >= minimum * minimum) continue;
-      const distance = Math.sqrt(distanceSquared);
-      if (distance < .00001) difference.set(1, 0, 0); else difference.multiplyScalar(1 / distance);
-      // Shelf travelers yield slightly. Desk flights keep their smooth route
-      // while the school makes room around their actual changing size.
-      const aWeight = a.fixed ? 0 : a.kinematic ? .2 : 1, bWeight = b.fixed ? 0 : b.kinematic ? .2 : 1, weight = aWeight + bWeight;
-      if (!weight) continue;
-      const correction = minimum - distance;
-      a.position.addScaledVector(difference, correction * aWeight / weight); b.position.addScaledVector(difference, -correction * bWeight / weight);
-      const closing = (a.velocity.x - b.velocity.x) * difference.x + (a.velocity.y - b.velocity.y) * difference.y + (a.velocity.z - b.velocity.z) * difference.z;
-      if (closing < 0) { a.velocity.addScaledVector(difference, -closing * aWeight / weight); b.velocity.addScaledVector(difference, closing * bWeight / weight); }
+    const maximumRadius = members.reduce((radius, body) => Math.max(radius, body.radius), 0);
+    for (let pass = 0; pass < iterations; pass++) {
+      collisionGrid.rebuild(members);
+      for (let i = 0; i < members.length; i++) for (const j of collisionGrid.query(members[i].position, members[i].radius + maximumRadius + .035)) {
+        if (j <= i) continue;
+        const a = members[i], b = members[j];
+        difference.subVectors(a.position, b.position);
+        const distanceSquared = difference.lengthSq();
+        // Conservative enclosing spheres cover each tilted book's full diagonal.
+        const minimum = a.radius + b.radius + .035;
+        if (distanceSquared >= minimum * minimum) continue;
+        const distance = Math.sqrt(distanceSquared);
+        if (distance < .00001) difference.set(1, 0, 0); else difference.multiplyScalar(1 / distance);
+        // Shelf travelers yield slightly. Desk flights keep their smooth route
+        // while the school makes room around their actual changing size.
+        const aWeight = a.fixed ? 0 : a.kinematic ? .2 : 1, bWeight = b.fixed ? 0 : b.kinematic ? .2 : 1, weight = aWeight + bWeight;
+        if (!weight) continue;
+        const correction = minimum - distance;
+        a.position.addScaledVector(difference, correction * aWeight / weight); b.position.addScaledVector(difference, correction * -bWeight / weight);
+        const closing = (a.velocity.x - b.velocity.x) * difference.x + (a.velocity.y - b.velocity.y) * difference.y + (a.velocity.z - b.velocity.z) * difference.z;
+        if (closing < 0) { a.velocity.addScaledVector(difference, -closing * aWeight / weight); b.velocity.addScaledVector(difference, closing * bWeight / weight); }
+      }
     }
   }
   function updateSchool(dt, elapsed = dt) {
@@ -1053,6 +1105,7 @@ function createLibrary() {
     const deskFlights = flight && !reducedMotion.matches ? [hero.flightBody, outgoing.flightBody] : [];
     for (const book of [hero, outgoing]) if (book) book.flightBody.radius = Math.max(boids[book.storyIndex].radius, Math.hypot(1.79, 3.18, .36) * .5 * book.group.scale.x);
     const members = [...boids.filter((body, i) => !deskStories.has(i) && !travelingStories.has(i) && (!body.arrival || body.arrival.departed)), ...shelfTransfers, ...deskFlights];
+    if (dt > 0 && !arrivalsRemaining) neighborGrid.rebuild(members);
     for (let i = 0; i < members.length; i++) {
       const b = members[i];
       if (b.kinematic) continue;
@@ -1064,7 +1117,7 @@ function createLibrary() {
       flockTarget(b, flockTime);
       if (dt > 0) {
         separation.set(0, 0, 0); alignment.set(0, 0, 0); let neighbors = 0;
-        for (let j = 0; j < members.length; j++) {
+        for (const j of neighborGrid.query(b.position, neighborRadius)) {
           if (i === j) continue;
           difference.subVectors(b.position, members[j].position); const dist = difference.lengthSq();
           if (dist > .00001 && dist < 1.6) { separation.addScaledVector(difference, 1 / dist); alignment.add(members[j].velocity); neighbors++; }
@@ -1206,7 +1259,7 @@ function createLibrary() {
   function preloadNeighbors(storyIndex) {
     [wrap(storyIndex - 1), wrap(storyIndex + 1)].forEach(n => {
       coverTexture(n);
-      const img = new Image(); img.src = stories[n].references[0].src;
+      if (budget.quality !== 'economy' && !navigator.connection?.saveData) { const img = new Image(); img.src = stories[n].references[0].src; }
     });
   }
   preloadNeighbors(index);
@@ -1217,6 +1270,7 @@ function createLibrary() {
   }
   function updateFlight(now) {
     if (!flight) return;
+    renderer.shadowMap.needsUpdate = true;
     if (flight.complete) {
       // Let the school clear the final flight pose for one frame before its
       // ordinary instance returns, so the handoff keeps the same opening.
@@ -1276,13 +1330,75 @@ function createLibrary() {
     else if (found?.storyIndex !== undefined) chooseStory(found.storyIndex);
   });
 
+  // Bake the immutable shelves, walls and loom frame into a few material
+  // batches. The instanced books and the movable desk setup stay independent.
+  function batchArchitecture() {
+    const batches = new Map(), sourceGeometries = new Set();
+    for (const mesh of [...room.children]) {
+      if (!mesh.isMesh || mesh.isInstancedMesh || Array.isArray(mesh.material)) continue;
+      const key = `${mesh.material.id}:${mesh.castShadow}:${mesh.receiveShadow}`;
+      if (!batches.has(key)) batches.set(key, []);
+      batches.get(key).push(mesh);
+    }
+    for (const meshes of batches.values()) {
+      if (meshes.length < 2) continue;
+      const parts = meshes.map(mesh => {
+        mesh.updateMatrix();
+        const part = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
+        part.applyMatrix4(mesh.matrix); sourceGeometries.add(mesh.geometry);
+        return part;
+      });
+      const merged = keep(new THREE.BufferGeometry());
+      for (const name of ['position', 'normal', 'uv']) {
+        const size = parts[0].getAttribute(name).itemSize;
+        const values = new Float32Array(parts.reduce((length, part) => length + part.getAttribute(name).array.length, 0));
+        let offset = 0;
+        for (const part of parts) { const valuesPart = part.getAttribute(name).array; values.set(valuesPart, offset); offset += valuesPart.length; }
+        merged.setAttribute(name, new THREE.BufferAttribute(values, size));
+      }
+      merged.computeBoundingSphere();
+      const batch = new THREE.Mesh(merged, meshes[0].material); batch.name = 'Static architecture';
+      batch.castShadow = meshes[0].castShadow; batch.receiveShadow = meshes[0].receiveShadow;
+      meshes.forEach(mesh => room.remove(mesh)); room.add(batch); parts.forEach(part => part.dispose());
+    }
+    const used = new Set(); scene.traverse(object => { if (object.geometry) used.add(object.geometry); });
+    for (const geometry of sourceGeometries) if (!used.has(geometry)) { geometry.dispose(); resources.delete(geometry); }
+  }
+  batchArchitecture();
+
   let frame = null;
   let startupReady = false;
   let revealFrame = null;
   let previousTime = performance.now();
   let lastDraw = 0;
   let lost = false;
+  let recovering = false;
+  let qualityWarmUntil = performance.now() + 1500;
+  function applyQuality() {
+    const profile = budget.profile;
+    root.dataset.renderQuality = budget.quality;
+    renderer.setPixelRatio(Math.min(devicePixelRatio, profile.pixelRatio));
+    const shadows = profile.shadowSize > 0;
+    const changed = renderer.shadowMap.enabled !== shadows;
+    renderer.shadowMap.enabled = shadows;
+    renderer.shadowMap.autoUpdate = false;
+    if (sun.shadow.mapSize.x !== profile.shadowSize || !shadows) {
+      sun.shadow.map?.dispose(); sun.shadow.map = null;
+      sun.shadow.mapSize.set(profile.shadowSize || 512, profile.shadowSize || 512);
+    }
+    if (changed) {
+      const materials = new Set(); scene.traverse(object => { if (object.material) materials.add(object.material); });
+      materials.forEach(material => { material.needsUpdate = true; });
+    }
+    renderer.shadowMap.needsUpdate = true;
+    dust.visible = profile.dust;
+    limitTexture(atlas, profile.atlasSize);
+    trimCoverCache();
+    for (const promise of coverCache.values()) promise.then(texture => { if (!rendererReleased && texture) { limitTexture(texture, budget.profile.coverSize); wake(); } });
+    budget.reset(); qualityWarmUntil = performance.now() + 1500;
+  }
   function setTheme(nextTheme) {
+    budget.reset(); qualityWarmUntil = performance.now() + 1500;
     const dark = nextTheme === 'dark';
     scene.background.set(dark ? '#0d1017' : '#e8d9bf');
     scene.fog.color.set(dark ? '#10131b' : '#e6d5b8');
@@ -1320,21 +1436,34 @@ function createLibrary() {
     const bottomRay = new THREE.Vector3(1, -1, .5).unproject(camera).sub(camera.position);
     const halfWidthAtDesk = Math.abs(camera.position.x + bottomRay.x * (deskTop - camera.position.y) / bottomRay.y);
     desk.scale.x = Math.max(1, (halfWidthAtDesk + .65) / (deskWidth / 2));
+    renderer.shadowMap.needsUpdate = true;
     cardPose.visible = cardBase.visible = cardClip.visible = !mobile.matches; positionDeskContent(); fitPromptText(); wake();
   }
   const resizeObserver = new ResizeObserver(resize); resizeObserver.observe(canvas);
   function render(now) {
     frame = null;
-    if (destroyed || lost || document.hidden) return;
+    if (destroyed || lost || rendererReleased || document.hidden || !startupReady) return;
     // 30 fps is sufficient for the slow school and halves battery/GPU use.
-    if (now - lastDraw < 30 && !flight) { frame = requestAnimationFrame(render); return; }
+    if (now - lastDraw < budget.profile.frameInterval - 1 && !(flight && budget.quality === 'full')) { frame = requestAnimationFrame(render); return; }
+    const workStart = performance.now();
     const elapsed = Math.max((now - previousTime) / 1000, 0), dt = Math.min(elapsed, .055); previousTime = now; lastDraw = now;
     const animate = ready && !paused && !dialog.open;
     updateFlight(now); updateSchool(animate ? dt : 0, animate ? elapsed : 0);
     if (animate) { dust.rotation.y += dt * .006; threadMat.opacity = .86 + Math.sin(flockTime * .7) * .04; }
     hero.group.updateMatrixWorld();
     projectPaper($('ll-read'), hero.group, 1.77, 3.146, 360, 640, .18);
-    renderer.render(scene, camera);
+    try { renderer.render(scene, camera); }
+    catch (error) {
+      lost = true; sceneController?.dispose(); sceneController = undefined;
+      console.warn('Reading room unavailable:', error); fallback(); return;
+    }
+    if (recovering) {
+      recovering = false;
+      root.classList.remove('is-fallback'); $('ll-fallback').hidden = true; positionDeskContent();
+    }
+    if (animate && !flight && !arrivalsRemaining && now > qualityWarmUntil) {
+      if (budget.observe(now, elapsed * 1000, performance.now() - workStart)) applyQuality();
+    } else budget.reset();
     // Let the browser paint this fully textured frame before exposing the
     // projected HTML. This also works when reduced motion stops the loop.
     if (startupReady && !ready && revealFrame === null) revealFrame = requestAnimationFrame(() => {
@@ -1344,25 +1473,44 @@ function createLibrary() {
     if (animate || flight) frame = requestAnimationFrame(render);
   }
   function wake() { if (!frame && !destroyed && !lost) { previousTime = performance.now(); frame = requestAnimationFrame(render); } }
-  function visibility() { if (document.hidden) { if (frame) cancelAnimationFrame(frame); frame = null; } else wake(); }
+  function visibility() { budget.reset(); qualityWarmUntil = performance.now() + 1500; if (document.hidden) { if (frame) cancelAnimationFrame(frame); frame = null; } else wake(); }
   document.addEventListener('visibilitychange', visibility);
-  canvas.addEventListener('webglcontextlost', event => { event.preventDefault(); lost = true; if (frame) cancelAnimationFrame(frame); frame = null; fallback(); });
-  canvas.addEventListener('webglcontextrestored', () => { lost = false; root.classList.remove('is-fallback'); $('ll-fallback').hidden = true; wake(); });
+  canvas.addEventListener('webglcontextlost', event => {
+    event.preventDefault();
+    if (destroyed || rendererReleased) return;
+    lost = true; recovering = true;
+    if (frame) cancelAnimationFrame(frame); frame = null; fallback();
+  });
+  canvas.addEventListener('webglcontextrestored', () => {
+    if (destroyed || rendererReleased) return;
+    budget.lower();
+    // Render-target contents do not survive context loss. Rebuild reflections
+    // as well as the shadow map before returning from the usable fallback.
+    try {
+      lightEnvironment = studioEnvironment(false); darkEnvironment = studioEnvironment(true);
+      applyQuality(); setTheme(document.documentElement.dataset.theme);
+      lost = false; wake();
+    } catch (error) {
+      sceneController?.dispose(); sceneController = undefined;
+      console.warn('Reading room unavailable:', error); fallback();
+    }
+  });
   resize();
   setTheme(document.documentElement.dataset.theme);
   updateSchool(0);
   const initialStudy = $('ll-references').querySelector('img');
   $('ll-loading-detail').textContent = 'Gathering the books and preparing your desk.';
   Promise.allSettled([coverTexture(index), atlasPromise, document.fonts.ready, initialStudy?.decode()]).then(() => {
-    if (destroyed || ready) return;
+    if (destroyed || rendererReleased) return;
     sampleBindingColors();
+    applyQuality();
     positionDeskContent(); fitPromptText();
     startupReady = true; wake();
   });
   return { select, wake, positionDeskContent, setTheme,
     dispose() {
       if (frame) cancelAnimationFrame(frame); if (revealFrame) cancelAnimationFrame(revealFrame); resizeObserver.disconnect(); document.removeEventListener('visibilitychange', visibility);
-      disposeBook(hero); disposeBook(outgoing); resources.forEach(resource => resource.dispose()); renderer.dispose();
+      disposeBook(hero); disposeBook(outgoing); releaseRenderer();
     },
   };
 }
