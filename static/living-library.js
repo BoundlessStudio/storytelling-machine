@@ -148,12 +148,15 @@ function fitPromptText() {
   const paper = text.parentElement;
   text.style.fontSize = '';
   let size = parseFloat(getComputedStyle(text).fontSize);
-  while (text.scrollHeight > paper.clientHeight + 1 && size > 15) {
+  const minimum = mobile.matches || root.classList.contains('is-fallback') ? 10 : 15;
+  while ((text.scrollHeight > paper.clientHeight + 1 || text.scrollWidth > paper.clientWidth + 1) && size > minimum) {
     size -= .5;
     text.style.fontSize = `${size}px`;
   }
 }
 document.fonts.ready.then(fitPromptText);
+const promptResizeObserver = new ResizeObserver(fitPromptText);
+promptResizeObserver.observe($('ll-prompt-text').parentElement);
 
 function chooseStory(nextIndex, updateUrl = true) {
   nextIndex = wrap(nextIndex);
@@ -807,12 +810,37 @@ function createLibrary() {
     projectPaper($('ll-art-link'), referenceLabelPose, 2.8, .48, 300, 60);
     const photos = [...$('ll-references').children];
     const layout = photoLayouts[photos.length > 3 ? 1 : 0];
-    const spread = clamp((camera.aspect - 1.6) / .5, 0, 1);
     photos.forEach((element, i) => {
       const pose = layout.poses[i];
-      pose.position.x = THREE.MathUtils.lerp(pose.userData.compactX, pose.userData.referenceX, spread);
       projectPaper(element, pose, layout.width, layout.height, 300, 218);
     });
+  }
+
+  function fitDeskToViewport(width, height) {
+    const spread = clamp((camera.aspect - 1.6) / .5, 0, 1);
+    const panels = [
+      [cardPose, 3.25, 4.45], [promptLabelPose, 2.8, .62],
+      [scrollHintPose, 3.5, .48], [referenceLabelPose, 2.8, .48],
+    ];
+    // Fit both study arrangements so changing stories never changes the camera.
+    photoLayouts.forEach(layout => layout.poses.forEach(pose => {
+      pose.position.x = THREE.MathUtils.lerp(pose.userData.compactX, pose.userData.referenceX, spread);
+      panels.push([pose, layout.width, layout.height]);
+    }));
+    deskSetup.updateMatrixWorld(true);
+    const inset = clamp(width * .025, 16, 32);
+    const horizontal = 1 - 2 * inset / width;
+    const bottom = 1 - 2 * inset / height;
+    const top = 1 - 2 * (document.querySelector('.site-header').getBoundingClientRect().bottom + inset) / height;
+    let zoom = 1;
+    for (const [pose, panelWidth, panelHeight] of panels) {
+      for (const x of [-.5, .5]) for (const y of [-.5, .5]) {
+        const point = corners[0].set(x * panelWidth, y * panelHeight, .04).applyMatrix4(pose.matrixWorld).project(camera);
+        zoom = Math.min(zoom, horizontal / Math.abs(point.x), (point.y > 0 ? top : bottom) / Math.abs(point.y));
+      }
+    }
+    camera.zoom = zoom;
+    camera.updateProjectionMatrix();
   }
 
   const textureLoader = new THREE.TextureLoader();
@@ -1429,13 +1457,20 @@ function createLibrary() {
     const width = canvas.clientWidth, height = canvas.clientHeight;
     renderer.setSize(width, height, false); camera.aspect = width / height;
     camera.fov = mobile.matches ? 49 : 43;
+    camera.zoom = 1;
     if (mobile.matches) { camera.position.set(0, 9, 16.7); camera.lookAt(0, 2.9, -4.2); }
     else { camera.position.set(0, 9, 16.7); camera.lookAt(0, 1.9, -4.2); }
     camera.updateProjectionMatrix(); camera.updateMatrixWorld();
+    if (!mobile.matches) fitDeskToViewport(width, height);
     // Keep the nearer desk wide enough to cover the bottom corners.
     const bottomRay = new THREE.Vector3(1, -1, .5).unproject(camera).sub(camera.position);
     const halfWidthAtDesk = Math.abs(camera.position.x + bottomRay.x * (deskTop - camera.position.y) / bottomRay.y);
     desk.scale.x = Math.max(1, (halfWidthAtDesk + .65) / (deskWidth / 2));
+    // Extend only the front of the tabletop when a wider view exposes it.
+    const frontZ = camera.position.z + bottomRay.z * (deskTop - camera.position.y) / bottomRay.y;
+    const extraDepth = Math.max(0, frontZ + .65 - (deskCenterZ + deskOffsetZ + deskDepth / 2));
+    desk.scale.z = 1 + extraDepth / deskDepth;
+    desk.position.z = deskCenterZ + extraDepth / 2;
     renderer.shadowMap.needsUpdate = true;
     cardPose.visible = cardBase.visible = cardClip.visible = !mobile.matches; positionDeskContent(); fitPromptText(); wake();
   }
@@ -1519,6 +1554,6 @@ function createLibrary() {
 // the renderer and GPU textures instead of accumulating abandoned contexts.
 window.addEventListener('pagehide', event => {
   if (event.persisted) return;
-  destroyed = true; clearTimeout(swapTimer); clearTimeout(dissolveTimer); sceneController?.dispose();
+  destroyed = true; clearTimeout(swapTimer); clearTimeout(dissolveTimer); promptResizeObserver.disconnect(); sceneController?.dispose();
 });
 window.addEventListener('pageshow', () => sceneController?.wake());
