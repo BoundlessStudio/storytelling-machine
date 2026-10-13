@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.min.js';
 import { initialRenderQuality, RenderBudget, SpatialGrid } from './library-performance.js';
 
-/* The Living Library. All 230 covers share one atlas in the school. Only the
+/* The Living Library. All story covers share one atlas in the school. Only the
  * book on the desk uses its larger cover, and only nearby studies are loaded. */
 const $ = id => document.getElementById(id);
 const root = $('living-library');
@@ -1008,7 +1008,7 @@ function createLibrary() {
       velocity: new THREE.Vector3(), target: new THREE.Vector3(), phase, band, size, radius: size * .75, tilt: random() * Math.PI * 2,
       quaternion: new THREE.Quaternion(), rotation: new THREE.Euler(), matrix: new THREE.Matrix4() };
     if (source) {
-      const start = .55 + rank / count * .7, duration = 1.55 + random() * .25;
+      const start = .18 + rank / count * .7, duration = 1.55 + random() * .25;
       const from = new THREE.Vector3(source.x, source.y, source.z);
       const fromQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, source.x < 0 ? Math.PI : 0, source.x < 0 ? -source.tilt : source.tilt));
       const entry = flockTarget(body, start + duration, new THREE.Vector3());
@@ -1332,6 +1332,179 @@ function createLibrary() {
   const dust = new THREE.Points(keep(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(dustPositions, 3))), keep(new THREE.PointsMaterial({ color: '#fff4d9', size: .026, transparent: true, opacity: .6, depthWrite: false })));
   scene.add(dust);
 
+  // Two bounded particle pools share one analytic sparkle shader. Births are
+  // uploaded only when needed; drifting, twinkling and fading happen on the GPU.
+  // Keep the effects' random stream separate from book and shelf choreography.
+  let magicSeed = 7193;
+  const magicRandom = () => ((magicSeed = (1664525 * magicSeed + 1013904223) >>> 0) / 4294967296);
+  const magicBudgets = {
+    full: { swarm: 1152, cursor: 96, emitters: 18, openingEmitters: 96, interval: .2, openingInterval: .06 },
+    balanced: { swarm: 640, cursor: 64, emitters: 12, openingEmitters: 56, interval: .24, openingInterval: .09 },
+    economy: { swarm: 256, cursor: 32, emitters: 8, openingEmitters: 26, interval: .3, openingInterval: .12 },
+  };
+  const magicUniforms = {
+    uTime: { value: 0 }, uPixelRatio: { value: renderer.getPixelRatio() }, uOpacity: { value: 1 },
+    uGold: { value: new THREE.Color('#e9b65b') }, uAccent: { value: new THREE.Color('#78bfb8') },
+  };
+  const magicMaterial = keep(new THREE.ShaderMaterial({
+    uniforms: magicUniforms, transparent: true, depthWrite: false, toneMapped: false,
+    vertexShader: `
+      attribute vec4 aSpark;
+      attribute vec3 aDrift;
+      uniform float uTime;
+      uniform float uPixelRatio;
+      varying float vFade;
+      varying float vSeed;
+      void main() {
+        float age = max(0.0, uTime - aSpark.x);
+        float life = age / max(aSpark.y, 0.01);
+        vSeed = aSpark.w;
+        vFade = smoothstep(0.0, 0.12, life) * (1.0 - smoothstep(0.28, 1.0, life));
+        vFade *= 0.7 + 0.3 * sin(age * 9.0 + vSeed * 6.283);
+        vec3 drift = aDrift * age;
+        drift.x += sin(age * 2.5 + vSeed * 6.283) * age * 0.035;
+        drift.y += age * age * 0.045;
+        vec4 view = modelViewMatrix * vec4(position + drift, 1.0);
+        gl_Position = projectionMatrix * view;
+        gl_PointSize = clamp(aSpark.z * uPixelRatio * 22.0 / max(1.0, -view.z), 1.0, 48.0 * uPixelRatio);
+        if (life >= 1.0 || view.z >= 0.0) { vFade = 0.0; gl_PointSize = 1.0; }
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uGold;
+      uniform vec3 uAccent;
+      uniform float uOpacity;
+      varying float vFade;
+      varying float vSeed;
+      void main() {
+        vec2 p = gl_PointCoord - 0.5;
+        float radius = length(p);
+        float halo = exp(-radius * radius * 28.0) * 0.24;
+        float core = exp(-radius * radius * 240.0);
+        float rays = exp(-min(abs(p.x), abs(p.y)) * 75.0) * pow(max(0.0, 1.0 - radius * 2.0), 1.6);
+        float star = step(0.62, fract(vSeed * 7.13));
+        float alpha = (halo + core * 0.85 + rays * star * 0.7) * vFade * uOpacity;
+        if (alpha < 0.005) discard;
+        vec3 color = mix(uGold, uAccent, step(0.85, vSeed));
+        color = mix(color, vec3(1.0, 0.96, 0.82), core * 0.8);
+        gl_FragColor = vec4(color, min(alpha, 0.92));
+        #include <colorspace_fragment>
+      }
+    `,
+  }));
+  function sparklePool(capacity, name, overlay = false) {
+    const positions = new Float32Array(capacity * 3), sparks = new Float32Array(capacity * 4), drifts = new Float32Array(capacity * 3);
+    for (let i = 0; i < capacity; i++) sparks[i * 4] = -100;
+    const geometry = keep(new THREE.BufferGeometry());
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute('aSpark', new THREE.BufferAttribute(sparks, 4).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute('aDrift', new THREE.BufferAttribute(drifts, 3).setUsage(THREE.DynamicDrawUsage));
+    const material = overlay ? keep(magicMaterial.clone()) : magicMaterial;
+    // The cursor wake belongs to the pointer, so books never hide it.
+    if (overlay) { material.uniforms = { ...magicUniforms, uOpacity: { value: .38 } }; material.depthTest = false; }
+    const points = new THREE.Points(geometry, material); points.name = name;
+    points.frustumCulled = false; points.renderOrder = overlay ? 10 : 2; points.visible = false; scene.add(points);
+    return { points, positions, sparks, drifts, next: 0, dirty: false, limit: capacity };
+  }
+  const swarmSparkles = sparklePool(1152, 'Book stardust');
+  const cursorSparkles = sparklePool(96, 'Cursor spell wake', true);
+  let magicTime = 0, swarmCredit = 0, cursorFollowing = false, assemblySettledAt = null;
+  let openingMagicPrimed = false;
+  const sparkPosition = new THREE.Vector3(), cursorPosition = new THREE.Vector3(), previousCursor = new THREE.Vector3();
+  function emitSpark(pool, position, size, lifetime, drift = null) {
+    const i = pool.next; pool.next = (i + 1) % pool.limit;
+    pool.positions.set([position.x, position.y, position.z], i * 3);
+    pool.sparks.set([magicTime, lifetime, size, magicRandom()], i * 4);
+    pool.drifts.set(drift ? [drift.x * -.12, .06 - drift.y * .08, drift.z * -.12]
+      : [(magicRandom() - .5) * .12, .06 + magicRandom() * .08, (magicRandom() - .5) * .08], i * 3);
+    pool.dirty = true;
+  }
+  function clearMagic() {
+    for (const pool of [swarmSparkles, cursorSparkles]) {
+      pool.points.visible = false;
+      for (let i = 0; i < pool.sparks.length; i += 4) pool.sparks[i] = -100;
+      pool.dirty = true;
+    }
+    swarmCredit = 0; cursorFollowing = false;
+  }
+  function emitBookSpark(body, size = body.size, assemblyGlow = 0) {
+    // Shed light from the binding and page corners, then leave it behind as
+    // the book moves on. Waiting books glint along the exposed shelf spine.
+    if (body.arrival && !body.arrival.departed) {
+      const source = shelfBooks[body.arrival.slot];
+      sparkPosition.set(source.x - Math.sign(source.x) * (source.w * .55 + .04),
+        source.y + (magicRandom() - .5) * source.h, source.z + (magicRandom() - .5) * source.d);
+    } else sparkPosition.set((magicRandom() - .5) * .65 * size, -size * .56, .13 * size)
+      .applyQuaternion(body.quaternion).add(body.position);
+    emitSpark(swarmSparkles, sparkPosition, 7 + magicRandom() * 9 + assemblyGlow * 20,
+      1.2 + magicRandom() * .6 + assemblyGlow * .3, body.velocity);
+  }
+  function updateMagic(dt, animate) {
+    // Reduced motion and modal reading suppress both the ambient and pointer
+    // effects, including particles left over from an earlier animated frame.
+    if (!animate || reducedMotion.matches) {
+      if (swarmSparkles.points.visible || cursorSparkles.points.visible) clearMagic();
+      return;
+    }
+    magicTime += dt; magicUniforms.uTime.value = magicTime;
+    swarmSparkles.points.visible = cursorSparkles.points.visible = true;
+    const profile = magicBudgets[budget.quality];
+    // Prime the first textured frame, before revealing the room. Starting
+    // these glints partway through their fade-in makes the magic immediate.
+    if (!openingMagicPrimed) {
+      openingMagicPrimed = true;
+      if (arrivalsRemaining) for (let n = 0; n < profile.openingEmitters; n++) {
+        const body = boids[Math.floor(n * count / profile.openingEmitters)];
+        if (!body.arrival) continue;
+        for (let j = 0; j < 3; j++) {
+          const slot = swarmSparkles.next;
+          emitBookSpark(body, body.size, 1);
+          swarmSparkles.sparks[slot * 4] -= .18 + magicRandom() * .18;
+        }
+      }
+    }
+    // Celebrate the shelf departures, then settle over 3.5 seconds into a
+    // quieter shimmer. The taper follows the actual end of the assembly.
+    if (arrivalsRemaining) assemblySettledAt = null;
+    else if (assemblySettledAt === null) assemblySettledAt = magicTime;
+    const assemblyGlow = assemblySettledAt === null ? 1 : 1 - ease(clamp((magicTime - assemblySettledAt) / 3.5, 0, 1));
+    const interval = THREE.MathUtils.lerp(profile.interval, profile.openingInterval, assemblyGlow);
+    const emitters = Math.round(THREE.MathUtils.lerp(profile.emitters, profile.openingEmitters, assemblyGlow));
+    magicUniforms.uOpacity.value = .8 + assemblyGlow * .3;
+    swarmCredit += dt;
+    if (swarmCredit >= interval) {
+      swarmCredit %= interval;
+      for (let n = 0; n < emitters; n++) {
+        const i = Math.floor(n * count / emitters), body = boids[i];
+        if (i === hero?.storyIndex || i === outgoing?.storyIndex
+          || shelfTransfers.some(transfer => transfer.storyIndex === i)) continue;
+        emitBookSpark(body, body.size, assemblyGlow);
+      }
+      for (const transfer of shelfTransfers) emitBookSpark(transfer, shelfBooks[transfer.slot].h / 1.27);
+      if (flight) for (const book of [hero, outgoing]) if (book) emitBookSpark({
+        position: book.group.position, quaternion: book.group.quaternion, velocity: book.flightBody.velocity,
+      }, book.group.scale.x * 2.5);
+    }
+    if (mouseActive) {
+      // A fixed distance along the camera ray keeps the wake precisely under
+      // the pointer at every viewport size, with no DOM overlay or hit target.
+      mouseTargetRay.at(11, cursorPosition);
+      if (!cursorFollowing) previousCursor.copy(cursorPosition);
+      const distance = previousCursor.distanceTo(cursorPosition);
+      const samples = distance > .025 ? Math.min(3, Math.ceil(distance / .12)) : 0;
+      for (let i = 1; i <= samples; i++) {
+        sparkPosition.lerpVectors(previousCursor, cursorPosition, i / samples);
+        sparkPosition.x += (magicRandom() - .5) * .025; sparkPosition.y += (magicRandom() - .5) * .025;
+        emitSpark(cursorSparkles, sparkPosition, 4 + magicRandom() * 5, .3 + magicRandom() * .2);
+      }
+      previousCursor.copy(cursorPosition); cursorFollowing = true;
+    } else cursorFollowing = false;
+    for (const pool of [swarmSparkles, cursorSparkles]) if (pool.dirty) {
+      for (const attribute of Object.values(pool.points.geometry.attributes)) attribute.needsUpdate = true;
+      pool.dirty = false;
+    }
+  }
+
   const raycaster = new THREE.Raycaster(); const pointer = new THREE.Vector2();
   function hit(event) {
     const bounds = canvas.getBoundingClientRect();
@@ -1351,7 +1524,10 @@ function createLibrary() {
     if (!mouseActive && mouseStrength < .001) mouseRay.copy(raycaster.ray);
     mouseTargetRay.copy(raycaster.ray); mouseActive = true;
   });
-  canvas.addEventListener('pointerleave', () => { mouseActive = false; canvas.style.cursor = 'default'; });
+  function leavePointer() { mouseActive = false; cursorFollowing = false; canvas.style.cursor = 'default'; }
+  canvas.addEventListener('pointerleave', leavePointer);
+  canvas.addEventListener('pointercancel', leavePointer);
+  window.addEventListener('blur', leavePointer);
   canvas.addEventListener('click', event => {
     const found = hit(event);
     if (!flight && found?.object.parent === hero.group) location.assign(stories[hero.storyIndex].url);
@@ -1420,6 +1596,11 @@ function createLibrary() {
     }
     renderer.shadowMap.needsUpdate = true;
     dust.visible = profile.dust;
+    const magicProfile = magicBudgets[budget.quality];
+    for (const [pool, limit] of [[swarmSparkles, magicProfile.swarm], [cursorSparkles, magicProfile.cursor]]) {
+      pool.limit = limit; pool.next %= limit; pool.points.geometry.setDrawRange(0, limit);
+    }
+    magicUniforms.uPixelRatio.value = renderer.getPixelRatio();
     limitTexture(atlas, profile.atlasSize);
     trimCoverCache();
     for (const promise of coverCache.values()) promise.then(texture => { if (!rendererReleased && texture) { limitTexture(texture, budget.profile.coverSize); wake(); } });
@@ -1428,6 +1609,8 @@ function createLibrary() {
   function setTheme(nextTheme) {
     budget.reset(); qualityWarmUntil = performance.now() + 1500;
     const dark = nextTheme === 'dark';
+    magicUniforms.uGold.value.set(dark ? '#ffd080' : '#c48a2b');
+    magicUniforms.uAccent.value.set(dark ? '#a1eee1' : '#468f8b');
     scene.background.set(dark ? '#0d1017' : '#e8d9bf');
     scene.fog.color.set(dark ? '#10131b' : '#e6d5b8');
     scene.environment = dark ? darkEnvironment : lightEnvironment;
@@ -1454,6 +1637,7 @@ function createLibrary() {
     wake();
   }
   function resize() {
+    leavePointer(); clearMagic();
     const width = canvas.clientWidth, height = canvas.clientHeight;
     renderer.setSize(width, height, false); camera.aspect = width / height;
     camera.fov = mobile.matches ? 49 : 43;
@@ -1482,8 +1666,9 @@ function createLibrary() {
     if (now - lastDraw < budget.profile.frameInterval - 1 && !(flight && budget.quality === 'full')) { frame = requestAnimationFrame(render); return; }
     const workStart = performance.now();
     const elapsed = Math.max((now - previousTime) / 1000, 0), dt = Math.min(elapsed, .055); previousTime = now; lastDraw = now;
-    const animate = ready && !paused && !dialog.open;
+    const animate = ready && !paused && !reducedMotion.matches && !dialog.open;
     updateFlight(now); updateSchool(animate ? dt : 0, animate ? elapsed : 0);
+    updateMagic(dt, animate || (!ready && !paused && !reducedMotion.matches && !dialog.open));
     if (animate) { dust.rotation.y += dt * .006; threadMat.opacity = .86 + Math.sin(flockTime * .7) * .04; }
     hero.group.updateMatrixWorld();
     projectPaper($('ll-read'), hero.group, 1.77, 3.146, 360, 640, .18);
@@ -1508,7 +1693,10 @@ function createLibrary() {
     if (animate || flight) frame = requestAnimationFrame(render);
   }
   function wake() { if (!frame && !destroyed && !lost) { previousTime = performance.now(); frame = requestAnimationFrame(render); } }
-  function visibility() { budget.reset(); qualityWarmUntil = performance.now() + 1500; if (document.hidden) { if (frame) cancelAnimationFrame(frame); frame = null; } else wake(); }
+  function visibility() {
+    budget.reset(); qualityWarmUntil = performance.now() + 1500;
+    if (document.hidden) { leavePointer(); clearMagic(); if (frame) cancelAnimationFrame(frame); frame = null; } else wake();
+  }
   document.addEventListener('visibilitychange', visibility);
   canvas.addEventListener('webglcontextlost', event => {
     event.preventDefault();
@@ -1545,6 +1733,7 @@ function createLibrary() {
   return { select, wake, positionDeskContent, setTheme,
     dispose() {
       if (frame) cancelAnimationFrame(frame); if (revealFrame) cancelAnimationFrame(revealFrame); resizeObserver.disconnect(); document.removeEventListener('visibilitychange', visibility);
+      window.removeEventListener('blur', leavePointer);
       disposeBook(hero); disposeBook(outgoing); releaseRenderer();
     },
   };

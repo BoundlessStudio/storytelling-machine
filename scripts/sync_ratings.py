@@ -1,4 +1,4 @@
-"""Import approved story ratings and new stories from a pinned source commit."""
+"""Refresh published prose, canon metadata, ratings and covers from a pinned source commit."""
 
 from __future__ import annotations
 
@@ -85,6 +85,40 @@ def new_story(repository: Path, commit: str, slug: str) -> dict:
     }
 
 
+def refresh_story(repository: Path, commit: str, story: dict, paths: set[str]) -> dict:
+    slug = story["slug"]
+    prefix = f"stories/{slug}/"
+    path = next((prefix + name for name in ("story.md", "05-story.md") if prefix + name in paths), None)
+    if path is None:
+        raise ValueError(f"Missing source prose for {slug}")
+    source = git_text(repository, commit, path)
+    match = re.match(r"\A---\r?\n(.*?)\r?\n---\r?\n(.*)\Z", source, re.DOTALL)
+    if not match:
+        raise ValueError(f"Missing story frontmatter for {slug}")
+    frontmatter, prose = match.groups()
+    fields = dict(re.findall(r"^([\w-]+):\s*(.*?)\s*$", frontmatter, re.MULTILINE))
+    title = fields["title"].strip('"\'')
+    body = prose.strip()
+    if not body:
+        raise ValueError(f"Missing story prose for {slug}")
+    # Preserve an authored heading even when it differs from the package title.
+    if not body.startswith("# "):
+        body = f"# {title}\n\n{body}"
+    updated = {**story, "title": title, "body": body}
+    if body != story["body"]:
+        updated["edited"] = subprocess.check_output(
+            ["git", "-C", str(repository), "log", "-1", "--format=%as", commit, "--", path], text=True
+        ).strip()
+    metadata_path = prefix + "story.json"
+    metadata = json.loads(git_text(repository, commit, metadata_path)) if metadata_path in paths else {}
+    updated["canon"] = metadata.get("canon", fields.get("canon", "false") == "true")
+    if not isinstance(updated["canon"], bool):
+        raise ValueError(f"Invalid source canon status for {slug}")
+    # Publication membership, prompts and original chronology belong to the
+    # site's snapshot; refreshing prose must not withdraw or reorder stories.
+    return updated
+
+
 def sync(repository: Path, revision: str, add_stories: list[str] | None = None) -> None:
     commit = subprocess.check_output(
         ["git", "-C", str(repository), "rev-parse", f"{revision}^{{commit}}"],
@@ -101,6 +135,10 @@ def sync(repository: Path, revision: str, add_stories: list[str] | None = None) 
             raise ValueError("Invalid or duplicate new story slug")
         stories.insert(0, new_story(repository, commit, add_story))
         slugs.add(add_story)
+    paths = set(subprocess.check_output(
+        ["git", "-C", str(repository), "ls-tree", "-r", "--name-only", commit, "stories"], text=True
+    ).splitlines())
+    stories[:] = [refresh_story(repository, commit, story, paths) for story in stories]
     for story in stories:
         story["rating"] = source_rating(repository, commit, story["slug"])
     covers = {
@@ -123,7 +161,7 @@ def sync(repository: Path, revision: str, add_stories: list[str] | None = None) 
                     "localOverrides": json.loads((ROOT / "content" / "rating-overrides.json").read_text(encoding="utf-8"))},
                    indent=2) + "\n", encoding="utf-8"
     )
-    print(f"Updated {len(stories)} ratings from {commit[:12]}")
+    print(f"Refreshed {len(stories)} stories and ratings from {commit[:12]}")
 
 
 if __name__ == "__main__":
