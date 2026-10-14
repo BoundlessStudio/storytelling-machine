@@ -1,7 +1,23 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "12c92d2482dfc8c0e49f57da62f9811c4b46e4bd",
+  "sourceCommit": "dc8464cb30fe8aa71184e17adb538eb7a8d95da7",
   "locations": {
+    "room-to-move": {
+      "src": "story-locations/room-to-move.webp",
+      "title": "Anjas Flat",
+      "sky": "#725839",
+      "ground": "#5e4023",
+      "source": "stories/room-to-move/art/interiors/anjas-flat.png"
+    },
+    "the-town-beneath-the-dance": {
+      "src": "panorama/the-town-beneath-the-dance-land.webp",
+      "title": "Hetts Apple Yard",
+      "width": 1400,
+      "height": 933,
+      "sky": "#827754",
+      "ground": "#705f3d",
+      "source": "stories/the-town-beneath-the-dance/art/landscapes/hetts-apple-yard.webp"
+    },
     "professional-farmer": {
       "src": "panorama/professional-farmer-land.webp",
       "title": "Romy Pea Garden",
@@ -71,10 +87,8 @@
       "source": "stories/until-im-big/art/landscapes/garden-gate.png"
     },
     "the-woman-who-swallowed-the-sea": {
-      "src": "panorama/the-woman-who-swallowed-the-sea-land.webp",
+      "src": "story-locations/the-woman-who-swallowed-the-sea.webp",
       "title": "Terrace over the Empty Sea",
-      "width": 1400,
-      "height": 933,
       "sky": "#393e47",
       "ground": "#38332f",
       "source": "stories/the-woman-who-swallowed-the-sea/art/landscapes/terrace-over-the-empty-sea.webp"
@@ -108,8 +122,10 @@
       "source": "stories/the-moon-before-its-time/art/landscapes/upper-temple-terrace.webp"
     },
     "one-good-scream": {
-      "src": "story-locations/one-good-scream.webp",
+      "src": "panorama/one-good-scream-land.webp",
       "title": "Fairground and House of Horrors",
+      "width": 1400,
+      "height": 933,
       "sky": "#60483e",
       "ground": "#5a3a26",
       "source": "stories/one-good-scream/art/landscapes/fairground-and-house-of-horrors.webp"
@@ -122,10 +138,8 @@
       "source": "stories/for-my-own-use/art/interiors/neris-rented-room.webp"
     },
     "wrath-limit-break": {
-      "src": "panorama/wrath-limit-break-land.webp",
+      "src": "story-locations/wrath-limit-break.webp",
       "title": "Northern Bastion Pass",
-      "width": 1400,
-      "height": 933,
       "sky": "#7f7a80",
       "ground": "#716b6c",
       "source": "stories/wrath-limit-break/art/landscapes/northern-bastion-pass.webp"
@@ -194,17 +208,17 @@
       "source": "stories/rgbknights/art/interiors/knight-shift-selected.png"
     },
     "great-winter-contest": {
-      "src": "story-locations/great-winter-contest.webp",
+      "src": "panorama/great-winter-contest-land.webp",
       "title": "Seven Steps",
+      "width": 1400,
+      "height": 933,
       "sky": "#888283",
       "ground": "#a59a97",
       "source": "stories/great-winter-contest/art/landscapes/seven-steps.png"
     },
     "no-vacancy": {
-      "src": "panorama/no-vacancy-land.webp",
+      "src": "story-locations/no-vacancy.webp",
       "title": "Bakers Lane Selected",
-      "width": 1400,
-      "height": 933,
       "sky": "#817555",
       "ground": "#806e4a",
       "source": "stories/no-vacancy/art/landscapes/02-bakers-lane-selected.png"
@@ -259,17 +273,17 @@
       "source": "stories/the-unspent-star/art/landscapes/01-ring-universe-selected.png"
     },
     "the-engine-under-the-sand": {
-      "src": "story-locations/the-engine-under-the-sand.webp",
+      "src": "panorama/the-engine-under-the-sand-land.webp",
       "title": "Big Sleeper Basin Selected",
+      "width": 1400,
+      "height": 933,
       "sky": "#b7a69d",
       "ground": "#8a4c2b",
       "source": "stories/the-engine-under-the-sand/art/landscapes/02-big-sleeper-basin-selected.png"
     },
     "right-of-way": {
-      "src": "panorama/right-of-way-land.webp",
+      "src": "story-locations/right-of-way.webp",
       "title": "Ridge over Town Selected",
-      "width": 1400,
-      "height": 933,
       "sky": "#aea8a3",
       "ground": "#64552d",
       "source": "stories/right-of-way/art/landscapes/ridge-over-town-selected.webp"
@@ -331,8 +345,10 @@
       "source": "stories/the-fox-that-stood-up/art/landscapes/01-night-market-lane.png"
     },
     "onyx-peace": {
-      "src": "story-locations/onyx-peace.webp",
+      "src": "panorama/onyx-peace-land.webp",
       "title": "Sheltered Cove",
+      "width": 1400,
+      "height": 933,
       "sky": "#686d6c",
       "ground": "#676152",
       "source": "stories/onyx-peace/art/landscapes/01-sheltered-cove.png"
@@ -359,10 +375,8 @@
       "source": null
     },
     "the-sun-in-the-crowd": {
-      "src": "panorama/the-sun-in-the-crowd-land.webp",
+      "src": "story-locations/the-sun-in-the-crowd.webp",
       "title": "Night Market Portrait Stall",
-      "width": 1400,
-      "height": 933,
       "sky": "#443934",
       "ground": "#4a382c",
       "source": "stories/the-sun-in-the-crowd/art/landscapes/night-market-portrait-stall.png"
@@ -403,17 +417,17 @@
       "source": "stories/the-red-dot/art/landscapes/01-service-lane-under-the-security-lamp.png"
     },
     "the-gutter-school": {
-      "src": "story-locations/the-gutter-school.webp",
+      "src": "panorama/the-gutter-school-land.webp",
       "title": "Empty Market Square",
+      "width": 1400,
+      "height": 933,
       "sky": "#b0afa5",
       "ground": "#9c734e",
       "source": "stories/the-gutter-school/art/landscapes/01-empty-market-square.png"
     },
     "a-beginner-of-considerable-age": {
-      "src": "panorama/a-beginner-of-considerable-age-land.webp",
+      "src": "story-locations/a-beginner-of-considerable-age.webp",
       "title": "Apple Orchard Hillside",
-      "width": 1400,
-      "height": 933,
       "sky": "#86826c",
       "ground": "#716732",
       "source": "stories/a-beginner-of-considerable-age/art/landscapes/01-apple-orchard-hillside.png"
@@ -454,17 +468,17 @@
       "source": "stories/a-place-for-sunday/art/landscapes/01-horse-chestnut-lane.png"
     },
     "what-the-gates-keep": {
-      "src": "story-locations/what-the-gates-keep.webp",
+      "src": "panorama/what-the-gates-keep-land.webp",
       "title": "The Yellow Opposite Ridge",
+      "width": 1400,
+      "height": 933,
       "sky": "#b98a6c",
       "ground": "#6a4929",
       "source": "stories/what-the-gates-keep/art/landscapes/01-the-yellow-opposite-ridge.png"
     },
     "the-thread-that-held": {
-      "src": "panorama/the-thread-that-held-land.webp",
+      "src": "story-locations/the-thread-that-held.webp",
       "title": "Summer Through the Orchards",
-      "width": 1400,
-      "height": 933,
       "sky": "#b8a59b",
       "ground": "#90753d",
       "source": "stories/the-thread-that-held/art/landscapes/01-summer-through-the-orchards.png"
@@ -498,17 +512,17 @@
       "source": "stories/a-reasonable-declaration/art/landscapes/01-the-precipice-in-white-air.png"
     },
     "the-unoffered-hand": {
-      "src": "story-locations/the-unoffered-hand.webp",
+      "src": "panorama/the-unoffered-hand-land.webp",
       "title": "Autumn over the Royal Mews",
+      "width": 1400,
+      "height": 933,
       "sky": "#99917b",
       "ground": "#977e5e",
       "source": "stories/the-unoffered-hand/art/landscapes/01-autumn-over-the-royal-mews.png"
     },
     "a-pet-human": {
-      "src": "panorama/a-pet-human-land.webp",
+      "src": "story-locations/a-pet-human.webp",
       "title": "Flowers Closing at Dusk",
-      "width": 1400,
-      "height": 933,
       "sky": "#4e252a",
       "ground": "#2a2622",
       "source": "stories/a-pet-human/art/landscapes/02-flowers-closing-at-dusk.png"
@@ -542,17 +556,17 @@
       "source": "stories/the-color-that-comes-home/art/landscapes/01-the-quarry-of-separate-colors.png"
     },
     "the-first-winter": {
-      "src": "story-locations/the-first-winter.webp",
+      "src": "panorama/the-first-winter-land.webp",
       "title": "Birch Valley Dawn",
+      "width": 1400,
+      "height": 933,
       "sky": "#ac8c74",
       "ground": "#7a5032",
       "source": "stories/the-first-winter/art/landscapes/01-birch-valley-dawn.png"
     },
     "twelve-in-the-room": {
-      "src": "panorama/twelve-in-the-room-land.webp",
+      "src": "story-locations/twelve-in-the-room.webp",
       "title": "The Rear Stones Afterward",
-      "width": 1400,
-      "height": 933,
       "sky": "#364056",
       "ground": "#46403d",
       "source": "stories/twelve-in-the-room/art/landscapes/05-the-rear-stones-afterward.png"
@@ -586,17 +600,17 @@
       "source": "stories/a-seat-for-the-sun/art/landscapes/01-cloud-above-the-garden.png"
     },
     "yavrens-return": {
-      "src": "story-locations/yavrens-return.webp",
+      "src": "panorama/yavrens-return-land.webp",
       "title": "Esvay Open to Spring",
+      "width": 1400,
+      "height": 933,
       "sky": "#94a1b5",
       "ground": "#8c7c57",
       "source": "stories/yavrens-return/art/landscapes/01-esvay-open-to-spring.png"
     },
     "the-cat-who-kept-the-door": {
-      "src": "panorama/the-cat-who-kept-the-door-land.webp",
+      "src": "story-locations/the-cat-who-kept-the-door.webp",
       "title": "Three Moons above the Palace",
-      "width": 1400,
-      "height": 933,
       "sky": "#24293c",
       "ground": "#2a251c",
       "source": "stories/the-cat-who-kept-the-door/art/landscapes/01-three-moons-above-the-palace.png"
@@ -637,17 +651,17 @@
       "source": "stories/i-really-need-a-sidekick/art/interiors/02-gilt-rotunda.png"
     },
     "undisclosed": {
-      "src": "story-locations/undisclosed.webp",
+      "src": "panorama/undisclosed-land.webp",
       "title": "The Bakery Below the Office",
+      "width": 1400,
+      "height": 933,
       "sky": "#666770",
       "ground": "#5a5256",
       "source": "stories/undisclosed/art/landscapes/01-the-bakery-below-the-office.png"
     },
     "no-need-to-worry": {
-      "src": "panorama/no-need-to-worry-land.webp",
+      "src": "story-locations/no-need-to-worry.webp",
       "title": "Light beyond the Yard",
-      "width": 1400,
-      "height": 933,
       "sky": "#3a4049",
       "ground": "#2b2623",
       "source": "stories/no-need-to-worry/art/landscapes/04-light-beyond-the-yard.png"
@@ -681,17 +695,17 @@
       "source": "stories/stay-out-of-my-city/art/landscapes/01-brackenport-morning.png"
     },
     "a-knock-in-someone-elses-sleep": {
-      "src": "story-locations/a-knock-in-someone-elses-sleep.webp",
+      "src": "panorama/a-knock-in-someone-elses-sleep-land.webp",
       "title": "Cottages above the Quarry",
+      "width": 1400,
+      "height": 933,
       "sky": "#928683",
       "ground": "#634c3c",
       "source": "stories/a-knock-in-someone-elses-sleep/art/landscapes/01-cottages-above-the-quarry.png"
     },
     "the-lights-beyond": {
-      "src": "panorama/the-lights-beyond-land.webp",
+      "src": "story-locations/the-lights-beyond.webp",
       "title": "Great Wall Northern Pass",
-      "width": 1400,
-      "height": 933,
       "sky": "#a5a9ab",
       "ground": "#756145",
       "source": "stories/the-lights-beyond/art/landscapes/01-great-wall-northern-pass.png"
@@ -732,8 +746,10 @@
       "source": "stories/gods-afraid-of-grandma/art/landscapes/01-rain-on-valkas-garden.png"
     },
     "the-first-people": {
-      "src": "story-locations/the-first-people.webp",
+      "src": "panorama/the-first-people-land.webp",
       "title": "The Low House by the Sea",
+      "width": 1400,
+      "height": 933,
       "sky": "#364555",
       "ground": "#313639",
       "source": "stories/the-first-people/art/landscapes/02-the-low-house-by-the-sea.png"
@@ -746,10 +762,8 @@
       "source": "stories/the-second-wearing/art/interiors/02-room-from-the-window.png"
     },
     "only-eighteen": {
-      "src": "panorama/only-eighteen-land.webp",
+      "src": "story-locations/only-eighteen.webp",
       "title": "The Home in Summer",
-      "width": 1400,
-      "height": 933,
       "sky": "#717150",
       "ground": "#474f32",
       "source": "stories/only-eighteen/art/landscapes/01-the-home-in-summer.png"
@@ -783,17 +797,17 @@
       "source": "stories/late-for-dinner/art/landscapes/01-plovers-cut.png"
     },
     "not-about-that": {
-      "src": "story-locations/not-about-that.webp",
+      "src": "panorama/not-about-that-land.webp",
       "title": "The Rooftops before Dusk",
+      "width": 1400,
+      "height": 933,
       "sky": "#a4a1a1",
       "ground": "#56433e",
       "source": "stories/not-about-that/art/landscapes/01-the-rooftops-before-dusk.png"
     },
     "the-bride-who-came-back": {
-      "src": "panorama/the-bride-who-came-back-land.webp",
+      "src": "story-locations/the-bride-who-came-back.webp",
       "title": "Cyrak beyond the Pass",
-      "width": 1400,
-      "height": 933,
       "sky": "#7b6e6b",
       "ground": "#656e79",
       "source": "stories/the-bride-who-came-back/art/landscapes/02-cyrak-beyond-the-pass.png"
@@ -827,8 +841,10 @@
       "source": "stories/the-way-around/art/landscapes/01-the-sandstone-slot.png"
     },
     "the-thousandth-fall": {
-      "src": "story-locations/the-thousandth-fall.webp",
+      "src": "panorama/the-thousandth-fall-land.webp",
       "title": "Midsky Cloister in Rain",
+      "width": 1400,
+      "height": 933,
       "sky": "#999ca3",
       "ground": "#4f4e42",
       "source": "stories/the-thousandth-fall/art/landscapes/01-midsky-cloister-in-rain.png"
@@ -848,10 +864,8 @@
       "source": "stories/golden-lion/art/interiors/01-menagerie-hall.png"
     },
     "lightning-carries-one": {
-      "src": "panorama/lightning-carries-one-land.webp",
+      "src": "story-locations/lightning-carries-one.webp",
       "title": "Storm over the River",
-      "width": 1400,
-      "height": 933,
       "sky": "#635b70",
       "ground": "#54473f",
       "source": "stories/lightning-carries-one/art/landscapes/01-storm-over-the-river.png"
@@ -892,17 +906,17 @@
       "source": "stories/clerics-infernal-ex/art/landscapes/05-the-ford-after-rain.png"
     },
     "the-healers-measure": {
-      "src": "story-locations/the-healers-measure.webp",
+      "src": "panorama/the-healers-measure-land.webp",
       "title": "Autumn at Candlemere",
+      "width": 1400,
+      "height": 933,
       "sky": "#a28c71",
       "ground": "#7a5e44",
       "source": "stories/the-healers-measure/art/landscapes/01-autumn-at-candlemere.png"
     },
     "the-sky-remembers-us-return": {
-      "src": "panorama/the-sky-remembers-us-return-land.webp",
+      "src": "story-locations/the-sky-remembers-us-return.webp",
       "title": "Brightness above the Northern Chasm",
-      "width": 1400,
-      "height": 933,
       "sky": "#576077",
       "ground": "#2c2b35",
       "source": "stories/the-sky-remembers-us-return/art/landscapes/02-brightness-above-the-northern-chasm.png"
@@ -943,17 +957,17 @@
       "source": "stories/saint-and-demon/art/landscapes/01-the-salt-crucible.png"
     },
     "the-lions-last-constellation": {
-      "src": "story-locations/the-lions-last-constellation.webp",
+      "src": "panorama/the-lions-last-constellation-land.webp",
       "title": "Nemea Orchard Terraces",
+      "width": 1400,
+      "height": 933,
       "sky": "#4b4e69",
       "ground": "#6c4c39",
       "source": "stories/the-lions-last-constellation/art/landscapes/01-nemea-orchard-terraces.png"
     },
     "when-the-needle-finds-you": {
-      "src": "panorama/when-the-needle-finds-you-land.webp",
+      "src": "story-locations/when-the-needle-finds-you.webp",
       "title": "The Garage at Midnight",
-      "width": 1400,
-      "height": 933,
       "sky": "#30394d",
       "ground": "#4f4a44",
       "source": "stories/when-the-needle-finds-you/art/landscapes/01-the-garage-at-midnight.png"
@@ -987,17 +1001,17 @@
       "source": "stories/the-sister-behind-her-smile/art/landscapes/02-the-canal-quarter.png"
     },
     "the-inheritance-remembers": {
-      "src": "story-locations/the-inheritance-remembers.webp",
+      "src": "panorama/the-inheritance-remembers-land.webp",
       "title": "Rain on the Counted Road",
+      "width": 1400,
+      "height": 933,
       "sky": "#7f8087",
       "ground": "#726454",
       "source": "stories/the-inheritance-remembers/art/landscapes/01-rain-on-the-counted-road.png"
     },
     "a-crown-in-the-bargain": {
-      "src": "panorama/a-crown-in-the-bargain-land.webp",
+      "src": "story-locations/a-crown-in-the-bargain.webp",
       "title": "Lumespire in Rain",
-      "width": 1400,
-      "height": 933,
       "sky": "#515565",
       "ground": "#2f2a2c",
       "source": "stories/a-crown-in-the-bargain/art/landscapes/01-lumespire-in-rain.png"
@@ -1785,6 +1799,8 @@
     }
   },
   "covers": {
+    "room-to-move": "panorama/room-to-move-cover.webp",
+    "the-town-beneath-the-dance": "panorama/the-town-beneath-the-dance-cover.webp",
     "professional-farmer": "panorama/professional-farmer-cover.webp",
     "the-first-cold": "panorama/the-first-cold-cover.webp",
     "let-it-burn": "panorama/let-it-burn-cover.webp",
@@ -1793,14 +1809,14 @@
     "five-minutes-to-curtain": "panorama/five-minutes-to-curtain-cover.webp",
     "the-bed-by-the-wall": "panorama/the-bed-by-the-wall-cover.webp",
     "until-im-big": "panorama/until-im-big-cover.webp",
-    "the-woman-who-swallowed-the-sea": "panorama/the-woman-who-swallowed-the-sea-cover.webp",
-    "the-tune-she-kept": "panorama/the-tune-she-kept-cover.webp",
+    "the-woman-who-swallowed-the-sea": "story-covers/the-woman-who-swallowed-the-sea.webp",
+    "the-tune-she-kept": "story-covers/the-tune-she-kept.webp",
     "take-your-time": "story-covers/take-your-time.webp",
     "the-wolves-kept-watch": "story-covers/the-wolves-kept-watch.webp",
     "the-moon-before-its-time": "story-covers/the-moon-before-its-time.webp",
-    "one-good-scream": "story-covers/one-good-scream.webp",
+    "one-good-scream": "panorama/one-good-scream-cover.webp",
     "for-my-own-use": "story-covers/for-my-own-use.webp",
-    "wrath-limit-break": "panorama/wrath-limit-break-cover.webp",
+    "wrath-limit-break": "story-covers/wrath-limit-break.webp",
     "the-other-hand": "story-covers/the-other-hand.webp",
     "feast-of-the-noble-blades": "story-covers/feast-of-the-noble-blades.webp",
     "the-other-half": "story-covers/the-other-half.webp",
@@ -1810,8 +1826,8 @@
     "the-return-tray": "story-covers/the-return-tray.webp",
     "an-opening": "story-covers/an-opening.webp",
     "rgbknights": "story-covers/rgbknights.webp",
-    "great-winter-contest": "story-covers/great-winter-contest.webp",
-    "no-vacancy": "panorama/no-vacancy-cover.webp",
+    "great-winter-contest": "panorama/great-winter-contest-cover.webp",
+    "no-vacancy": "story-covers/no-vacancy.webp",
     "the-last-watch": "story-covers/the-last-watch.webp",
     "the-second-door": "story-covers/the-second-door.webp",
     "magical-girl-pr": "story-covers/magical-girl-pr.webp",
@@ -1819,8 +1835,8 @@
     "the-statue-at-the-corner": "story-covers/the-statue-at-the-corner.webp",
     "the-weight-of-here": "story-covers/the-weight-of-here.webp",
     "the-unspent-star": "story-covers/the-unspent-star.webp",
-    "the-engine-under-the-sand": "story-covers/the-engine-under-the-sand.webp",
-    "right-of-way": "panorama/right-of-way-cover.webp",
+    "the-engine-under-the-sand": "panorama/the-engine-under-the-sand-cover.webp",
+    "right-of-way": "story-covers/right-of-way.webp",
     "faith-and-demon": "story-covers/faith-and-demon.webp",
     "the-bait-remembers": "story-covers/the-bait-remembers.webp",
     "the-eyes-of-god": "story-covers/the-eyes-of-god.webp",
@@ -1829,98 +1845,98 @@
     "the-cat-who-kept-up": "story-covers/the-cat-who-kept-up.webp",
     "where-the-gods-left-their-doors": "story-covers/where-the-gods-left-their-doors.webp",
     "the-fox-that-stood-up": "story-covers/the-fox-that-stood-up.webp",
-    "onyx-peace": "story-covers/onyx-peace.webp",
+    "onyx-peace": "panorama/onyx-peace-cover.webp",
     "spirit-heart": "story-covers/spirit-heart.webp",
     "after-the-party": "story-covers/after-the-party.webp",
     "the-closed-day": "story-covers/the-closed-day.webp",
-    "the-sun-in-the-crowd": "panorama/the-sun-in-the-crowd-cover.webp",
+    "the-sun-in-the-crowd": "story-covers/the-sun-in-the-crowd.webp",
     "the-place-laid-for-her": "story-covers/the-place-laid-for-her.webp",
     "a-curse-before-breakfast": "story-covers/a-curse-before-breakfast.webp",
     "a-busy-year-for-dying": "story-covers/a-busy-year-for-dying.webp",
     "the-credit-book": "story-covers/the-credit-book.webp",
     "the-red-dot": "story-covers/the-red-dot.webp",
-    "the-gutter-school": "story-covers/the-gutter-school.webp",
-    "a-beginner-of-considerable-age": "panorama/a-beginner-of-considerable-age-cover.webp",
+    "the-gutter-school": "panorama/the-gutter-school-cover.webp",
+    "a-beginner-of-considerable-age": "story-covers/a-beginner-of-considerable-age.webp",
     "the-chair-at-the-back": "story-covers/the-chair-at-the-back.webp",
     "storm-warning": "story-covers/storm-warning.webp",
     "between-the-colors": "story-covers/between-the-colors.webp",
     "the-emerald-relic": "story-covers/the-emerald-relic.webp",
     "a-place-for-sunday": "story-covers/a-place-for-sunday.webp",
-    "what-the-gates-keep": "story-covers/what-the-gates-keep.webp",
-    "the-thread-that-held": "panorama/the-thread-that-held-cover.webp",
+    "what-the-gates-keep": "panorama/what-the-gates-keep-cover.webp",
+    "the-thread-that-held": "story-covers/the-thread-that-held.webp",
     "the-next-train": "story-covers/the-next-train.webp",
     "the-unopened-ring": "story-covers/the-unopened-ring.webp",
     "before-lunch": "story-covers/before-lunch.webp",
     "a-reasonable-declaration": "story-covers/a-reasonable-declaration.webp",
-    "the-unoffered-hand": "story-covers/the-unoffered-hand.webp",
-    "a-pet-human": "panorama/a-pet-human-cover.webp",
+    "the-unoffered-hand": "panorama/the-unoffered-hand-cover.webp",
+    "a-pet-human": "story-covers/a-pet-human.webp",
     "postcard-garden": "story-covers/postcard-garden.webp",
     "the-astral-valkyrie": "story-covers/the-astral-valkyrie.webp",
     "seraph-infinite-gear": "story-covers/seraph-infinite-gear.webp",
     "the-color-that-comes-home": "story-covers/the-color-that-comes-home.webp",
-    "the-first-winter": "story-covers/the-first-winter.webp",
-    "twelve-in-the-room": "panorama/twelve-in-the-room-cover.webp",
+    "the-first-winter": "panorama/the-first-winter-cover.webp",
+    "twelve-in-the-room": "story-covers/twelve-in-the-room.webp",
     "no-one-like-me": "story-covers/no-one-like-me.webp",
     "still-taking-runaways": "story-covers/still-taking-runaways.webp",
     "the-place-we-keep": "story-covers/the-place-we-keep.webp",
     "a-seat-for-the-sun": "story-covers/a-seat-for-the-sun.webp",
-    "yavrens-return": "story-covers/yavrens-return.webp",
-    "the-cat-who-kept-the-door": "panorama/the-cat-who-kept-the-door-cover.webp",
+    "yavrens-return": "panorama/yavrens-return-cover.webp",
+    "the-cat-who-kept-the-door": "story-covers/the-cat-who-kept-the-door.webp",
     "the-house-beneath-the-horns": "story-covers/the-house-beneath-the-horns.webp",
     "the-ring-between-lives": "story-covers/the-ring-between-lives.webp",
     "pool-sovereign": "story-covers/pool-sovereign.webp",
     "the-old-percentage": "story-covers/the-old-percentage.webp",
     "i-really-need-a-sidekick": "story-covers/i-really-need-a-sidekick.webp",
-    "undisclosed": "story-covers/undisclosed.webp",
-    "no-need-to-worry": "panorama/no-need-to-worry-cover.webp",
+    "undisclosed": "panorama/undisclosed-cover.webp",
+    "no-need-to-worry": "story-covers/no-need-to-worry.webp",
     "the-spiders-hunger": "story-covers/the-spiders-hunger.webp",
     "what-the-wind-wanted": "story-covers/what-the-wind-wanted.webp",
     "the-one-who-gets-tired": "story-covers/the-one-who-gets-tired.webp",
     "stay-out-of-my-city": "story-covers/stay-out-of-my-city.webp",
-    "a-knock-in-someone-elses-sleep": "story-covers/a-knock-in-someone-elses-sleep.webp",
-    "the-lights-beyond": "panorama/the-lights-beyond-cover.webp",
+    "a-knock-in-someone-elses-sleep": "panorama/a-knock-in-someone-elses-sleep-cover.webp",
+    "the-lights-beyond": "story-covers/the-lights-beyond.webp",
     "sakura-hearted": "story-covers/sakura-hearted.webp",
     "the-door-in-the-ivy": "story-covers/the-door-in-the-ivy.webp",
     "a-little-more-room": "story-covers/a-little-more-room.webp",
     "the-vacant-throne": "story-covers/the-vacant-throne.webp",
     "gods-afraid-of-grandma": "story-covers/gods-afraid-of-grandma.webp",
-    "the-first-people": "story-covers/the-first-people.webp",
+    "the-first-people": "panorama/the-first-people-cover.webp",
     "the-second-wearing": "story-covers/the-second-wearing.webp",
-    "only-eighteen": "panorama/only-eighteen-cover.webp",
+    "only-eighteen": "story-covers/only-eighteen.webp",
     "a-note-of-spite": "story-covers/a-note-of-spite.webp",
     "an-ordinary-education": "story-covers/an-ordinary-education.webp",
     "where-it-hurts": "story-covers/where-it-hurts.webp",
     "late-for-dinner": "story-covers/late-for-dinner.webp",
-    "not-about-that": "story-covers/not-about-that.webp",
-    "the-bride-who-came-back": "panorama/the-bride-who-came-back-cover.webp",
+    "not-about-that": "panorama/not-about-that-cover.webp",
+    "the-bride-who-came-back": "story-covers/the-bride-who-came-back.webp",
     "the-dress-they-brought-her": "story-covers/the-dress-they-brought-her.webp",
     "the-seventh-night": "story-covers/the-seventh-night.webp",
     "the-ten-thousand-year-queen": "story-covers/the-ten-thousand-year-queen.webp",
     "the-way-around": "story-covers/the-way-around.webp",
-    "the-thousandth-fall": "story-covers/the-thousandth-fall.webp",
+    "the-thousandth-fall": "panorama/the-thousandth-fall-cover.webp",
     "the-help-network": "story-covers/the-help-network.webp",
     "golden-lion": "story-covers/golden-lion.webp",
-    "lightning-carries-one": "panorama/lightning-carries-one-cover.webp",
+    "lightning-carries-one": "story-covers/lightning-carries-one.webp",
     "a-lock-on-the-inside": "story-covers/a-lock-on-the-inside.webp",
     "the-room-that-waited": "story-covers/the-room-that-waited.webp",
     "the-kingdom-was-the-easy-part": "story-covers/the-kingdom-was-the-easy-part.webp",
     "the-rule-between-courses": "story-covers/the-rule-between-courses.webp",
     "clerics-infernal-ex": "story-covers/clerics-infernal-ex.webp",
-    "the-healers-measure": "story-covers/the-healers-measure.webp",
-    "the-sky-remembers-us-return": "panorama/the-sky-remembers-us-return-cover.webp",
+    "the-healers-measure": "panorama/the-healers-measure-cover.webp",
+    "the-sky-remembers-us-return": "story-covers/the-sky-remembers-us-return.webp",
     "where-the-white-elk-went": "story-covers/where-the-white-elk-went.webp",
     "the-warmest-person-in-the-room": "story-covers/the-warmest-person-in-the-room.webp",
     "the-night-she-knew": "story-covers/the-night-she-knew.webp",
     "drone-down": "story-covers/drone-down.webp",
     "saint-and-demon": "story-covers/saint-and-demon.webp",
-    "the-lions-last-constellation": "story-covers/the-lions-last-constellation.webp",
-    "when-the-needle-finds-you": "panorama/when-the-needle-finds-you-cover.webp",
+    "the-lions-last-constellation": "panorama/the-lions-last-constellation-cover.webp",
+    "when-the-needle-finds-you": "story-covers/when-the-needle-finds-you.webp",
     "the-kill-she-wouldnt-take": "story-covers/the-kill-she-wouldnt-take.webp",
     "the-last-flames": "story-covers/the-last-flames.webp",
     "four-crowns-in-hiding": "story-covers/four-crowns-in-hiding.webp",
     "the-sister-behind-her-smile": "story-covers/the-sister-behind-her-smile.webp",
-    "the-inheritance-remembers": "story-covers/the-inheritance-remembers.webp",
-    "a-crown-in-the-bargain": "panorama/a-crown-in-the-bargain-cover.webp",
+    "the-inheritance-remembers": "panorama/the-inheritance-remembers-cover.webp",
+    "a-crown-in-the-bargain": "story-covers/a-crown-in-the-bargain.webp",
     "what-turned-eighteen": "story-covers/what-turned-eighteen.webp",
     "the-hoarders-house": "story-covers/the-hoarders-house.webp",
     "the-unfixed-face": "story-covers/the-unfixed-face.webp",
