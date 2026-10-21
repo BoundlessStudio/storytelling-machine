@@ -53,6 +53,22 @@ def source_rating(repository: Path, commit: str, slug: str) -> str:
     return rating
 
 
+def writing_prompt(source: str, slug: str) -> str:
+    """Read legacy [WP] prompts and the opening request in newer packages."""
+    section = re.match(
+        r"\A\s*#[ \t]+(?:Prompt|User request|Original request)[ \t]*\r?\n"
+        r"(.*?)(?=^#{1,6}[ \t]|\Z)",
+        source, re.IGNORECASE | re.MULTILINE | re.DOTALL,
+    )
+    request = section.group(1) if section else source
+    match = re.search(r"^\s*(?:>\s*)?\[WP\]\s*(.+)$", request, re.MULTILINE)
+    if match:
+        return match.group(1).strip().strip('“”"')
+    if section and (prompt := section.group(1).strip()):
+        return prompt
+    raise ValueError(f"Missing writing prompt for {slug}")
+
+
 def new_story(repository: Path, commit: str, slug: str) -> dict:
     source = git_text(repository, commit, f"stories/{slug}/story.md")
     match = re.match(r"\A---\r?\n(.*?)\r?\n---\r?\n(.*)\Z", source, re.DOTALL)
@@ -63,10 +79,7 @@ def new_story(repository: Path, commit: str, slug: str) -> dict:
     title = fields["title"].strip('"\'')
     created = fields["created"]
     prompt_source = git_text(repository, commit, f"stories/{slug}/prompt.md")
-    prompt_match = re.search(r"^\s*(?:>\s*)?\[WP\]\s*(.+)$", prompt_source, re.MULTILINE)
-    if not prompt_match:
-        raise ValueError(f"Missing writing prompt for {slug}")
-    prompt = prompt_match.group(1).strip().strip('“”"')
+    prompt = writing_prompt(prompt_source, slug)
     first_commit = subprocess.check_output(
         ["git", "-C", str(repository), "log", "--format=%aI", "--reverse", commit,
          "--", f"stories/{slug}/story.md"], text=True

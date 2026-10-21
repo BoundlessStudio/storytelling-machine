@@ -7,10 +7,31 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from scripts.sync_ratings import refresh_story, sync
+from scripts.sync_ratings import refresh_story, sync, writing_prompt
 
 
 class SourceSyncTests(unittest.TestCase):
+    def test_legacy_writing_prompts_keep_their_published_text(self) -> None:
+        for prompt in ('[WP] A familiar finds his witch.', '> [WP] “A familiar finds his witch.”'):
+            with self.subTest(prompt=prompt):
+                self.assertEqual(writing_prompt(f"# Prompt\n\n{prompt}\n", "familiar"),
+                                 "A familiar finds his witch.")
+
+    def test_request_sections_preserve_paragraphs_and_exclude_package_notes(self) -> None:
+        prompt = "A witch finds her familiar.\n\nHe has one final assignment."
+        for heading in ("Prompt", "User request", "Original request"):
+            with self.subTest(heading=heading):
+                source = (f"# {heading}\n\n{prompt}\n\n## Supplied reference\n\n"
+                          "Image #1.\n\n## Later user direction\n\n[WP] Revise the art.\n")
+                self.assertEqual(writing_prompt(source, "familiar"), prompt)
+
+    def test_missing_or_empty_request_sections_are_rejected(self) -> None:
+        for source in ("", "# Prompt\n\n## Supplied reference\nImage #1.\n",
+                       "# Content notes\n\nNo prompt supplied.\n"):
+            with self.subTest(source=source):
+                with self.assertRaisesRegex(ValueError, "Missing writing prompt for familiar"):
+                    writing_prompt(source, "familiar")
+
     def test_sync_refreshes_existing_current_and_historical_prose(self) -> None:
         commit = "a" * 40
         originals = [{
