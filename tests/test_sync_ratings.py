@@ -19,11 +19,12 @@ class SourceSyncTests(unittest.TestCase):
 
     def test_request_sections_preserve_paragraphs_and_exclude_package_notes(self) -> None:
         prompt = "A witch finds her familiar.\n\nHe has one final assignment."
-        for heading in ("Prompt", "User request", "Original request"):
-            with self.subTest(heading=heading):
-                source = (f"# {heading}\n\n{prompt}\n\n## Supplied reference\n\n"
-                          "Image #1.\n\n## Later user direction\n\n[WP] Revise the art.\n")
-                self.assertEqual(writing_prompt(source, "familiar"), prompt)
+        for heading in ("Prompt", "Request", "User request", "Original request"):
+            for section_level in ("#", "##"):
+                with self.subTest(heading=heading, section_level=section_level):
+                    source = (f"# {heading}\n\n{prompt}\n\n{section_level} Supplied reference\n\n"
+                              f"Image #1.\n\n{section_level} Later user direction\n\n[WP] Revise the art.\n")
+                    self.assertEqual(writing_prompt(source, "familiar"), prompt)
 
     def test_missing_or_empty_request_sections_are_rejected(self) -> None:
         for source in ("", "# Prompt\n\n## Supplied reference\nImage #1.\n",

@@ -56,7 +56,7 @@ def source_rating(repository: Path, commit: str, slug: str) -> str:
 def writing_prompt(source: str, slug: str) -> str:
     """Read legacy [WP] prompts and the opening request in newer packages."""
     section = re.match(
-        r"\A\s*#[ \t]+(?:Prompt|User request|Original request)[ \t]*\r?\n"
+        r"\A\s*#[ \t]+(?:Prompt|Request|User request|Original request)[ \t]*\r?\n"
         r"(.*?)(?=^#{1,6}[ \t]|\Z)",
         source, re.IGNORECASE | re.MULTILINE | re.DOTALL,
     )
