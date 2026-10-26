@@ -54,16 +54,20 @@ def source_rating(repository: Path, commit: str, slug: str) -> str:
 
 
 def writing_prompt(source: str, slug: str) -> str:
-    """Read legacy [WP] prompts and the opening request in newer packages."""
+    """Read tagged prompts and the opening request in newer packages."""
     section = re.match(
         r"\A\s*#[ \t]+(?:Prompt|Request|User request|Original request)[ \t]*\r?\n"
         r"(.*?)(?=^#{1,6}[ \t]|\Z)",
         source, re.IGNORECASE | re.MULTILINE | re.DOTALL,
     )
     request = section.group(1) if section else source
-    match = re.search(r"^\s*(?:>\s*)?\[WP\]\s*(.+)$", request, re.MULTILINE)
+    match = re.search(r"^\s*(?:>\s*)?\[?(?:WP|SP)\]\s*(.+)$", request, re.MULTILINE)
     if match:
-        return match.group(1).strip().strip('“”"')
+        prompt = match.group(1).strip()
+        for opening, closing in (("“", "”"), ('"', '"')):
+            if prompt.startswith(opening) and prompt.endswith(closing):
+                return prompt[1:-1]
+        return prompt
     if section and (prompt := section.group(1).strip()):
         return prompt
     raise ValueError(f"Missing writing prompt for {slug}")

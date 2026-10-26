@@ -26,6 +26,19 @@ class SourceSyncTests(unittest.TestCase):
                               f"Image #1.\n\n{section_level} Later user direction\n\n[WP] Revise the art.\n")
                     self.assertEqual(writing_prompt(source, "familiar"), prompt)
 
+    def test_prompt_tags_and_dialogue_quotes_import_without_losing_text(self) -> None:
+        cases = {
+            '[SP] The woods are scary at night...': 'The woods are scary at night...',
+            'WP] “We can handle this like civilized folk.”': 'We can handle this like civilized folk.',
+            '[WP] "Dude, are you hurt?" you ask.': '"Dude, are you hurt?" you ask.',
+            '[WP] Say the words “Not today.”': 'Say the words “Not today.”',
+            '[WP] You say, "We carved sentience into a grain of sand."':
+                'You say, "We carved sentience into a grain of sand."',
+        }
+        for source, expected in cases.items():
+            with self.subTest(source=source):
+                self.assertEqual(writing_prompt(f"# Prompt\n\n{source}\n", "familiar"), expected)
+
     def test_missing_or_empty_request_sections_are_rejected(self) -> None:
         for source in ("", "# Prompt\n\n## Supplied reference\nImage #1.\n",
                        "# Content notes\n\nNo prompt supplied.\n"):
