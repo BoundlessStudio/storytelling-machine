@@ -48,6 +48,25 @@ button{cursor:pointer}
 .controls input,.controls select{height:2.8rem;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:.55rem .8rem;min-width:10rem;outline:none}
 .controls input:focus,.controls select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .controls select{max-width:15rem}
+.art-collections,.rating-filters{min-width:0;margin:1rem 0 0;padding:0;border:0}
+.art-collections legend,.rating-filters legend{margin-bottom:.55rem;padding:0;color:var(--muted);font-size:.78rem;font-weight:700;letter-spacing:.02em}
+.collection-toggles,.rating-toggles{display:flex;flex-wrap:wrap;gap:.5rem}
+.collection-toggle,.rating-toggle{min-height:44px;padding:.5rem 1rem;border:1px solid var(--line);border-radius:99px;background:var(--surface);color:var(--muted);font-size:.85rem;font-weight:650}
+.collection-toggle:hover,.rating-toggle:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--ink)}
+.collection-toggle[aria-pressed="true"],.rating-toggle[aria-pressed="true"]{border-color:var(--accent);background:var(--accent);color:var(--paper)}
+.collection-toggle:focus-visible,.rating-toggle:focus-visible,.rating-warning :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.filter-hint{margin:.55rem 0 0;color:var(--muted);font-size:.8rem}
+.rating-warning{width:min(32rem,calc(100% - 2rem));max-height:90vh;max-height:90dvh;padding:1.5rem;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);box-shadow:0 24px 70px #0006}
+.rating-warning::backdrop{background:#17241bc9}
+[data-theme="dark"] .rating-warning::backdrop{background:#04060bce}
+.rating-warning h2{margin:0 0 .75rem;font-family:Georgia,serif;font-size:1.8rem;font-weight:500;line-height:1.2}
+.rating-warning p{margin:0;color:var(--muted)}
+.rating-warning-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.65rem;margin-top:1.5rem}
+.rating-warning-actions button{min-height:44px;padding:.65rem 1rem;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-size:.85rem;font-weight:650}
+.rating-warning-actions button:hover{border-color:var(--accent);background:var(--accent-soft)}
+.rating-warning-actions .confirm-explicit{border-color:var(--accent);background:var(--accent);color:var(--paper)}
+.rating-warning-actions .confirm-explicit:hover{background:var(--accent);color:var(--paper)}
+body:has(.rating-warning[open]){overflow:hidden}
 .results{font-size:.88rem;color:var(--muted);margin:1.5rem 0 1rem}
 .empty{padding:3rem 0;color:var(--muted)}
 .story-grid,.art-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.5rem}
@@ -99,5 +118,6 @@ button{cursor:pointer}
 .dialog-close{position:absolute;right:.7rem;top:.6rem;z-index:1;border:0;background:var(--surface);color:var(--ink);border-radius:50%;font-size:1.6rem;line-height:1;width:2.2rem;height:2.2rem}
 @media(max-width:900px){.story-grid,.art-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:650px){.wrap{width:min(100% - 2rem,1200px)}.page-intro{padding-top:2.4rem}.story-grid,.art-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}.card-copy{padding:.7rem}.card-copy h2{font-size:1.05rem}.card-copy>p:last-child{display:none}.reader-header{align-items:start}.reader-header img{width:28vw}.reader-neighbors{font-size:.85rem}.art-dialog[open]{display:block}.art-dialog img{max-height:62vh}.dialog-copy{padding-top:1rem}}
-@media(max-width:430px){.site-mark-long{display:none}.site-mark-short{display:inline}.controls label,.controls input,.controls select{width:100%;max-width:none}.reader-header img{width:32vw}.story-grid,.art-grid{gap:.6rem}}
+@media(max-width:430px){.site-mark-long{display:none}.site-mark-short{display:inline}.controls label,.controls input,.controls select{width:100%;max-width:none}.collection-toggles,.rating-toggles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.rating-warning-actions{flex-direction:column}.rating-warning-actions button{width:100%}.reader-header img{width:32vw}.story-grid,.art-grid{gap:.6rem}}
 @media(max-width:600px){.site-header{padding:1.15rem 1rem;font-size:.71rem}.site-mark-long{max-width:8rem;overflow:hidden;text-overflow:ellipsis}.site-header nav{gap:1rem}}
+@media(max-width:360px){.site-header{padding-inline:.75rem;gap:.5rem;letter-spacing:.06em}.site-header-actions,.site-header nav,.site-mark{gap:.5rem}}

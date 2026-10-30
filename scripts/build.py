@@ -218,7 +218,8 @@ def make_art(index: dict, stories: list[dict], base: str) -> tuple[list[dict], d
             continue
         if kind == "Locations" and PurePosixPath(path).stem.casefold().endswith("-original"):
             continue
-        story_title = story_by_slug[slug]["title"] if slug in story_by_slug else friendly_name(slug)
+        story = story_by_slug.get(slug)
+        story_title = story["title"] if story else friendly_name(slug)
         title = f"{story_title} cover" if source_kind == "Covers" else friendly_name(path)
         previous = old_meta.get((slug, source_kind, item["sha256"]))
         if previous:
@@ -229,6 +230,7 @@ def make_art(index: dict, stories: list[dict], base: str) -> tuple[list[dict], d
         reader = (base + "stories/" + quote(slug) + "/" if slug in story_by_slug else
                   SOURCE_REPO + "/tree/main/stories/" + quote(slug))
         gallery.append({"id": path, "title": title, "alt": alt, "story": story_title,
+                        "prompt": story["prompt"] if story else "",
                         "slug": slug, "type": kind, "full": item["url"],
                         "thumbnail": previous["thumbnail"] if previous else alternate_thumbnails.get(path, item["url"]),
                         "reader": reader})
@@ -245,15 +247,23 @@ def story_card(story: dict, cover: str, base: str) -> str:
         excerpt = excerpt[:157].rsplit(" ", 1)[0] + "…"
     search = (story["title"] + " " + story["prompt"]).casefold()
     url = base + "stories/" + quote(story["slug"]) + "/"
-    return f"""<article class="story-card" data-story-card data-search="{esc(search)}" data-rating="{esc(story['rating'])}">
+    hidden = " hidden" if story["rating"] == "Explicit" else ""
+    return f"""<article class="story-card" data-story-card data-search="{esc(search)}" data-rating="{esc(story['rating'])}"{hidden}>
 <a class="story-cover" href="{url}"><img src="{esc(cover)}" alt="Cover for {esc(story['title'])}" loading="lazy" decoding="async"></a>
 <div class="card-copy"><p class="eyebrow">{esc(story['created'])} · {esc(story['rating'])}</p><h2><a href="{url}">{esc(story['title'])}</a></h2><p>{esc(excerpt)}</p></div></article>"""
 
 
 def build_index(stories: list[dict], covers: dict[str, str], base: str, site_url: str) -> str:
     cards = "".join(story_card(story, covers[story["slug"]], base) for story in stories)
+    ratings = ("General", "Teen", "Mature", "Explicit")
+    rating_buttons = "".join(
+        f'<button class="rating-toggle" type="button" data-rating-filter="{rating}" aria-pressed="{str(rating != "Explicit").lower()}">{rating}</button>'
+        for rating in ratings
+    )
+    visible = sum(story["rating"] != "Explicit" for story in stories)
     body = f"""<section class="page-intro wrap"><p class="eyebrow">Shared-universe fiction</p><h1>Story library</h1><p>Browse the collection, find a story, and stay a while.</p><div class="intro-links"><span>{len(stories)} stories</span><a href="{base}art/">Explore the gallery ↗</a></div></section>
-<section class="wrap listing" aria-label="Stories"><div class="controls"><label class="search-field">Search stories<input id="story-search" type="search" placeholder="Title or writing prompt" autocomplete="off"></label><label>Audience<select id="rating-filter"><option value="all">All ratings</option><option value="General">General</option><option value="Teen">Teen</option><option value="Mature">Mature</option><option value="Explicit">Explicit</option></select></label></div><p class="results" id="story-results" role="status" aria-live="polite">{len(stories)} stories</p><div class="story-grid" id="story-grid">{cards}</div><p class="empty" id="story-empty" hidden>No stories match those filters.</p></section>"""
+<section class="wrap listing" aria-label="Stories"><div class="controls"><label class="search-field">Search stories<input id="story-search" type="search" placeholder="Title or writing prompt" autocomplete="off"></label></div><fieldset class="rating-filters" id="rating-filter" aria-describedby="rating-filter-help"><legend>Audience ratings</legend><div class="rating-toggles">{rating_buttons}</div><p class="filter-hint" id="rating-filter-help">Choose any combination of ratings.</p></fieldset><p class="results" id="story-results" role="status" aria-live="polite">{visible} stories</p><div class="story-grid" id="story-grid">{cards}</div><p class="empty" id="story-empty" hidden>No stories match those filters.</p></section>
+<dialog class="rating-warning" id="explicit-warning" aria-labelledby="explicit-warning-title" aria-describedby="explicit-warning-description"><form method="dialog"><h2 id="explicit-warning-title">Explicit material</h2><p id="explicit-warning-description">Stories rated Explicit contain adult material. Do you want to include them in your library results?</p><div class="rating-warning-actions"><button type="submit" value="cancel" autofocus>Keep Explicit hidden</button><button class="confirm-explicit" type="submit" value="confirm">Show Explicit stories</button></div></form></dialog>"""
     return shell("Library", "Explore original fiction and artwork across a shared universe of magic, mystery, and imagined worlds.", body,
                  "Library", base, site_url, "library/")
 
@@ -410,9 +420,12 @@ def build_story(story: dict, stories: list[dict], covers: dict[str, str], art: l
 
 
 def build_art_page(count: int, base: str, site_url: str) -> str:
-    options = "".join(f'<option value="{esc(kind)}">{esc(kind)}</option>' for kind in ART_TYPES)
+    buttons = "".join(
+        f'<button class="collection-toggle" type="button" data-art-type="{esc(kind)}" aria-pressed="false">{esc(kind)}</button>'
+        for kind in ART_TYPES
+    )
     body = f"""<section class="page-intro wrap"><p class="eyebrow">From the story collection</p><h1>Artwork gallery</h1><p>Covers, character studies, landscapes, and interiors.</p><div class="intro-links"><span>{count:,} images</span><a href="{base}library/">Browse the library ↗</a></div></section>
-<section class="wrap listing" data-art-json="{base}art.json"><div class="controls"><label class="search-field">Search artwork<input id="art-search" type="search" placeholder="Artwork or story title" autocomplete="off"></label><label>Collection<select id="art-type"><option value="all">All artwork</option>{options}</select></label><label>Story<select id="art-story"><option value="all">All stories</option></select></label></div><p class="results" id="art-results" role="status" aria-live="polite">Loading artwork…</p><div class="art-grid" id="art-grid"></div><p class="empty" id="art-empty" hidden>No artwork matches those filters.</p><div class="art-sentinel" id="art-sentinel" aria-hidden="true" hidden></div><button class="button" id="art-more" type="button" hidden>Load more images</button></section>
+<section class="wrap listing" data-art-json="{base}art.json"><div class="controls"><label class="search-field">Search artwork<input id="art-search" type="search" placeholder="Story title, prompt, or artwork name" autocomplete="off"></label></div><fieldset class="art-collections" id="art-type"><legend>Collection</legend><div class="collection-toggles"><button class="collection-toggle" type="button" data-art-type="all" aria-pressed="true">All artwork</button>{buttons}</div></fieldset><p class="results" id="art-results" role="status" aria-live="polite">Loading artwork…</p><div class="art-grid" id="art-grid"></div><p class="empty" id="art-empty" hidden>No artwork matches those filters.</p><div class="art-sentinel" id="art-sentinel" aria-hidden="true" hidden></div><button class="button" id="art-more" type="button" hidden>Load more images</button></section>
 <dialog class="art-dialog" id="art-dialog" aria-label="Artwork viewer"><button class="dialog-close" id="dialog-close" type="button" aria-label="Close artwork">×</button><img id="dialog-image" alt=""><div class="dialog-copy"><p class="eyebrow" id="dialog-type"></p><h2 id="dialog-title"></h2><p id="dialog-story"></p><div class="reader-links"><a id="dialog-reader" href="#">Read the story ↗</a><a id="dialog-original" href="#" target="_blank" rel="noopener">Open original ↗</a></div></div></dialog>"""
     return shell("Gallery", "Explore covers, character studies, landscapes, and interiors from the Story Computing Machine.", body,
                  "Gallery", base, site_url, "art/")

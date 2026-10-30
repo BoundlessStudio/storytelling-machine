@@ -41,43 +41,85 @@
 
   const storySearch = document.getElementById('story-search');
   if (storySearch) {
-    const rating = document.getElementById('rating-filter');
+    const ratingButtons = [...document.querySelectorAll('[data-rating-filter]')];
+    const ratingNames = ratingButtons.map(button => button.dataset.ratingFilter);
+    const defaultRatings = ratingNames.filter(rating => rating !== 'Explicit');
+    const explicitWarning = document.getElementById('explicit-warning');
+    const explicitKey = 'story-library-explicit-acknowledged';
+    let explicitAcknowledged = false;
+    function hasExplicitAcknowledgement() {
+      try { explicitAcknowledged ||= localStorage.getItem(explicitKey) === 'true'; } catch { /* Keep the in-page acknowledgement. */ }
+      return explicitAcknowledged;
+    }
     const cards = [...document.querySelectorAll('[data-story-card]')];
     const results = document.getElementById('story-results');
     const empty = document.getElementById('story-empty');
     const params = new URLSearchParams(location.search);
     storySearch.value = params.get('q') || '';
-    if ([...rating.options].some(option => option.value === params.get('rating'))) {
-      rating.value = params.get('rating');
+    const requestedRatings = params.getAll('rating').flatMap(value => value.split(','));
+    const validRatings = ratingNames.filter(rating => requestedRatings.includes(rating));
+    const selectedRatings = new Set(requestedRatings.includes('all') ? ratingNames
+      : validRatings.length ? validRatings : requestedRatings.includes('none') ? [] : defaultRatings);
+    const warnOnLoad = selectedRatings.has('Explicit') && !hasExplicitAcknowledgement();
+    if (warnOnLoad) selectedRatings.delete('Explicit');
+
+    function warnAboutExplicit() {
+      explicitWarning.returnValue = '';
+      explicitWarning.showModal();
     }
     function filterStories(updateUrl = true) {
       const query = storySearch.value.trim().toLocaleLowerCase();
       let visible = 0;
       cards.forEach(card => {
         const show = (!query || card.dataset.search.includes(query)) &&
-          (rating.value === 'all' || card.dataset.rating === rating.value);
+          selectedRatings.has(card.dataset.rating);
         card.hidden = !show;
         if (show) visible += 1;
       });
       results.textContent = `${visible} ${visible === 1 ? 'story' : 'stories'}`;
       empty.hidden = visible !== 0;
+      ratingButtons.forEach(button => button.setAttribute('aria-pressed', String(selectedRatings.has(button.dataset.ratingFilter))));
       if (updateUrl) {
         const next = new URLSearchParams();
         if (storySearch.value.trim()) next.set('q', storySearch.value.trim());
-        if (rating.value !== 'all') next.set('rating', rating.value);
+        const activeRatings = ratingNames.filter(rating => selectedRatings.has(rating));
+        if (activeRatings.length !== defaultRatings.length || defaultRatings.some(rating => !selectedRatings.has(rating))) {
+          next.set('rating', activeRatings.join(',') || 'none');
+        }
         history.replaceState(null, '', location.pathname + (next.size ? `?${next}` : ''));
       }
     }
     storySearch.addEventListener('input', () => filterStories());
-    rating.addEventListener('change', () => filterStories());
-    filterStories(false);
+    ratingButtons.forEach(button => button.addEventListener('click', () => {
+      const rating = button.dataset.ratingFilter;
+      if (selectedRatings.has(rating)) selectedRatings.delete(rating);
+      else if (rating === 'Explicit' && !hasExplicitAcknowledgement()) {
+        warnAboutExplicit();
+        return;
+      } else selectedRatings.add(rating);
+      filterStories();
+    }));
+    explicitWarning.addEventListener('close', () => {
+      if (explicitWarning.returnValue !== 'confirm') return;
+      explicitAcknowledged = true;
+      try { localStorage.setItem(explicitKey, 'true'); } catch { /* Acknowledge for this page when storage is unavailable. */ }
+      selectedRatings.add('Explicit');
+      filterStories();
+    });
+    explicitWarning.addEventListener('click', event => {
+      if (event.target !== explicitWarning) return;
+      const bounds = explicitWarning.getBoundingClientRect();
+      if (event.clientX < bounds.left || event.clientX > bounds.right ||
+          event.clientY < bounds.top || event.clientY > bounds.bottom) explicitWarning.close('cancel');
+    });
+    filterStories(params.has('rating'));
+    if (warnOnLoad) warnAboutExplicit();
   }
 
   const section = document.querySelector('[data-art-json]');
   if (!section) return;
   const search = document.getElementById('art-search');
-  const type = document.getElementById('art-type');
-  const story = document.getElementById('art-story');
+  const typeButtons = [...document.querySelectorAll('[data-art-type]')];
   const results = document.getElementById('art-results');
   const grid = document.getElementById('art-grid');
   const empty = document.getElementById('art-empty');
@@ -89,12 +131,28 @@
   let matches = [];
   let shown = 0;
   const pageSize = 24;
+  const params = new URLSearchParams(location.search);
+  const typeAliases = {
+    Landscapes: 'Locations',
+    Interiors: 'Locations',
+    'Landscapes & interiors': 'Locations',
+  };
+  const requestedType = params.get('type');
+  const initialType = typeAliases[requestedType] || requestedType;
+  let selectedType = typeButtons.some(button => button.dataset.artType === initialType) ? initialType : 'all';
+  let selectedStory = params.get('story') || 'all';
+  search.value = params.get('q') || '';
+
+  function updateTypeButtons() {
+    typeButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.artType === selectedType)));
+  }
+  updateTypeButtons();
 
   function setUrl() {
     const params = new URLSearchParams();
     if (search.value.trim()) params.set('q', search.value.trim());
-    if (type.value !== 'all') params.set('type', type.value);
-    if (story.value !== 'all') params.set('story', story.value);
+    if (selectedType !== 'all') params.set('type', selectedType);
+    if (selectedStory !== 'all') params.set('story', selectedStory);
     history.replaceState(null, '', location.pathname + (params.size ? `?${params}` : ''));
   }
 
@@ -153,12 +211,13 @@
   if (observer) observer.observe(sentinel);
 
   function filterArt(updateUrl = true) {
-    const query = search.value.trim().toLocaleLowerCase();
+    const query = search.value.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
     matches = artwork.filter(item =>
-      (type.value === 'all' || item.type === type.value) &&
-      (story.value === 'all' || item.slug === story.value) &&
-      (!query || `${item.title} ${item.story} ${item.type}`.toLocaleLowerCase().includes(query))
+      (selectedType === 'all' || item.type === selectedType) &&
+      (selectedStory === 'all' || item.slug === selectedStory) &&
+      (!query || item.searchText.includes(query))
     );
+    updateTypeButtons();
     shown = 0;
     grid.replaceChildren();
     results.textContent = `${matches.length} ${matches.length === 1 ? 'image' : 'images'}`;
@@ -172,33 +231,20 @@
   dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
   dialog.addEventListener('close', () => { dialogImage.removeAttribute('src'); });
   search.addEventListener('input', () => filterArt());
-  type.addEventListener('change', () => filterArt());
-  story.addEventListener('change', () => filterArt());
+  typeButtons.forEach(button => button.addEventListener('click', () => {
+    selectedType = button.dataset.artType;
+    filterArt();
+  }));
 
   fetch(section.dataset.artJson)
     .then(response => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json(); })
     .then(data => {
       if (!Array.isArray(data)) throw new Error('Invalid artwork data');
-      artwork = data;
-      const names = new Map();
-      artwork.forEach(item => names.set(item.slug, item.story));
-      [...names].sort((a, b) => a[1].localeCompare(b[1])).forEach(([slug, title]) => {
-        const option = document.createElement('option');
-        option.value = slug;
-        option.textContent = title;
-        story.append(option);
-      });
-      const params = new URLSearchParams(location.search);
-      search.value = params.get('q') || '';
-      const typeAliases = {
-        Landscapes: 'Locations',
-        Interiors: 'Locations',
-        'Landscapes & interiors': 'Locations',
-      };
-      const requestedType = params.get('type');
-      const selectedType = typeAliases[requestedType] || requestedType;
-      if ([...type.options].some(option => option.value === selectedType)) type.value = selectedType;
-      if (names.has(params.get('story'))) story.value = params.get('story');
+      artwork = data.map(item => ({
+        ...item,
+        searchText: `${item.title} ${item.story} ${item.prompt || ''} ${item.type}`.replace(/\s+/g, ' ').toLocaleLowerCase(),
+      }));
+      if (!artwork.some(item => item.slug === selectedStory)) selectedStory = 'all';
       filterArt(Boolean(typeAliases[requestedType]));
     })
     .catch(() => { results.textContent = 'The gallery could not load. Please try again shortly.'; });
