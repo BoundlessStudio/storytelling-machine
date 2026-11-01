@@ -54,6 +54,30 @@
     const cards = [...document.querySelectorAll('[data-story-card]')];
     const results = document.getElementById('story-results');
     const empty = document.getElementById('story-empty');
+    const promptDialog = document.getElementById('prompt-dialog');
+    if (promptDialog && typeof promptDialog.showModal === 'function') {
+      const promptText = document.getElementById('prompt-dialog-text');
+      cards.forEach(card => {
+        const button = card.querySelector('.prompt-toggle');
+        button.hidden = false;
+        button.addEventListener('click', () => {
+          const storyLink = card.querySelector('h2 a');
+          document.getElementById('prompt-dialog-title').textContent = storyLink.textContent;
+          document.getElementById('prompt-dialog-meta').textContent = card.querySelector('.eyebrow').textContent;
+          promptText.textContent = card.querySelector('.story-prompt').textContent;
+          document.getElementById('prompt-dialog-reader').href = storyLink.href;
+          promptDialog.showModal();
+          promptText.scrollTop = 0;
+        });
+      });
+      document.getElementById('story-grid').classList.add('has-prompt-dialog');
+      promptDialog.addEventListener('click', event => {
+        if (event.target !== promptDialog) return;
+        const bounds = promptDialog.getBoundingClientRect();
+        if (event.clientX < bounds.left || event.clientX > bounds.right ||
+            event.clientY < bounds.top || event.clientY > bounds.bottom) promptDialog.close();
+      });
+    }
     const params = new URLSearchParams(location.search);
     storySearch.value = params.get('q') || '';
     const requestedRatings = params.getAll('rating').flatMap(value => value.split(','));

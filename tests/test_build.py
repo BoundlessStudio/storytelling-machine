@@ -27,11 +27,11 @@ class SiteBuildTests(unittest.TestCase):
     def test_index_drives_every_cover_and_gallery_image(self) -> None:
         assets = validate_media_index(self.index)
         art, covers = make_art(self.index, self.stories, "/storytelling-machine/")
-        self.assertEqual(len(assets), 2497)
-        self.assertEqual(len(art), 2468)
+        self.assertEqual(len(assets), 2548)
+        self.assertEqual(len(art), 2519)
         self.assertEqual(len(covers), len(self.stories))
         self.assertEqual(dict(Counter(item["type"] for item in art)), {
-            "Covers": 285, "Characters": 1021, "Locations": 1162,
+            "Covers": 291, "Characters": 1045, "Locations": 1183,
         })
         self.assertTrue(all(item["id"].startswith("stories/") for item in art))
         self.assertTrue(any(item["type"] == "Locations" and item["thumbnail"] != item["full"]
@@ -58,7 +58,11 @@ class SiteBuildTests(unittest.TestCase):
                      "before-she-paints-the-ending", "the-shadow-girls-promise",
                      "woods-at-night", "civilized-folk", "book-of-eternity",
                      "the-fourth-beat", "break-my-bones", "the-funny-part",
-                     "not-today", "a-single-grain", "sarah-elizondo"):
+                     "not-today", "a-single-grain", "sarah-elizondo",
+                     "the-painted-dead", "the-antique-camera", "bifurcated",
+                     "silver-gown", "aetherveils-first-shadow", "one-cargo-at-a-time",
+                     "the-administrators", "swan-and-sword", "a-life-of-her-own",
+                     "a-seat-by-the-door", "devils-thief", "first-deployment", "own-transformation"):
             self.assertEqual(covers[slug], assets[f"stories/{slug}/title-image.jpg"]["url"])
         for slug, filename in (("onyx-peace", "01-sheltered-cove.png"),
                                ("the-fox-that-stood-up", "01-night-market-lane.png")):
@@ -97,7 +101,7 @@ class SiteBuildTests(unittest.TestCase):
             output = Path(temporary) / "site"
             build(output, "/storytelling-machine/", "https://example.org", self.index)
             gallery = json.loads((output / "art.json").read_text(encoding="utf-8"))
-            self.assertEqual(len(gallery), 2468)
+            self.assertEqual(len(gallery), 2519)
             self.assertEqual(set(item["type"] for item in gallery), {
                 "Covers", "Characters", "Locations",
             })
@@ -170,9 +174,16 @@ class SiteBuildTests(unittest.TestCase):
             guide_catalog = json.loads((output / "guide-catalog.json").read_text(encoding="utf-8"))
             self.assertEqual(len(guide_catalog), len(self.stories))
             self.assertEqual(guide_catalog[0]["prompt"], self.stories[0]["prompt"])
-            self.assertEqual([story["slug"] for story in guide_catalog[:74]], [
-                "three-heartbeats", "one-cargo-at-a-time", "aetherveils-first-shadow",
-                "silver-gown", "bifurcated", "the-antique-camera", "the-painted-dead",
+            self.assertEqual([story["slug"] for story in guide_catalog[:7]], [
+                "own-transformation", "first-deployment", "devils-thief", "a-seat-by-the-door",
+                "a-life-of-her-own", "swan-and-sword", "the-administrators",
+            ])
+            self.assertEqual([story["rating"] for story in guide_catalog[:7]],
+                             ["General", "General", "Teen", "General", "General", "General", "General"])
+            previous_catalog = guide_catalog[7:]
+            self.assertEqual([story["slug"] for story in previous_catalog[:73]], [
+                "one-cargo-at-a-time", "aetherveils-first-shadow", "silver-gown",
+                "bifurcated", "the-antique-camera", "the-painted-dead",
                 "sarah-elizondo", "a-single-grain", "not-today", "the-funny-part",
                 "break-my-bones", "the-fourth-beat", "book-of-eternity", "civilized-folk",
                 "woods-at-night", "the-shadow-girls-promise",
@@ -195,18 +206,19 @@ class SiteBuildTests(unittest.TestCase):
                 "great-winter-contest", "no-vacancy", "the-last-watch", "the-second-door",
                 "magical-girl-pr", "found-the-spares", "the-statue-at-the-corner",
             ])
-            self.assertEqual([story["rating"] for story in guide_catalog[:17]],
-                             ["General", "General", "General", "General", "General", "General", "Teen",
-                              "Teen", "General", "General", "Explicit", "Teen", "General",
+            self.assertEqual([story["rating"] for story in previous_catalog[:6]],
+                             ["General"] * 5 + ["Teen"])
+            self.assertEqual([story["rating"] for story in previous_catalog[6:16]],
+                             ["Teen", "General", "General", "Explicit", "Teen", "General",
                               "Teen", "Teen", "Teen", "Teen"])
-            self.assertEqual([story["rating"] for story in guide_catalog[17:22]],
+            self.assertEqual([story["rating"] for story in previous_catalog[16:21]],
                              ["General", "General", "Teen", "Teen", "General"])
-            self.assertEqual(guide_catalog[22]["rating"], "Teen")
-            self.assertEqual(guide_catalog[29]["rating"], "Mature")
-            self.assertEqual([story["rating"] for story in guide_catalog[30:34]], ["General"] * 4)
-            self.assertEqual([story["rating"] for story in guide_catalog[34:37]], ["Teen"] * 3)
-            self.assertEqual([story["rating"] for story in guide_catalog[37:40]], ["General"] * 3)
-            self.assertEqual(guide_catalog[40]["rating"], "Mature")
+            self.assertEqual(previous_catalog[21]["rating"], "Teen")
+            self.assertEqual(previous_catalog[28]["rating"], "Mature")
+            self.assertEqual([story["rating"] for story in previous_catalog[29:33]], ["General"] * 4)
+            self.assertEqual([story["rating"] for story in previous_catalog[33:36]], ["Teen"] * 3)
+            self.assertEqual([story["rating"] for story in previous_catalog[36:39]], ["General"] * 3)
+            self.assertEqual(previous_catalog[39]["rating"], "Mature")
             cover_feed = json.loads((output / "cover-feed.json").read_text(encoding="utf-8"))
             self.assertEqual(len(cover_feed), len(self.stories))
             self.assertEqual(cover_feed[0]["cover"], guide_catalog[0]["cover"])
@@ -254,7 +266,7 @@ class SiteBuildTests(unittest.TestCase):
         source = json.loads((CONTENT / "ratings-source.json").read_text(encoding="utf-8"))
         self.assertEqual(len(self.stories), source["stories"])
         self.assertEqual(dict(Counter(story["rating"] for story in self.stories)), source["counts"])
-        self.assertEqual(source["counts"], {"General": 164, "Teen": 102, "Mature": 11, "Explicit": 8})
+        self.assertEqual(source["counts"], {"General": 169, "Teen": 103, "Mature": 11, "Explicit": 8})
         self.assertEqual(source["localOverrides"], {"onyx-peace": "General"})
         for story in self.stories[:15]:
             self.assertEqual(story["body"].splitlines().count(f"# {story['title']}"), 1)
@@ -284,7 +296,7 @@ class SiteBuildTests(unittest.TestCase):
         with patch("scripts.build.urlopen", side_effect=error):
             index, source = load_media_index("https://art.example.org/index.json")
         self.assertEqual(source, "snapshot")
-        self.assertEqual(len(index["assets"]), 2497)
+        self.assertEqual(len(index["assets"]), 2548)
 
     def test_homepage_uses_selected_location_corrections(self) -> None:
         expected = {

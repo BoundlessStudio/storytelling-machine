@@ -61,6 +61,13 @@ def writing_prompt(source: str, slug: str) -> str:
         source, re.IGNORECASE | re.MULTILINE | re.DOTALL,
     )
     request = section.group(1) if section else source
+    if section:
+        nested = re.match(
+            r"#{2,6}[ \t]+My request:?[ \t]*\r?\n(.*?)(?=^#{1,6}[ \t]|\Z)",
+            source[section.end():], re.IGNORECASE | re.MULTILINE | re.DOTALL,
+        )
+        if nested:
+            request = nested.group(1)
     match = re.search(r"^\s*(?:>\s*)?\[?(?:WP|SP)\]\s*(.+)$", request, re.MULTILINE)
     if match:
         prompt = match.group(1).strip()
@@ -68,7 +75,7 @@ def writing_prompt(source: str, slug: str) -> str:
             if prompt.startswith(opening) and prompt.endswith(closing):
                 return prompt[1:-1]
         return prompt
-    if section and (prompt := section.group(1).strip()):
+    if section and (prompt := request.strip()):
         return prompt
     raise ValueError(f"Missing writing prompt for {slug}")
 

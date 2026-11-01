@@ -26,6 +26,13 @@ class SourceSyncTests(unittest.TestCase):
                               f"Image #1.\n\n{section_level} Later user direction\n\n[WP] Revise the art.\n")
                     self.assertEqual(writing_prompt(source, "familiar"), prompt)
 
+    def test_nested_request_excludes_preamble_and_later_directions(self) -> None:
+        prompt = "Six cybernetic sorcerers appear above the capital.\n\nThey are Administrators."
+        source = ("# Original request\n\nDistinguish instructions from the user's request.\n\n"
+                  f"## My request:\n{prompt}\n\n## Supplied reference images\nImage #1.\n\n"
+                  "## Later user direction\n[WP] Revise the cover.\n")
+        self.assertEqual(writing_prompt(source, "the-administrators"), prompt)
+
     def test_prompt_tags_and_dialogue_quotes_import_without_losing_text(self) -> None:
         cases = {
             '[SP] The woods are scary at night...': 'The woods are scary at night...',

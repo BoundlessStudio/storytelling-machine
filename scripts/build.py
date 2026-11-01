@@ -242,15 +242,12 @@ def make_art(index: dict, stories: list[dict], base: str) -> tuple[list[dict], d
 
 
 def story_card(story: dict, cover: str, base: str) -> str:
-    excerpt = " ".join(story["prompt"].split())
-    if len(excerpt) > 160:
-        excerpt = excerpt[:157].rsplit(" ", 1)[0] + "…"
     search = (story["title"] + " " + story["prompt"]).casefold()
     url = base + "stories/" + quote(story["slug"]) + "/"
     hidden = " hidden" if story["rating"] == "Explicit" else ""
     return f"""<article class="story-card" data-story-card data-search="{esc(search)}" data-rating="{esc(story['rating'])}"{hidden}>
 <a class="story-cover" href="{url}"><img src="{esc(cover)}" alt="Cover for {esc(story['title'])}" loading="lazy" decoding="async"></a>
-<div class="card-copy"><p class="eyebrow">{esc(story['created'])} · {esc(story['rating'])}</p><h2><a href="{url}">{esc(story['title'])}</a></h2><p>{esc(excerpt)}</p></div></article>"""
+<div class="card-copy"><p class="eyebrow">{esc(story['created'])} · {esc(story['rating'])}</p><h2><a href="{url}">{esc(story['title'])}</a></h2><p class="story-prompt">{esc(story['prompt'])}</p><button class="prompt-toggle" type="button" aria-haspopup="dialog" aria-controls="prompt-dialog" aria-label="Read full prompt for {esc(story['title'])}" hidden>Read full prompt</button></div></article>"""
 
 
 def build_index(stories: list[dict], covers: dict[str, str], base: str, site_url: str) -> str:
@@ -263,6 +260,7 @@ def build_index(stories: list[dict], covers: dict[str, str], base: str, site_url
     visible = sum(story["rating"] != "Explicit" for story in stories)
     body = f"""<section class="page-intro wrap"><p class="eyebrow">Shared-universe fiction</p><h1>Story library</h1><p>Browse the collection, find a story, and stay a while.</p><div class="intro-links"><span>{len(stories)} stories</span><a href="{base}art/">Explore the gallery ↗</a></div></section>
 <section class="wrap listing" aria-label="Stories"><div class="controls"><label class="search-field">Search stories<input id="story-search" type="search" placeholder="Title or writing prompt" autocomplete="off"></label></div><fieldset class="rating-filters" id="rating-filter" aria-describedby="rating-filter-help"><legend>Audience ratings</legend><div class="rating-toggles">{rating_buttons}</div><p class="filter-hint" id="rating-filter-help">Choose any combination of ratings.</p></fieldset><p class="results" id="story-results" role="status" aria-live="polite">{visible} stories</p><div class="story-grid" id="story-grid">{cards}</div><p class="empty" id="story-empty" hidden>No stories match those filters.</p></section>
+<dialog class="prompt-dialog" id="prompt-dialog" aria-labelledby="prompt-dialog-title" aria-describedby="prompt-dialog-meta"><form method="dialog"><button class="dialog-close" aria-label="Close writing prompt" autofocus>×</button></form><header class="prompt-dialog-heading"><p class="eyebrow">[WP] · Writing prompt</p><h2 id="prompt-dialog-title"></h2><p id="prompt-dialog-meta"></p></header><p class="prompt-dialog-text" id="prompt-dialog-text" tabindex="0"></p><footer class="prompt-dialog-actions"><a id="prompt-dialog-reader">Read the story →</a></footer></dialog>
 <dialog class="rating-warning" id="explicit-warning" aria-labelledby="explicit-warning-title" aria-describedby="explicit-warning-description"><form method="dialog"><h2 id="explicit-warning-title">Explicit material</h2><p id="explicit-warning-description">Stories rated Explicit contain adult material. Do you want to include them in your library results?</p><div class="rating-warning-actions"><button type="submit" value="cancel" autofocus>Keep Explicit hidden</button><button class="confirm-explicit" type="submit" value="confirm">Show Explicit stories</button></div></form></dialog>"""
     return shell("Library", "Explore original fiction and artwork across a shared universe of magic, mystery, and imagined worlds.", body,
                  "Library", base, site_url, "library/")
