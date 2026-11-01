@@ -702,6 +702,7 @@ function createLibrary() {
   const deskTop = 1.93;
   const deskWidth = 15.7, deskDepth = 5.1, deskCenterZ = 3.8;
   const deskOffsetZ = 2.1;
+  const deskBookZ = 4.3;
   const deskSetup = new THREE.Group(); deskSetup.position.z = deskOffsetZ; room.add(deskSetup);
   function walnutTexture() {
     const c = document.createElement('canvas'); c.width = assetProfile.textureSize; c.height = c.width / 2;
@@ -750,7 +751,7 @@ function createLibrary() {
     const mesh = new THREE.Mesh(keep(new THREE.PlaneGeometry(w, h)), keep(new THREE.MeshBasicMaterial({ map: keep(new THREE.CanvasTexture(c)), transparent: true, depthWrite: false, toneMapped: false })));
     mesh.rotation.x = -Math.PI / 2; mesh.position.set(x, y, z); deskSetup.add(mesh); return mesh;
   }
-  contactShadow(3.2, 2.7, 0, deskTop + .008, 4.3, .34);
+  contactShadow(3.2, 2.7, 0, deskTop + .008, deskBookZ + .45, .34);
   contactShadow(4.5, 3.9, -3.8, deskTop + .01, 4.1, .22);
   contactShadow(3.6, 2.1, 3.8, deskTop + .01, 3.4, .28);
 
@@ -1099,8 +1100,8 @@ function createLibrary() {
         if (distanceSquared >= minimum * minimum) continue;
         const distance = Math.sqrt(distanceSquared);
         if (distance < .00001) difference.set(1, 0, 0); else difference.multiplyScalar(1 / distance);
-        // Shelf travelers yield slightly. Desk flights keep their smooth route
-        // while the school makes room around their actual changing size.
+        // Shelf travelers yield slightly. Desk books keep their pose or flight
+        // route while the school makes room around their actual changing size.
         const aWeight = a.fixed ? 0 : a.kinematic ? .2 : 1, bWeight = b.fixed ? 0 : b.kinematic ? .2 : 1, weight = aWeight + bWeight;
         if (!weight) continue;
         const correction = minimum - distance;
@@ -1130,9 +1131,12 @@ function createLibrary() {
       flockTarget(boids[storyIndex], flockTime, boids[storyIndex].position);
       flockVelocity(boids[storyIndex], flockTime);
     }
-    const deskFlights = flight && !reducedMotion.matches ? [hero.flightBody, outgoing.flightBody] : [];
-    for (const book of [hero, outgoing]) if (book) book.flightBody.radius = Math.max(boids[book.storyIndex].radius, Math.hypot(1.79, 3.18, .36) * .5 * book.group.scale.x);
-    const members = [...boids.filter((body, i) => !deskStories.has(i) && !travelingStories.has(i) && (!body.arrival || body.arrival.departed)), ...shelfTransfers, ...deskFlights];
+    const deskBooks = [hero, outgoing].filter(Boolean);
+    for (const book of deskBooks) book.flightBody.radius = Math.max(boids[book.storyIndex].radius, Math.hypot(1.79, 3.18, .36) * .5 * book.group.scale.x);
+    // The upright cover occupies the school's height even while resting.
+    // Keep its clearance active after the arrival flight has finished.
+    const deskObstacles = deskBooks.map(book => book.flightBody);
+    const members = [...boids.filter((body, i) => !deskStories.has(i) && !travelingStories.has(i) && (!body.arrival || body.arrival.departed)), ...shelfTransfers, ...deskObstacles];
     if (dt > 0 && !arrivalsRemaining) neighborGrid.rebuild(members);
     for (let i = 0; i < members.length; i++) {
       const b = members[i];
@@ -1152,12 +1156,12 @@ function createLibrary() {
         }
         b.velocity.addScaledVector(difference.subVectors(b.target, b.position), dt * .75);
         if (neighbors) { b.velocity.addScaledVector(separation, dt * .13); alignment.multiplyScalar(1 / neighbors); b.velocity.lerp(alignment, dt * .13); }
-        for (const traveler of deskFlights) {
+        for (const traveler of deskObstacles) {
           difference.subVectors(b.position, traveler.position);
           const distance = difference.length(), radius = b.radius + traveler.radius + .65;
           if (distance > .001 && distance < radius) {
-            // Begin yielding before contact so the fast desk exchange opens
-            // a small passage, then ordinary cohesion closes it naturally.
+            // Yield before contact to keep the resting cover clear and open
+            // a small passage during the fast desk exchange.
             const falloff = 1 - distance / radius;
             b.velocity.addScaledVector(difference, dt * 5 * falloff * falloff / distance);
           }
@@ -1181,7 +1185,7 @@ function createLibrary() {
     // Entry poses are already spaced apart. Keep the scripted flights smooth;
     // flock forces and collision corrections take over after they all arrive.
     if (!arrivalsRemaining) {
-      if (dt > 0 || !schoolInitialized) separateBooks(members, schoolInitialized ? (shelfTransfers.length || deskFlights.length || mouseStrength > .01 ? 6 : 3) : 60);
+      if (dt > 0 || !schoolInitialized) separateBooks(members, schoolInitialized ? (shelfTransfers.length || flight || mouseStrength > .01 ? 6 : 3) : 60);
       schoolInitialized = true;
     }
     for (let i = 0; i < count; i++) {
@@ -1233,13 +1237,13 @@ function createLibrary() {
   const deskTilt = -.38;
   const bookRestHeight = .15;
   const bookHalfHeight = 1.59 * deskScale, bookHalfDepth = .18 * deskScale;
-  const deskPosition = new THREE.Vector3(0, deskTop + bookRestHeight + Math.cos(deskTilt) * bookHalfHeight + Math.abs(Math.sin(deskTilt)) * bookHalfDepth, 3.85 + deskOffsetZ);
+  const deskPosition = new THREE.Vector3(0, deskTop + bookRestHeight + Math.cos(deskTilt) * bookHalfHeight + Math.abs(Math.sin(deskTilt)) * bookHalfDepth, deskBookZ + deskOffsetZ);
   const deskQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(deskTilt, 0, 0));
-  const bookStand = new THREE.Group(); deskSetup.add(bookStand);
-  box(2.65, bookRestHeight, 1.9, 0, deskTop + bookRestHeight / 2, 4.3, stone, bookStand).castShadow = true;
-  box(2.5, .025, .035, 0, deskTop + bookRestHeight + .01, 5.16, gold, bookStand);
+  const bookStand = new THREE.Group(); bookStand.position.z = deskBookZ; deskSetup.add(bookStand);
+  box(2.65, bookRestHeight, 1.9, 0, deskTop + bookRestHeight / 2, .45, stone, bookStand).castShadow = true;
+  box(2.5, .025, .035, 0, deskTop + bookRestHeight + .01, 1.31, gold, bookStand);
   const bookCradle = new THREE.Group();
-  bookCradle.position.copy(deskPosition); bookCradle.position.z -= deskOffsetZ;
+  bookCradle.position.set(0, deskPosition.y, 0);
   bookCradle.quaternion.copy(deskQuaternion); bookStand.add(bookCradle);
   for (const x of [-.83, .83]) {
     box(.11, 3, .11, x, -.4, -.27, stone, bookCradle).castShadow = true;
