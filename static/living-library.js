@@ -750,7 +750,7 @@ function createLibrary() {
     const mesh = new THREE.Mesh(keep(new THREE.PlaneGeometry(w, h)), keep(new THREE.MeshBasicMaterial({ map: keep(new THREE.CanvasTexture(c)), transparent: true, depthWrite: false, toneMapped: false })));
     mesh.rotation.x = -Math.PI / 2; mesh.position.set(x, y, z); deskSetup.add(mesh); return mesh;
   }
-  contactShadow(3.5, 4.4, .1, deskTop + .008, 3.95, .32);
+  contactShadow(3.2, 2.7, 0, deskTop + .008, 4.3, .34);
   contactShadow(4.5, 3.9, -3.8, deskTop + .01, 4.1, .22);
   contactShadow(3.6, 2.1, 3.8, deskTop + .01, 3.4, .28);
 
@@ -1228,8 +1228,24 @@ function createLibrary() {
   const heroFrontGeometry = keep(new THREE.PlaneGeometry(1.77, 3.146)); heroFrontGeometry.translate(0, 0, .176);
   const heroSpineGeometry = keep(new THREE.CylinderGeometry(.155, .155, 3.18, 14, 1, false, Math.PI, Math.PI)); heroSpineGeometry.translate(-.87, 0, 0);
   const deskScale = 1.18;
-  const deskPosition = new THREE.Vector3(0, deskTop + .18 * deskScale, 3.85 + deskOffsetZ);
-  const deskQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, -.045));
+  // Recline the cover toward the viewer, with its lower edge seated in the
+  // stand. Flights and the projected reading link share this resting pose.
+  const deskTilt = -.38;
+  const bookRestHeight = .15;
+  const bookHalfHeight = 1.59 * deskScale, bookHalfDepth = .18 * deskScale;
+  const deskPosition = new THREE.Vector3(0, deskTop + bookRestHeight + Math.cos(deskTilt) * bookHalfHeight + Math.abs(Math.sin(deskTilt)) * bookHalfDepth, 3.85 + deskOffsetZ);
+  const deskQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(deskTilt, 0, 0));
+  const bookStand = new THREE.Group(); deskSetup.add(bookStand);
+  box(2.65, bookRestHeight, 1.9, 0, deskTop + bookRestHeight / 2, 4.3, stone, bookStand).castShadow = true;
+  box(2.5, .025, .035, 0, deskTop + bookRestHeight + .01, 5.16, gold, bookStand);
+  const bookCradle = new THREE.Group();
+  bookCradle.position.copy(deskPosition); bookCradle.position.z -= deskOffsetZ;
+  bookCradle.quaternion.copy(deskQuaternion); bookStand.add(bookCradle);
+  for (const x of [-.83, .83]) {
+    box(.11, 3, .11, x, -.4, -.27, stone, bookCradle).castShadow = true;
+  }
+  box(2.32, .12, .55, 0, -bookHalfHeight - .06, .02, stone, bookCradle).castShadow = true;
+  box(2.32, .14, .07, 0, -bookHalfHeight, .3, gold, bookCradle).castShadow = true;
   let hero = null;
   let outgoing = null;
   let flight = null;
@@ -1243,10 +1259,6 @@ function createLibrary() {
     const pages = new THREE.Mesh(heroPageGeometry, heroPages); pages.position.x = .02; pages.castShadow = true; group.add(pages);
     const spine = new THREE.Mesh(heroSpineGeometry, binding); group.add(spine);
     const face = new THREE.Mesh(heroFrontGeometry, faceMat); group.add(face);
-    // Fine gold corner protectors read as binding, without obscuring the art.
-    for (const x of [-.83, .83]) for (const y of [-1.52, 1.52]) {
-      box(.12, .024, .009, x, y, .181, gold, group); box(.024, .12, .009, x, y - Math.sign(y) * .045, .181, gold, group);
-    }
     scene.add(group);
     const flightBody = { position: group.position, velocity: new THREE.Vector3(), radius: 0, kinematic: true, fixed: true };
     const book = { group, storyIndex, binding, faceMat, flightBody, disposed: false };
