@@ -72,7 +72,8 @@ def writing_prompt(source: str, slug: str) -> str:
     if match:
         prompt = match.group(1).strip()
         for opening, closing in (("“", "”"), ('"', '"')):
-            if prompt.startswith(opening) and prompt.endswith(closing):
+            if (prompt.startswith(opening) and prompt.endswith(closing)
+                    and opening not in prompt[1:-1] and closing not in prompt[1:-1]):
                 return prompt[1:-1]
         return prompt
     if section and (prompt := request.strip()):

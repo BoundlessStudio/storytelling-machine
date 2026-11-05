@@ -41,6 +41,10 @@ class SourceSyncTests(unittest.TestCase):
             '[WP] Say the words “Not today.”': 'Say the words “Not today.”',
             '[WP] You say, "We carved sentience into a grain of sand."':
                 'You say, "We carved sentience into a grain of sand."',
+            '[WP] "Hey, what is all that weird stuff in your fridge?" "Standing theory is that it opens up to and gets stocked from alternate realities."':
+                '"Hey, what is all that weird stuff in your fridge?" "Standing theory is that it opens up to and gets stocked from alternate realities."',
+            '[WP] “I need a new body.” “Is there some problem or defect with your body?”':
+                '“I need a new body.” “Is there some problem or defect with your body?”',
         }
         for source, expected in cases.items():
             with self.subTest(source=source):

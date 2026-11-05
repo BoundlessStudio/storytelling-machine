@@ -214,7 +214,7 @@ def make_art(index: dict, stories: list[dict], base: str) -> tuple[list[dict], d
         elif len(parts) == 5 and parts[0] == "stories" and parts[2] == "art":
             slug, source_kind = parts[1], COLLECTIONS.get(parts[3])
             kind = "Locations" if source_kind in {"Landscapes", "Interiors"} else source_kind
-        if not kind or item["contentType"] not in IMAGE_TYPES:
+        if not kind or slug not in story_by_slug or item["contentType"] not in IMAGE_TYPES:
             continue
         if kind == "Locations" and PurePosixPath(path).stem.casefold().endswith("-original"):
             continue
