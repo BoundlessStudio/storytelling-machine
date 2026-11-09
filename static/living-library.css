@@ -138,7 +138,6 @@ body:not(.is-library-loading) .ll-loading{opacity:0;visibility:hidden;pointer-ev
  .ll-book-fallback{top:28%;width:110px}.ll-fallback,.ll-noscript{top:20%;font-size:13px;padding:10px}
 }
 @media(max-width:500px){.ll-references,.is-fallback .ll-references{grid-template-columns:minmax(0,1fr)}}
-@media(max-width:430px){.living-library-body .site-header{gap:8px}.living-library-body .site-header-actions{gap:12px}}
 @media(max-height:700px) and (max-width:700px),(max-height:700px) and (max-aspect-ratio:1/1){
  #ll-canvas{height:48%}
  .ll-prompt,.is-fallback .ll-prompt,.ll-references,.is-fallback .ll-references{top:45%;height:calc(55% - 60px)}

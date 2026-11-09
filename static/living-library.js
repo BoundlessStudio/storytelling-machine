@@ -439,6 +439,7 @@ function createLibrary() {
   }
 
   // Deep shelf bays and marble piers establish the same symmetrical hall.
+  const shelfPierX = 9.54, shelfPierBaseWidth = 1.08;
   const shelfBooks = [];
   const spineBands = [];
   const shelfGaps = [];
@@ -477,9 +478,9 @@ function createLibrary() {
         }
       }
       const pierZ = z + 2.25;
-      box(.76, 14.2, .6, side * 9.54, 7.1, pierZ, paleStone);
-      box(1.08, .35, .85, side * 9.54, .2, pierZ, stone);
-      box(1.05, .27, .9, side * 9.54, 13.55, pierZ, stone);
+      box(.76, 14.2, .6, side * shelfPierX, 7.1, pierZ, paleStone);
+      box(shelfPierBaseWidth, .35, .85, side * shelfPierX, .2, pierZ, stone);
+      box(1.05, .27, .9, side * shelfPierX, 13.55, pierZ, stone);
       for (const edge of [-.19, .19]) inlay(.014, 12.8, .018, side * 9.152, 6.85, pierZ + edge);
       for (const y of [.45, 13.25]) inlay(.014, .022, .4, side * 9.152, y, pierZ);
       for (const y of [2.2, 6.85, 11.5]) inlayDiamonds.push({ x: side * 9.142, y, z: pierZ, w: .23, h: .5, rx: 0, ry: -side * Math.PI / 2 });
@@ -734,6 +735,9 @@ function createLibrary() {
   }
   const deskGeometry = keep(new THREE.ExtrudeGeometry(roundedRectangle(deskWidth, deskDepth, .55), { depth: .36, bevelEnabled: true, bevelSegments: 4, bevelSize: .1, bevelThickness: .1, steps: 1, curveSegments: 18 }));
   deskGeometry.rotateX(-Math.PI / 2);
+  deskGeometry.computeBoundingBox();
+  const deskHalfWidth = deskGeometry.boundingBox.max.x;
+  const maxDeskHalfWidth = shelfPierX - shelfPierBaseWidth / 2 - .7;
   const deskUv = deskGeometry.getAttribute('uv'), deskPositions = deskGeometry.getAttribute('position');
   for (let i = 0; i < deskUv.count; i++) deskUv.setXY(i, deskPositions.getX(i) / deskWidth + .5, deskPositions.getZ(i) / deskDepth + .5);
   const desk = new THREE.Mesh(deskGeometry, walnut); desk.position.set(0, 1.47, deskCenterZ); desk.receiveShadow = desk.castShadow = true; deskSetup.add(desk);
@@ -1249,7 +1253,7 @@ function createLibrary() {
     box(.11, 3, .11, x, -.4, -.27, stone, bookCradle).castShadow = true;
   }
   box(2.32, .12, .55, 0, -bookHalfHeight - .06, .02, stone, bookCradle).castShadow = true;
-  box(2.32, .14, .07, 0, -bookHalfHeight, .3, gold, bookCradle).castShadow = true;
+  box(2.32, .14, .07, 0, -bookHalfHeight, .3, stone, bookCradle).castShadow = true;
   let hero = null;
   let outgoing = null;
   let flight = null;
@@ -1662,10 +1666,11 @@ function createLibrary() {
     else { camera.position.set(0, 9, 16.7); camera.lookAt(0, 1.9, -4.2); }
     camera.updateProjectionMatrix(); camera.updateMatrixWorld();
     if (!mobile.matches) fitDeskToViewport(width, height);
-    // Keep the nearer desk wide enough to cover the bottom corners.
+    // Fill the foreground while leaving clearance on both sides of the desk.
     const bottomRay = new THREE.Vector3(1, -1, .5).unproject(camera).sub(camera.position);
     const halfWidthAtDesk = Math.abs(camera.position.x + bottomRay.x * (deskTop - camera.position.y) / bottomRay.y);
-    desk.scale.x = Math.max(1, (halfWidthAtDesk + .65) / (deskWidth / 2));
+    const fittedDeskHalfWidth = Math.max(deskHalfWidth, halfWidthAtDesk + .65);
+    desk.scale.x = Math.min(fittedDeskHalfWidth, maxDeskHalfWidth) / deskHalfWidth;
     // Extend only the front of the tabletop when a wider view exposes it.
     const frontZ = camera.position.z + bottomRay.z * (deskTop - camera.position.y) / bottomRay.y;
     const extraDepth = Math.max(0, frontZ + .65 - (deskCenterZ + deskOffsetZ + deskDepth / 2));

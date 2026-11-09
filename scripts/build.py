@@ -122,7 +122,8 @@ def theme_toggle() -> str:
 
 def shell(title: str, description: str, body: str, active: str, base: str,
           site_url: str, page_path: str = "", image: str | None = None,
-          immersive: bool = False, head_extra: str = "", body_class: str = "immersive-body") -> str:
+          immersive: bool = False, head_extra: str = "", body_class: str = "immersive-body",
+          *, story_count: int, artwork_count: int) -> str:
     canonical = site_url.rstrip("/") + base + page_path
     page_title = f"{title} · Story Computing Machine"
     preview_image = image or site_url.rstrip("/") + base + "social-card.jpg"
@@ -137,11 +138,14 @@ def shell(title: str, description: str, body: str, active: str, base: str,
         )
     )
     header_class = 'site-header immersive-header' if immersive else 'site-header'
-    header = (f'<header class="{header_class}"><a class="site-mark" href="{base}" '
+    story_label = "story" if story_count == 1 else "stories"
+    artwork_label = "artwork" if artwork_count == 1 else "artworks"
+    header = (f'<header class="{header_class}"><div class="site-brand"><a class="site-mark" href="{base}" '
               f'aria-label="Story Computing Machine home"><img class="brand-icon" '
               f'src="{base}favicon.svg?v={ICON_VERSION}" alt="">'
               '<span class="site-mark-long">Story Computing Machine</span>'
               '<span class="site-mark-short">Story Machine</span></a>'
+              f'<p class="site-counts">{story_count:,} {story_label} · {artwork_count:,} {artwork_label}</p></div>'
               f'<div class="site-header-actions"><nav aria-label="Main navigation">{nav}</nav>{theme_toggle()}</div></header>')
     if immersive:
         footer = ""
@@ -250,7 +254,7 @@ def story_card(story: dict, cover: str, base: str) -> str:
 <div class="card-copy"><p class="eyebrow">{esc(story['created'])} · {esc(story['rating'])}</p><h2><a href="{url}">{esc(story['title'])}</a></h2><p class="story-prompt">{esc(story['prompt'])}</p><button class="prompt-toggle" type="button" aria-haspopup="dialog" aria-controls="prompt-dialog" aria-label="Read full prompt for {esc(story['title'])}" hidden>Read full prompt</button></div></article>"""
 
 
-def build_index(stories: list[dict], covers: dict[str, str], base: str, site_url: str) -> str:
+def build_index(stories: list[dict], covers: dict[str, str], base: str, site_url: str, *, artwork_count: int) -> str:
     cards = "".join(story_card(story, covers[story["slug"]], base) for story in stories)
     ratings = ("General", "Teen", "Mature", "Explicit")
     rating_buttons = "".join(
@@ -263,7 +267,7 @@ def build_index(stories: list[dict], covers: dict[str, str], base: str, site_url
 <dialog class="prompt-dialog" id="prompt-dialog" aria-labelledby="prompt-dialog-title" aria-describedby="prompt-dialog-meta"><form method="dialog"><button class="dialog-close" aria-label="Close writing prompt" autofocus>×</button></form><header class="prompt-dialog-heading"><p class="eyebrow">[WP] · Writing prompt</p><h2 id="prompt-dialog-title"></h2><p id="prompt-dialog-meta"></p></header><p class="prompt-dialog-text" id="prompt-dialog-text" tabindex="0"></p><footer class="prompt-dialog-actions"><a id="prompt-dialog-reader">Read the story →</a></footer></dialog>
 <dialog class="rating-warning" id="explicit-warning" aria-labelledby="explicit-warning-title" aria-describedby="explicit-warning-description"><form method="dialog"><h2 id="explicit-warning-title">Explicit material</h2><p id="explicit-warning-description">Stories rated Explicit contain adult material. Do you want to include them in your library results?</p><div class="rating-warning-actions"><button type="submit" value="cancel" autofocus>Keep Explicit hidden</button><button class="confirm-explicit" type="submit" value="confirm">Show Explicit stories</button></div></form></dialog>"""
     return shell("Library", "Explore original fiction and artwork across a shared universe of magic, mystery, and imagined worlds.", body,
-                 "Library", base, site_url, "library/")
+                 "Library", base, site_url, "library/", story_count=len(stories), artwork_count=artwork_count)
 
 
 def library_scene_data(stories: list[dict], art: list[dict], base: str) -> dict:
@@ -387,7 +391,8 @@ body:not(.is-library-loading) .ll-loading{opacity:0;visibility:hidden;pointer-ev
 {loading_bootstrap}
 <script type="module" src="{base}living-library.js?v={LIBRARY_JS_VERSION}" id="ll-scene-script"></script>"""
     return shell("The Living Library", "A library in motion. Discover original stories, their writing prompts, and the art of their worlds in an immersive reading room.",
-                 body, "Discover", base, site_url, immersive=True, head_extra=head, body_class="living-library-body is-library-loading")
+                 body, "Discover", base, site_url, immersive=True, head_extra=head,
+                 body_class="living-library-body is-library-loading", story_count=len(stories), artwork_count=len(art))
 
 
 def prompt_markup(prompt: str) -> str:
@@ -403,7 +408,7 @@ def prose_markup(body: str, title: str) -> str:
 
 
 def build_story(story: dict, stories: list[dict], covers: dict[str, str], art: list[dict],
-                base: str, site_url: str) -> str:
+                base: str, site_url: str, *, artwork_count: int) -> str:
     slug = story["slug"]
     position = stories.index(story)
     neighbors = []
@@ -414,10 +419,11 @@ def build_story(story: dict, stories: list[dict], covers: dict[str, str], art: l
     art_link = f'<a href="{base}art/?story={quote(slug)}">View {len(art)} artwork items ↗</a>' if art else ""
     body = f"""<div class="reader wrap"><p><a class="back-link" href="{base}library/">← Library</a></p><header class="reader-header"><div><p class="eyebrow">{esc(story['created'])} · {esc(story['rating'])}</p><h1>{esc(story['title'])}</h1><div class="reader-links">{art_link}</div></div><img src="{esc(covers[slug])}" alt="Cover for {esc(story['title'])}"></header><div class="reader-content"><aside class="prompt"><h2>Writing prompt</h2>{prompt_markup(story['prompt'])}</aside><article class="prose">{prose_markup(story['body'], story['title'])}</article></div><nav class="reader-neighbors" aria-label="More stories">{''.join(neighbors)}</nav></div>"""
     return shell(story["title"], " ".join(story["prompt"].split())[:200], body,
-                 "Library", base, site_url, f"stories/{slug}/", covers[slug])
+                 "Library", base, site_url, f"stories/{slug}/", covers[slug],
+                 story_count=len(stories), artwork_count=artwork_count)
 
 
-def build_art_page(count: int, base: str, site_url: str) -> str:
+def build_art_page(count: int, base: str, site_url: str, *, story_count: int) -> str:
     buttons = "".join(
         f'<button class="collection-toggle" type="button" data-art-type="{esc(kind)}" aria-pressed="false">{esc(kind)}</button>'
         for kind in ART_TYPES
@@ -426,7 +432,7 @@ def build_art_page(count: int, base: str, site_url: str) -> str:
 <section class="wrap listing" data-art-json="{base}art.json"><div class="controls"><label class="search-field">Search artwork<input id="art-search" type="search" placeholder="Story title, prompt, or artwork name" autocomplete="off"></label></div><fieldset class="art-collections" id="art-type"><legend>Collection</legend><div class="collection-toggles"><button class="collection-toggle" type="button" data-art-type="all" aria-pressed="true">All artwork</button>{buttons}</div></fieldset><p class="results" id="art-results" role="status" aria-live="polite">Loading artwork…</p><div class="art-grid" id="art-grid"></div><p class="empty" id="art-empty" hidden>No artwork matches those filters.</p><div class="art-sentinel" id="art-sentinel" aria-hidden="true" hidden></div><button class="button" id="art-more" type="button" hidden>Load more images</button></section>
 <dialog class="art-dialog" id="art-dialog" aria-label="Artwork viewer"><button class="dialog-close" id="dialog-close" type="button" aria-label="Close artwork">×</button><img id="dialog-image" alt=""><div class="dialog-copy"><p class="eyebrow" id="dialog-type"></p><h2 id="dialog-title"></h2><p id="dialog-story"></p><div class="reader-links"><a id="dialog-reader" href="#">Read the story ↗</a><a id="dialog-original" href="#" target="_blank" rel="noopener">Open original ↗</a></div></div></dialog>"""
     return shell("Gallery", "Explore covers, character studies, landscapes, and interiors from the Story Computing Machine.", body,
-                 "Gallery", base, site_url, "art/")
+                 "Gallery", base, site_url, "art/", story_count=story_count, artwork_count=count)
 
 
 def redirect_page(destination: str, title: str) -> str:
@@ -454,6 +460,7 @@ def build(output: Path, base: str, site_url: str, media_index: dict | None = Non
     if not stories:
         raise ValueError("The story catalog is empty")
     art, covers = make_art(media_index, stories, base)
+    artwork_count = len(art)
     art_by_story = defaultdict(list)
     for item in art:
         if item["id"] != f"stories/{item['slug']}/title-image.jpg":
@@ -485,14 +492,15 @@ def build(output: Path, base: str, site_url: str, media_index: dict | None = Non
         for story in stories
     ], ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     (output / "library" / "index.html").write_text(
-        build_index(stories, covers, base, site_url), encoding="utf-8")
+        build_index(stories, covers, base, site_url, artwork_count=artwork_count), encoding="utf-8")
     (output / "guide-catalog.json").write_text(json.dumps([
         {"slug": story["slug"], "title": story["title"], "rating": story["rating"],
          "canon": story["canon"], "prompt": story["prompt"], "body": story["body"],
          "cover": covers[story["slug"]], "url": base + "stories/" + quote(story["slug"]) + "/"}
         for story in stories
     ], ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    (output / "art" / "index.html").write_text(build_art_page(len(art), base, site_url), encoding="utf-8")
+    (output / "art" / "index.html").write_text(
+        build_art_page(artwork_count, base, site_url, story_count=len(stories)), encoding="utf-8")
     (output / "art.json").write_text(json.dumps(art, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     (output / "media-source.json").write_text(json.dumps({
         "source": source, "sourceCommit": media_index["sourceCommit"],
@@ -503,7 +511,7 @@ def build(output: Path, base: str, site_url: str, media_index: dict | None = Non
         destination = output / "stories" / slug
         destination.mkdir()
         (destination / "index.html").write_text(
-            build_story(story, stories, covers, art_by_story[slug], base, site_url),
+            build_story(story, stories, covers, art_by_story[slug], base, site_url, artwork_count=artwork_count),
             encoding="utf-8",
         )
         (output / "stories" / f"{slug}.html").write_text(
