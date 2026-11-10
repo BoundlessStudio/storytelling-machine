@@ -33,6 +33,12 @@ class SourceSyncTests(unittest.TestCase):
                   "## Later user direction\n[WP] Revise the cover.\n")
         self.assertEqual(writing_prompt(source, "the-administrators"), prompt)
 
+    def test_unheaded_request_stops_before_reference_inventory(self) -> None:
+        prompt = "Three agents infiltrate Fashion Week.\n\nThey have twelve minutes."
+        source = (f"{prompt}\n\n## Supplied reference images\n\n- Runway.png\n\n"
+                  "## Later user direction\n\n[WP] Revise the cover.\n")
+        self.assertEqual(writing_prompt(source, "fashion-week"), prompt)
+
     def test_prompt_tags_and_dialogue_quotes_import_without_losing_text(self) -> None:
         cases = {
             '[SP] The woods are scary at night...': 'The woods are scary at night...',

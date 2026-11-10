@@ -60,15 +60,21 @@ def writing_prompt(source: str, slug: str) -> str:
         r"(.*?)(?=^#{1,6}[ \t]|\Z)",
         source, re.IGNORECASE | re.MULTILINE | re.DOTALL,
     )
-    request = section.group(1) if section else source
+    request = None
     if section:
+        request = section.group(1)
         nested = re.match(
             r"#{2,6}[ \t]+My request:?[ \t]*\r?\n(.*?)(?=^#{1,6}[ \t]|\Z)",
             source[section.end():], re.IGNORECASE | re.MULTILINE | re.DOTALL,
         )
         if nested:
             request = nested.group(1)
-    match = re.search(r"^\s*(?:>\s*)?\[?(?:WP|SP)\]\s*(.+)$", request, re.MULTILINE)
+    else:
+        opening = re.match(r"\A(.*?)^#{1,6}[ \t]+([^\r\n]*)", source, re.MULTILINE | re.DOTALL)
+        if opening and opening.group(2).strip().casefold() == "supplied reference images":
+            request = opening.group(1)
+    match = re.search(r"^\s*(?:>\s*)?\[?(?:WP|SP)\]\s*(.+)$",
+                      source if request is None else request, re.MULTILINE)
     if match:
         prompt = match.group(1).strip()
         for opening, closing in (("“", "”"), ('"', '"')):
@@ -76,7 +82,7 @@ def writing_prompt(source: str, slug: str) -> str:
                     and opening not in prompt[1:-1] and closing not in prompt[1:-1]):
                 return prompt[1:-1]
         return prompt
-    if section and (prompt := request.strip()):
+    if request is not None and (prompt := request.strip()):
         return prompt
     raise ValueError(f"Missing writing prompt for {slug}")
 
