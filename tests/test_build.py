@@ -27,11 +27,11 @@ class SiteBuildTests(unittest.TestCase):
     def test_index_drives_every_cover_and_gallery_image(self) -> None:
         assets = validate_media_index(self.index)
         art, covers = make_art(self.index, self.stories, "/storytelling-machine/")
-        self.assertEqual(len(assets), 2671)
-        self.assertEqual(len(art), 2633)
+        self.assertEqual(len(assets), 2699)
+        self.assertEqual(len(art), 2661)
         self.assertEqual(len(covers), len(self.stories))
         self.assertEqual(dict(Counter(item["type"] for item in art)), {
-            "Covers": 307, "Characters": 1098, "Locations": 1228,
+            "Covers": 312, "Characters": 1109, "Locations": 1240,
         })
         self.assertTrue(all(item["id"].startswith("stories/") for item in art))
         self.assertTrue(any(item["type"] == "Locations" and item["thumbnail"] != item["full"]
@@ -111,7 +111,7 @@ class SiteBuildTests(unittest.TestCase):
             output = Path(temporary) / "site"
             build(output, "/storytelling-machine/", "https://example.org", self.index)
             gallery = json.loads((output / "art.json").read_text(encoding="utf-8"))
-            self.assertEqual(len(gallery), 2633)
+            self.assertEqual(len(gallery), 2661)
             self.assertEqual(set(item["type"] for item in gallery), {
                 "Covers", "Characters", "Locations",
             })
@@ -184,15 +184,22 @@ class SiteBuildTests(unittest.TestCase):
             guide_catalog = json.loads((output / "guide-catalog.json").read_text(encoding="utf-8"))
             self.assertEqual(len(guide_catalog), len(self.stories))
             self.assertEqual(guide_catalog[0]["prompt"], self.stories[0]["prompt"])
-            self.assertEqual([story["slug"] for story in guide_catalog[:5]], [
+            self.assertEqual([(story["slug"], story["title"]) for story in guide_catalog[:5]], [
+                ("super-speed-dating", "A Good Enemy"),
+                ("what-the-ocean-keeps", "What the Ocean Keeps"),
+                ("the-sun-at-her-back", "The Sun at Her Back"),
+                ("sophies-yellow-jeep", "The Two-Day Repair"),
+                ("festival-of-lights", "A Turn at Tallow Gate"),
+            ])
+            self.assertEqual([story["rating"] for story in guide_catalog[:10]], ["General"] * 10)
+            self.assertEqual([story["slug"] for story in guide_catalog[5:10]], [
                 "new-eden-moon", "angels-at-fashion-week",
                 "magic-v-steel", "retired-magical-girl", "a-penny-to-boo",
             ])
-            self.assertEqual([story["title"] for story in guide_catalog[:2]], [
+            self.assertEqual([story["title"] for story in guide_catalog[5:7]], [
                 "An Unreasonable Moon", "Hold for the Photograph",
             ])
-            self.assertEqual([story["rating"] for story in guide_catalog[:5]], ["General"] * 5)
-            prior_imports = guide_catalog[5:]
+            prior_imports = guide_catalog[10:]
             self.assertEqual([story["slug"] for story in prior_imports[:7]], [
                 "where-the-sun-is-afraid", "monsters-in-the-sewer", "exchange-program", "the-devourers-table",
                 "where-the-paint-runs-out", "letters-to-my-shadow", "human-assimilation",
@@ -297,7 +304,7 @@ class SiteBuildTests(unittest.TestCase):
         source = json.loads((CONTENT / "ratings-source.json").read_text(encoding="utf-8"))
         self.assertEqual(len(self.stories), source["stories"])
         self.assertEqual(dict(Counter(story["rating"] for story in self.stories)), source["counts"])
-        self.assertEqual(source["counts"], {"General": 182, "Teen": 106, "Mature": 11, "Explicit": 8})
+        self.assertEqual(source["counts"], {"General": 187, "Teen": 106, "Mature": 11, "Explicit": 8})
         self.assertEqual(source["localOverrides"], {"onyx-peace": "General"})
         for story in self.stories[:15]:
             self.assertEqual(story["body"].splitlines().count(f"# {story['title']}"), 1)
@@ -327,7 +334,7 @@ class SiteBuildTests(unittest.TestCase):
         with patch("scripts.build.urlopen", side_effect=error):
             index, source = load_media_index("https://art.example.org/index.json")
         self.assertEqual(source, "snapshot")
-        self.assertEqual(len(index["assets"]), 2671)
+        self.assertEqual(len(index["assets"]), 2699)
 
     def test_homepage_uses_selected_location_corrections(self) -> None:
         expected = {
