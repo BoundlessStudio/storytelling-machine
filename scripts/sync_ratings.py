@@ -55,24 +55,27 @@ def source_rating(repository: Path, commit: str, slug: str) -> str:
 
 def writing_prompt(source: str, slug: str) -> str:
     """Read tagged prompts and the opening request in newer packages."""
+    flags = re.IGNORECASE | re.MULTILINE | re.DOTALL
     section = re.match(
         r"\A\s*#[ \t]+(?:Prompt|Request|User request|Original request)[ \t]*\r?\n"
         r"(.*?)(?=^#{1,6}[ \t]|\Z)",
-        source, re.IGNORECASE | re.MULTILINE | re.DOTALL,
+        source, flags,
     )
     request = None
     if section:
         request = section.group(1)
-        nested = re.match(
-            r"#{2,6}[ \t]+My request:?[ \t]*\r?\n(.*?)(?=^#{1,6}[ \t]|\Z)",
-            source[section.end():], re.IGNORECASE | re.MULTILINE | re.DOTALL,
-        )
-        if nested:
-            request = nested.group(1)
+        heading_start = section.end()
     else:
-        opening = re.match(r"\A(.*?)^#{1,6}[ \t]+([^\r\n]*)", source, re.MULTILINE | re.DOTALL)
-        if opening and opening.group(2).strip().casefold() == "supplied reference images":
-            request = opening.group(1)
+        heading = re.search(r"^#{1,6}[ \t]+([^\r\n]*)", source, re.MULTILINE)
+        heading_start = heading.start() if heading else 0
+        if heading and heading.group(1).strip().casefold() == "supplied reference images":
+            request = source[:heading_start]
+    nested = re.match(
+        r"#{2,6}[ \t]+My request:?[ \t]*\r?\n(.*?)(?=^#{1,6}[ \t]|\Z)",
+        source[heading_start:], flags,
+    )
+    if nested:
+        request = nested.group(1)
     match = re.search(r"^\s*(?:>\s*)?\[?(?:WP|SP)\]\s*(.+)$",
                       source if request is None else request, re.MULTILINE)
     if match:

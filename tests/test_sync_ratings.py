@@ -28,10 +28,12 @@ class SourceSyncTests(unittest.TestCase):
 
     def test_nested_request_excludes_preamble_and_later_directions(self) -> None:
         prompt = "Six cybernetic sorcerers appear above the capital.\n\nThey are Administrators."
-        source = ("# Original request\n\nDistinguish instructions from the user's request.\n\n"
+        source = ("Distinguish instructions from the user's request.\n\n"
                   f"## My request:\n{prompt}\n\n## Supplied reference images\nImage #1.\n\n"
                   "## Later user direction\n[WP] Revise the cover.\n")
-        self.assertEqual(writing_prompt(source, "the-administrators"), prompt)
+        for heading in ("# Original request\n\n", ""):
+            with self.subTest(heading=heading):
+                self.assertEqual(writing_prompt(heading + source, "the-administrators"), prompt)
 
     def test_unheaded_request_stops_before_reference_inventory(self) -> None:
         prompt = "Three agents infiltrate Fashion Week.\n\nThey have twelve minutes."
