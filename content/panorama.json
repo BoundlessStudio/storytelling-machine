@@ -1,6 +1,6 @@
 {
  "schemaVersion": 1,
- "sourceCommit": "8553b5b8ca7496f66e6fbbcaaf22563e6c1d1726",
+ "sourceCommit": "50a12d145814c6fbaa59a8bf5d82cc3f212b5810",
  "atlas": {
   "src": "panorama/atlas.webp",
   "cols": 25,
@@ -8,6 +8,46 @@
   "width": 2000,
   "height": 1988,
   "tiles": [
+   [
+    "the-golden-mechanism",
+    "cover"
+   ],
+   [
+    "dakotas-bounty",
+    "cover"
+   ],
+   [
+    "cosmic-reaper",
+    "cover"
+   ],
+   [
+    "the-sleeping-future",
+    "cover"
+   ],
+   [
+    "the-box-at-the-hangar",
+    "cover"
+   ],
+   [
+    "imperial-geisha",
+    "cover"
+   ],
+   [
+    "the-bass-part",
+    "cover"
+   ],
+   [
+    "elven-in-laws",
+    "cover"
+   ],
+   [
+    "the-box",
+    "cover"
+   ],
+   [
+    "the-noon-hare",
+    "cover"
+   ],
    [
     "scarlet-tower",
     "cover"
@@ -1321,839 +1361,799 @@
     "cover"
    ],
    [
-    "scarlet-tower",
+    "the-golden-mechanism",
     "study"
    ],
    [
-    "scarlet-tower",
+    "the-golden-mechanism",
     "place"
    ],
    [
-    "pine-hollow-warning",
+    "dakotas-bounty",
     "study"
    ],
    [
-    "pine-hollow-warning",
+    "dakotas-bounty",
     "place"
    ],
    [
-    "dead-mans-entry",
+    "cosmic-reaper",
     "study"
    ],
    [
-    "dead-mans-entry",
+    "cosmic-reaper",
     "place"
    ],
    [
-    "gallery-of-hours",
+    "imperial-geisha",
     "study"
    ],
    [
-    "gallery-of-hours",
+    "imperial-geisha",
     "place"
    ],
    [
-    "the-first-broken-oath",
+    "the-bass-part",
     "study"
    ],
    [
-    "the-first-broken-oath",
+    "the-bass-part",
     "place"
    ],
    [
-    "the-white-marble",
+    "the-box",
     "study"
    ],
    [
-    "the-white-marble",
-    "place"
-   ],
-   [
-    "last-stormweaver",
-    "study"
-   ],
-   [
-    "last-stormweaver",
-    "place"
-   ],
-   [
-    "what-the-ocean-keeps",
-    "study"
-   ],
-   [
-    "what-the-ocean-keeps",
-    "place"
-   ],
-   [
-    "where-the-sun-is-afraid",
-    "study"
-   ],
-   [
-    "where-the-sun-is-afraid",
-    "place"
-   ],
-   [
-    "a-new-body",
-    "study"
-   ],
-   [
-    "a-new-body",
-    "place"
-   ],
-   [
-    "aetherveils-first-shadow",
-    "study"
-   ],
-   [
-    "aetherveils-first-shadow",
+    "the-box",
     "place"
    ]
   ]
  },
  "covers": {
-  "beneath-the-golden-stars": "panorama/beneath-the-golden-stars-cover.webp",
-  "the-renewal": "panorama/the-renewal-cover.webp",
-  "the-machine-princess": "panorama/the-machine-princess-cover.webp"
+  "the-sleeping-future": "panorama/the-sleeping-future-cover.webp",
+  "the-box-at-the-hangar": "panorama/the-box-at-the-hangar-cover.webp",
+  "elven-in-laws": "panorama/elven-in-laws-cover.webp"
  },
  "stops": [
   {
-   "slug": "scarlet-tower",
-   "cover": "panorama/scarlet-tower-cover.webp",
+   "slug": "the-golden-mechanism",
+   "cover": "panorama/the-golden-mechanism-cover.webp",
    "landscape": {
-    "src": "panorama/scarlet-tower-land.webp",
-    "title": "Red Tor and the Siege",
+    "src": "panorama/the-golden-mechanism-land.webp",
+    "title": "The Near Step",
     "width": 1400,
     "height": 933,
-    "sky": "#7e747b",
-    "ground": "#6b4e3b",
-    "source": "stories/scarlet-tower/art/landscapes/red-tor-and-the-siege.webp"
+    "sky": "#6c526c",
+    "ground": "#66525f",
+    "source": "stories/the-golden-mechanism/art/landscapes/the-near-step.webp"
    },
    "study": {
-    "src": "panorama/scarlet-tower-study.webp",
-    "title": "Dorian",
+    "src": "panorama/the-golden-mechanism-study.webp",
+    "title": "Edri",
     "width": 520,
     "height": 347,
-    "source": "stories/scarlet-tower/art/characters/dorian.webp"
+    "source": "stories/the-golden-mechanism/art/characters/edri.webp"
    }
   },
   {
-   "slug": "pine-hollow-warning",
-   "cover": "panorama/pine-hollow-warning-cover.webp",
+   "slug": "dakotas-bounty",
+   "cover": "panorama/dakotas-bounty-cover.webp",
    "landscape": {
-    "src": "panorama/pine-hollow-warning-land.webp",
-    "title": "South Steps over Pine Hollow",
+    "src": "panorama/dakotas-bounty-land.webp",
+    "title": "Madder Switch",
     "width": 1400,
     "height": 933,
-    "sky": "#988891",
-    "ground": "#8e7c80",
-    "source": "stories/pine-hollow-warning/art/landscapes/south-steps-over-pine-hollow.webp"
+    "sky": "#746b75",
+    "ground": "#a78469",
+    "source": "stories/dakotas-bounty/art/landscapes/madder-switch.webp"
    },
    "study": {
-    "src": "panorama/pine-hollow-warning-study.webp",
-    "title": "Cleo",
+    "src": "panorama/dakotas-bounty-study.webp",
+    "title": "Breck Sorrell",
     "width": 520,
     "height": 347,
-    "source": "stories/pine-hollow-warning/art/characters/cleo.webp"
+    "source": "stories/dakotas-bounty/art/characters/breck-sorrell.webp"
    }
   },
   {
-   "slug": "dead-mans-entry",
-   "cover": "panorama/dead-mans-entry-cover.webp",
+   "slug": "cosmic-reaper",
+   "cover": "panorama/cosmic-reaper-cover.webp",
    "landscape": {
-    "src": "panorama/dead-mans-entry-land.webp",
-    "title": "Davenport Highway1 Coastal Finish",
+    "src": "panorama/cosmic-reaper-land.webp",
+    "title": "Stair of Late Arrivals",
     "width": 1400,
-    "height": 933,
-    "sky": "#b8b6be",
-    "ground": "#877569",
-    "source": "stories/dead-mans-entry/art/landscapes/davenport-highway1-coastal-finish.webp"
+    "height": 788,
+    "sky": "#3f4a88",
+    "ground": "#39364e",
+    "source": "stories/cosmic-reaper/art/landscapes/stair-of-late-arrivals.webp"
    },
    "study": {
-    "src": "panorama/dead-mans-entry-study.webp",
-    "title": "Dell Wray",
+    "src": "panorama/cosmic-reaper-study.webp",
+    "title": "Death",
     "width": 520,
     "height": 347,
-    "source": "stories/dead-mans-entry/art/characters/dell-wray.webp"
+    "source": "stories/cosmic-reaper/art/characters/death.webp"
    }
   },
   {
-   "slug": "gallery-of-hours",
-   "cover": "panorama/gallery-of-hours-cover.webp",
+   "slug": "imperial-geisha",
+   "cover": "panorama/imperial-geisha-cover.webp",
    "landscape": {
-    "src": "panorama/gallery-of-hours-land.webp",
-    "title": "North Lamp Works Service Entrance",
+    "src": "panorama/imperial-geisha-land.webp",
+    "title": "Fold Street",
     "width": 1400,
     "height": 933,
-    "sky": "#8a817c",
-    "ground": "#685f5e",
-    "source": "stories/gallery-of-hours/art/landscapes/north-lamp-works-service-entrance.webp"
+    "sky": "#47406d",
+    "ground": "#3f3649",
+    "source": "stories/imperial-geisha/art/landscapes/fold-street.webp"
    },
    "study": {
-    "src": "panorama/gallery-of-hours-study.webp",
-    "title": "Coralie Hecht",
+    "src": "panorama/imperial-geisha-study.webp",
+    "title": "Iori",
     "width": 520,
     "height": 347,
-    "source": "stories/gallery-of-hours/art/characters/coralie-hecht.webp"
+    "source": "stories/imperial-geisha/art/characters/iori.webp"
    }
   },
   {
-   "slug": "the-first-broken-oath",
-   "cover": "panorama/the-first-broken-oath-cover.webp",
+   "slug": "the-bass-part",
+   "cover": "panorama/the-bass-part-cover.webp",
    "landscape": {
-    "src": "panorama/the-first-broken-oath-land.webp",
-    "title": "Core Execution Landing",
+    "src": "panorama/the-bass-part-land.webp",
+    "title": "Whitewheel Clay Fair",
     "width": 1400,
     "height": 933,
-    "sky": "#676d79",
-    "ground": "#3a3b41",
-    "source": "stories/the-first-broken-oath/art/landscapes/core-execution-landing.webp"
+    "sky": "#897b7f",
+    "ground": "#785c4d",
+    "source": "stories/the-bass-part/art/landscapes/whitewheel-clay-fair.webp"
    },
    "study": {
-    "src": "panorama/the-first-broken-oath-study.webp",
-    "title": "Director",
+    "src": "panorama/the-bass-part-study.webp",
+    "title": "Mallow",
     "width": 520,
     "height": 347,
-    "source": "stories/the-first-broken-oath/art/characters/director.webp"
+    "source": "stories/the-bass-part/art/characters/mallow.webp"
    }
   },
   {
-   "slug": "the-white-marble",
-   "cover": "panorama/the-white-marble-cover.webp",
+   "slug": "the-box",
+   "cover": "panorama/the-box-cover.webp",
    "landscape": {
-    "src": "panorama/the-white-marble-land.webp",
-    "title": "Low Hill",
+    "src": "panorama/the-box-land.webp",
+    "title": "Kelm Quay",
     "width": 1400,
     "height": 933,
-    "sky": "#6a646e",
-    "ground": "#685551",
-    "source": "stories/the-white-marble/art/landscapes/low-hill.webp"
+    "sky": "#767575",
+    "ground": "#534e46",
+    "source": "stories/the-box/art/landscapes/kelm-quay.webp"
    },
    "study": {
-    "src": "panorama/the-white-marble-study.webp",
-    "title": "Ketta",
+    "src": "panorama/the-box-study.webp",
+    "title": "Ivari",
     "width": 520,
     "height": 347,
-    "source": "stories/the-white-marble/art/characters/ketta.webp"
+    "source": "stories/the-box/art/characters/ivari.webp"
    }
   },
   {
-   "slug": "last-stormweaver",
-   "cover": "panorama/last-stormweaver-cover.webp",
+   "slug": "the-noon-hare",
+   "cover": "panorama/the-noon-hare-cover.webp",
    "landscape": {
-    "src": "panorama/last-stormweaver-land.webp",
-    "title": "Red Cliff Cape",
+    "src": "panorama/the-noon-hare-land.webp",
+    "title": "Crowsteps Common",
     "width": 1400,
     "height": 933,
-    "sky": "#685690",
-    "ground": "#473d51",
-    "source": "stories/last-stormweaver/art/landscapes/red-cliff-cape.webp"
+    "sky": "#93978f",
+    "ground": "#908152",
+    "source": "stories/the-noon-hare/art/landscapes/crowsteps-common.webp"
    },
    "study": {
-    "src": "panorama/last-stormweaver-study.webp",
-    "title": "Dannel",
+    "src": "panorama/the-noon-hare-study.webp",
+    "title": "Avice",
     "width": 520,
     "height": 347,
-    "source": "stories/last-stormweaver/art/characters/dannel.webp"
+    "source": "stories/the-noon-hare/art/characters/avice.webp"
    }
   },
   {
-   "slug": "what-the-ocean-keeps",
-   "cover": "panorama/what-the-ocean-keeps-cover.webp",
+   "slug": "beneath-the-golden-stars",
+   "cover": "panorama/beneath-the-golden-stars-cover.webp",
    "landscape": {
-    "src": "panorama/what-the-ocean-keeps-land.webp",
-    "title": "Adders Kettle Outer Reef",
+    "src": "panorama/beneath-the-golden-stars-land.webp",
+    "title": "Lammet Bell Square",
     "width": 1400,
     "height": 933,
-    "sky": "#414146",
-    "ground": "#3d3832",
-    "source": "stories/what-the-ocean-keeps/art/landscapes/adders-kettle-outer-reef.webp"
+    "sky": "#7f7b80",
+    "ground": "#8a6f58",
+    "source": "stories/beneath-the-golden-stars/art/landscapes/lammet-bell-square.webp"
    },
    "study": {
-    "src": "panorama/what-the-ocean-keeps-study.webp",
-    "title": "Ness Calder",
+    "src": "panorama/beneath-the-golden-stars-study.webp",
+    "title": "Ivet Serr",
     "width": 520,
     "height": 347,
-    "source": "stories/what-the-ocean-keeps/art/characters/ness-calder.webp"
+    "source": "stories/beneath-the-golden-stars/art/characters/ivet-serr.webp"
    }
   },
   {
-   "slug": "where-the-sun-is-afraid",
-   "cover": "panorama/where-the-sun-is-afraid-cover.webp",
+   "slug": "the-sun-at-her-back",
+   "cover": "panorama/the-sun-at-her-back-cover.webp",
    "landscape": {
-    "src": "panorama/where-the-sun-is-afraid-land.webp",
-    "title": "Evaras Coastal Rooftop",
+    "src": "panorama/the-sun-at-her-back-land.webp",
+    "title": "Lask Clock Tower and Broad Stair",
     "width": 1400,
     "height": 933,
-    "sky": "#bb9c8f",
-    "ground": "#8b5b45",
-    "source": "stories/where-the-sun-is-afraid/art/landscapes/evaras-coastal-rooftop.webp"
+    "sky": "#97b0cd",
+    "ground": "#95877a",
+    "source": "stories/the-sun-at-her-back/art/landscapes/lask-clock-tower-and-broad-stair.webp"
    },
    "study": {
-    "src": "panorama/where-the-sun-is-afraid-study.webp",
-    "title": "Evara",
+    "src": "panorama/the-sun-at-her-back-study.webp",
+    "title": "Bess Gault",
     "width": 520,
     "height": 347,
-    "source": "stories/where-the-sun-is-afraid/art/characters/evara.webp"
+    "source": "stories/the-sun-at-her-back/art/characters/bess-gault.webp"
    }
   },
   {
-   "slug": "a-new-body",
-   "cover": "panorama/a-new-body-cover.webp",
+   "slug": "monsters-in-the-sewer",
+   "cover": "panorama/monsters-in-the-sewer-cover.webp",
    "landscape": {
-    "src": "panorama/a-new-body-land.webp",
-    "title": "Orbital Auction Yard",
+    "src": "panorama/monsters-in-the-sewer-land.webp",
+    "title": "Street Entrance",
     "width": 1400,
     "height": 933,
-    "sky": "#483d39",
-    "ground": "#161317",
-    "source": "stories/a-new-body/art/landscapes/orbital-auction-yard.webp"
+    "sky": "#5f483d",
+    "ground": "#614d47",
+    "source": "stories/monsters-in-the-sewer/art/landscapes/street-entrance.png"
    },
    "study": {
-    "src": "panorama/a-new-body-study.webp",
-    "title": "Fara",
+    "src": "panorama/monsters-in-the-sewer-study.webp",
+    "title": "Aunt Skillet",
     "width": 520,
     "height": 347,
-    "source": "stories/a-new-body/art/characters/fara.webp"
+    "source": "stories/monsters-in-the-sewer/art/characters/aunt-skillet.webp"
    }
   },
   {
-   "slug": "aetherveils-first-shadow",
-   "cover": "panorama/aetherveils-first-shadow-cover.webp",
+   "slug": "first-deployment",
+   "cover": "panorama/first-deployment-cover.webp",
    "landscape": {
-    "src": "panorama/aetherveils-first-shadow-land.webp",
-    "title": "Aetherveil under the Unsetting Moon",
+    "src": "panorama/first-deployment-land.webp",
+    "title": "Bellwether Evacuation Platform",
     "width": 1400,
     "height": 933,
-    "sky": "#4f6084",
-    "ground": "#948a8e",
-    "source": "stories/aetherveils-first-shadow/art/landscapes/aetherveil-under-the-unsetting-moon.webp"
+    "sky": "#757072",
+    "ground": "#5c4e47",
+    "source": "stories/first-deployment/art/landscapes/bellwether-evacuation-platform.webp"
    },
    "study": {
-    "src": "panorama/aetherveils-first-shadow-study.webp",
-    "title": "Dayfarer",
+    "src": "panorama/first-deployment-study.webp",
+    "title": "Forty One",
     "width": 520,
     "height": 347,
-    "source": "stories/aetherveils-first-shadow/art/characters/dayfarer.webp"
+    "source": "stories/first-deployment/art/characters/forty-one.webp"
    }
   },
   {
-   "slug": "break-my-bones",
-   "cover": "panorama/break-my-bones-cover.webp",
+   "slug": "the-antique-camera",
+   "cover": "panorama/the-antique-camera-cover.webp",
    "landscape": {
-    "src": "panorama/break-my-bones-land.webp",
-    "title": "Cliffside Cable Car Landing",
+    "src": "panorama/the-antique-camera-land.webp",
+    "title": "Beach Stair",
     "width": 1400,
     "height": 933,
-    "sky": "#97897c",
-    "ground": "#5e4c33",
-    "source": "stories/break-my-bones/art/landscapes/cliffside-cable-car-landing.png"
+    "sky": "#938f8a",
+    "ground": "#a49172",
+    "source": "stories/the-antique-camera/art/landscapes/beach-stair.png"
    },
    "study": {
-    "src": "panorama/break-my-bones-study.webp",
-    "title": "Tavi",
+    "src": "panorama/the-antique-camera-study.webp",
+    "title": "Brinna",
     "width": 520,
     "height": 347,
-    "source": "stories/break-my-bones/art/characters/tavi.webp"
+    "source": "stories/the-antique-camera/art/characters/brinna.webp"
    }
   },
   {
-   "slug": "the-contracts-of-saint-nocturne",
-   "cover": "panorama/the-contracts-of-saint-nocturne-cover.webp",
+   "slug": "book-of-eternity",
+   "cover": "panorama/book-of-eternity-cover.webp",
    "landscape": {
-    "src": "panorama/the-contracts-of-saint-nocturne-land.webp",
-    "title": "Palm Courtyard",
+    "src": "panorama/book-of-eternity-land.webp",
+    "title": "Harrowick Captive City",
     "width": 1400,
     "height": 933,
-    "sky": "#94887d",
-    "ground": "#826a55",
-    "source": "stories/the-contracts-of-saint-nocturne/art/landscapes/palm-courtyard.webp"
+    "sky": "#787066",
+    "ground": "#6a5740",
+    "source": "stories/book-of-eternity/art/landscapes/harrowick-captive-city.webp"
    },
    "study": {
-    "src": "panorama/the-contracts-of-saint-nocturne-study.webp",
-    "title": "Ada Nasse",
+    "src": "panorama/book-of-eternity-study.webp",
+    "title": "Edris",
     "width": 520,
     "height": 347,
-    "source": "stories/the-contracts-of-saint-nocturne/art/characters/ada-nasse.webp"
+    "source": "stories/book-of-eternity/art/characters/edris.webp"
    }
   },
   {
-   "slug": "the-ink-that-walked",
-   "cover": "panorama/the-ink-that-walked-cover.webp",
+   "slug": "the-final-familiar",
+   "cover": "panorama/the-final-familiar-cover.webp",
    "landscape": {
-    "src": "panorama/the-ink-that-walked-land.webp",
-    "title": "Castle Roofs and Outer Wall",
+    "src": "panorama/the-final-familiar-land.webp",
+    "title": "Station Entrance",
     "width": 1400,
     "height": 933,
-    "sky": "#9a856a",
-    "ground": "#5d4b37",
-    "source": "stories/the-ink-that-walked/art/landscapes/castle-roofs-and-outer-wall.png"
+    "sky": "#2a3850",
+    "ground": "#655144",
+    "source": "stories/the-final-familiar/art/landscapes/station-entrance.png"
    },
    "study": {
-    "src": "panorama/the-ink-that-walked-study.webp",
-    "title": "Desra",
+    "src": "panorama/the-final-familiar-study.webp",
+    "title": "Bramble",
     "width": 520,
     "height": 347,
-    "source": "stories/the-ink-that-walked/art/characters/desra.webp"
+    "source": "stories/the-final-familiar/art/characters/bramble.webp"
    }
   },
   {
-   "slug": "an-unreasonable-detour",
-   "cover": "panorama/an-unreasonable-detour-cover.webp",
+   "slug": "a-perfectly-normal-hobby",
+   "cover": "panorama/a-perfectly-normal-hobby-cover.webp",
    "landscape": {
-    "src": "panorama/an-unreasonable-detour-land.webp",
-    "title": "Abandoned Starhouse",
+    "src": "panorama/a-perfectly-normal-hobby-land.webp",
+    "title": "Wood between Nights",
     "width": 1400,
     "height": 933,
-    "sky": "#7c7b84",
-    "ground": "#554733",
-    "source": "stories/an-unreasonable-detour/art/landscapes/abandoned-starhouse.png"
+    "sky": "#302f32",
+    "ground": "#4c3e32",
+    "source": "stories/a-perfectly-normal-hobby/art/landscapes/wood-between-nights.webp"
    },
    "study": {
-    "src": "panorama/an-unreasonable-detour-study.webp",
-    "title": "Bellan",
+    "src": "panorama/a-perfectly-normal-hobby-study.webp",
+    "title": "Dad",
     "width": 520,
     "height": 347,
-    "source": "stories/an-unreasonable-detour/art/characters/bellan.webp"
+    "source": "stories/a-perfectly-normal-hobby/art/characters/dad.webp"
    }
   },
   {
-   "slug": "until-im-big",
-   "cover": "panorama/until-im-big-cover.webp",
+   "slug": "professional-farmer",
+   "cover": "panorama/professional-farmer-cover.webp",
    "landscape": {
-    "src": "panorama/until-im-big-land.webp",
-    "title": "Garden Gate",
+    "src": "panorama/professional-farmer-land.webp",
+    "title": "Romy Pea Garden",
     "width": 1400,
     "height": 933,
-    "sky": "#76705c",
-    "ground": "#696239",
-    "source": "stories/until-im-big/art/landscapes/garden-gate.png"
+    "sky": "#9a9682",
+    "ground": "#73673a",
+    "source": "stories/professional-farmer/art/landscapes/romy-pea-garden.webp"
    },
    "study": {
-    "src": "panorama/until-im-big-study.webp",
-    "title": "Enna",
+    "src": "panorama/professional-farmer-study.webp",
+    "title": "Beni Oru",
     "width": 520,
     "height": 347,
-    "source": "stories/until-im-big/art/characters/enna.webp"
+    "source": "stories/professional-farmer/art/characters/beni-oru.webp"
    }
   },
   {
-   "slug": "catch-me",
-   "cover": "panorama/catch-me-cover.webp",
+   "slug": "the-wolves-kept-watch",
+   "cover": "panorama/the-wolves-kept-watch-cover.webp",
    "landscape": {
-    "src": "panorama/catch-me-land.webp",
-    "title": "Cinema Street Selected",
+    "src": "panorama/the-wolves-kept-watch-land.webp",
+    "title": "Forest Path",
     "width": 1400,
     "height": 933,
-    "sky": "#554d4a",
-    "ground": "#594841",
-    "source": "stories/catch-me/art/landscapes/cinema-street-selected.png"
+    "sky": "#4e3e2f",
+    "ground": "#4a3425",
+    "source": "stories/the-wolves-kept-watch/art/landscapes/forest-path.webp"
    },
    "study": {
-    "src": "panorama/catch-me-study.webp",
-    "title": "Mavis Peony",
+    "src": "panorama/the-wolves-kept-watch-study.webp",
+    "title": "Captain",
     "width": 520,
     "height": 347,
-    "source": "stories/catch-me/art/characters/mavis-peony.webp"
+    "source": "stories/the-wolves-kept-watch/art/characters/captain.webp"
    }
   },
   {
-   "slug": "the-unspent-star",
-   "cover": "panorama/the-unspent-star-cover.webp",
+   "slug": "no-vacancy",
+   "cover": "panorama/no-vacancy-cover.webp",
    "landscape": {
-    "src": "panorama/the-unspent-star-land.webp",
-    "title": "Ring Universe Selected",
+    "src": "panorama/no-vacancy-land.webp",
+    "title": "Bakers Lane Selected",
     "width": 1400,
     "height": 933,
-    "sky": "#1e1c22",
-    "ground": "#704c55",
-    "source": "stories/the-unspent-star/art/landscapes/01-ring-universe-selected.png"
+    "sky": "#817555",
+    "ground": "#806e4a",
+    "source": "stories/no-vacancy/art/landscapes/02-bakers-lane-selected.png"
    },
    "study": {
-    "src": "panorama/the-unspent-star-study.webp",
-    "title": "Orya",
+    "src": "panorama/no-vacancy-study.webp",
+    "title": "Crumb",
     "width": 520,
     "height": 347,
-    "source": "stories/the-unspent-star/art/characters/orya.webp"
+    "source": "stories/no-vacancy/art/characters/crumb.webp"
    }
   },
   {
-   "slug": "a-curse-before-breakfast",
-   "cover": "panorama/a-curse-before-breakfast-cover.webp",
+   "slug": "spells-from-every-block",
+   "cover": "panorama/spells-from-every-block-cover.webp",
    "landscape": {
-    "src": "panorama/a-curse-before-breakfast-land.webp",
-    "title": "Neighborhood before Dawn",
+    "src": "panorama/spells-from-every-block-land.webp",
+    "title": "Twenty Third Night Market",
     "width": 1400,
     "height": 933,
-    "sky": "#696b6e",
-    "ground": "#46474e",
-    "source": "stories/a-curse-before-breakfast/art/landscapes/01-neighborhood-before-dawn.png"
+    "sky": "#4c403e",
+    "ground": "#573c2e",
+    "source": "stories/spells-from-every-block/art/landscapes/01-twenty-third-night-market.png"
    },
    "study": {
-    "src": "panorama/a-curse-before-breakfast-study.webp",
-    "title": "Coris",
+    "src": "panorama/spells-from-every-block-study.webp",
+    "title": "Kemi And Orli",
     "width": 520,
-    "height": 347,
-    "source": "stories/a-curse-before-breakfast/art/characters/coris.webp"
+    "height": 780,
+    "source": "stories/spells-from-every-block/art/characters/kemi-and-orli.png"
    }
   },
   {
-   "slug": "the-emerald-relic",
-   "cover": "panorama/the-emerald-relic-cover.webp",
+   "slug": "the-red-dot",
+   "cover": "panorama/the-red-dot-cover.webp",
    "landscape": {
-    "src": "panorama/the-emerald-relic-land.webp",
-    "title": "A Door Left Open",
+    "src": "panorama/the-red-dot-land.webp",
+    "title": "Service Lane under the Security Lamp",
     "width": 1400,
     "height": 933,
-    "sky": "#24252a",
-    "ground": "#302721",
-    "source": "stories/the-emerald-relic/art/landscapes/03-a-door-left-open.png"
+    "sky": "#20355a",
+    "ground": "#515359",
+    "source": "stories/the-red-dot/art/landscapes/01-service-lane-under-the-security-lamp.png"
    },
    "study": {
-    "src": "panorama/the-emerald-relic-study.webp",
-    "title": "Anubis",
+    "src": "panorama/the-red-dot-study.webp",
+    "title": "Delma Rook",
     "width": 520,
     "height": 347,
-    "source": "stories/the-emerald-relic/art/characters/anubis.webp"
+    "source": "stories/the-red-dot/art/characters/delma-rook.webp"
    }
   },
   {
-   "slug": "the-unoffered-hand",
-   "cover": "panorama/the-unoffered-hand-cover.webp",
+   "slug": "the-next-train",
+   "cover": "panorama/the-next-train-cover.webp",
    "landscape": {
-    "src": "panorama/the-unoffered-hand-land.webp",
-    "title": "Autumn over the Royal Mews",
+    "src": "panorama/the-next-train-land.webp",
+    "title": "Station Approach at Six",
     "width": 1400,
     "height": 933,
-    "sky": "#99917b",
-    "ground": "#977e5e",
-    "source": "stories/the-unoffered-hand/art/landscapes/01-autumn-over-the-royal-mews.png"
+    "sky": "#9a8984",
+    "ground": "#6e5e5a",
+    "source": "stories/the-next-train/art/landscapes/01-station-approach-at-six.png"
    },
    "study": {
-    "src": "panorama/the-unoffered-hand-study.webp",
-    "title": "Cresset",
+    "src": "panorama/the-next-train-study.webp",
+    "title": "Atropos",
     "width": 520,
     "height": 347,
-    "source": "stories/the-unoffered-hand/art/characters/cresset.webp"
+    "source": "stories/the-next-train/art/characters/atropos.webp"
    }
   },
   {
-   "slug": "no-one-like-me",
-   "cover": "panorama/no-one-like-me-cover.webp",
+   "slug": "seraph-infinite-gear",
+   "cover": "panorama/seraph-infinite-gear-cover.webp",
    "landscape": {
-    "src": "panorama/no-one-like-me-land.webp",
-    "title": "Gold Against Violet",
+    "src": "panorama/seraph-infinite-gear-land.webp",
+    "title": "A Made Morning",
     "width": 1400,
     "height": 933,
-    "sky": "#785c6d",
-    "ground": "#563f36",
-    "source": "stories/no-one-like-me/art/landscapes/02-gold-against-violet.png"
+    "sky": "#a57989",
+    "ground": "#523d3c",
+    "source": "stories/seraph-infinite-gear/art/landscapes/01-a-made-morning.png"
    },
    "study": {
-    "src": "panorama/no-one-like-me-study.webp",
-    "title": "Jannik",
+    "src": "panorama/seraph-infinite-gear-study.webp",
+    "title": "Aurevra",
     "width": 520,
     "height": 347,
-    "source": "stories/no-one-like-me/art/characters/jannik.webp"
+    "source": "stories/seraph-infinite-gear/art/characters/aurevra.webp"
    }
   },
   {
-   "slug": "pool-sovereign",
-   "cover": "panorama/pool-sovereign-cover.webp",
+   "slug": "yavrens-return",
+   "cover": "panorama/yavrens-return-cover.webp",
    "landscape": {
-    "src": "panorama/pool-sovereign-land.webp",
-    "title": "The Coast before Work",
+    "src": "panorama/yavrens-return-land.webp",
+    "title": "Esvay Open to Spring",
     "width": 1400,
     "height": 933,
-    "sky": "#94a4ac",
-    "ground": "#9b8155",
-    "source": "stories/pool-sovereign/art/landscapes/02-the-coast-before-work.png"
+    "sky": "#94a1b5",
+    "ground": "#8c7c57",
+    "source": "stories/yavrens-return/art/landscapes/01-esvay-open-to-spring.png"
    },
    "study": {
-    "src": "panorama/pool-sovereign-study.webp",
-    "title": "Hewlin",
+    "src": "panorama/yavrens-return-study.webp",
+    "title": "Ardovan",
     "width": 520,
     "height": 347,
-    "source": "stories/pool-sovereign/art/characters/hewlin.webp"
+    "source": "stories/yavrens-return/art/characters/ardovan.webp"
    }
   },
   {
-   "slug": "a-knock-in-someone-elses-sleep",
-   "cover": "panorama/a-knock-in-someone-elses-sleep-cover.webp",
+   "slug": "what-the-wind-wanted",
+   "cover": "panorama/what-the-wind-wanted-cover.webp",
    "landscape": {
-    "src": "panorama/a-knock-in-someone-elses-sleep-land.webp",
-    "title": "Cottages above the Quarry",
+    "src": "panorama/what-the-wind-wanted-land.webp",
+    "title": "The White Ridge above the Harbor",
     "width": 1400,
     "height": 933,
-    "sky": "#928683",
-    "ground": "#634c3c",
-    "source": "stories/a-knock-in-someone-elses-sleep/art/landscapes/01-cottages-above-the-quarry.png"
+    "sky": "#a1a3a7",
+    "ground": "#75735e",
+    "source": "stories/what-the-wind-wanted/art/landscapes/01-the-white-ridge-above-the-harbor.png"
    },
    "study": {
-    "src": "panorama/a-knock-in-someone-elses-sleep-study.webp",
-    "title": "Averune",
+    "src": "panorama/what-the-wind-wanted-study.webp",
+    "title": "Zerune",
     "width": 520,
     "height": 347,
-    "source": "stories/a-knock-in-someone-elses-sleep/art/characters/averune.webp"
+    "source": "stories/what-the-wind-wanted/art/characters/zerune.webp"
    }
   },
   {
-   "slug": "a-note-of-spite",
-   "cover": "panorama/a-note-of-spite-cover.webp",
+   "slug": "gods-afraid-of-grandma",
+   "cover": "panorama/gods-afraid-of-grandma-cover.webp",
    "landscape": {
-    "src": "panorama/a-note-of-spite-land.webp",
-    "title": "Neroli Grove",
+    "src": "panorama/gods-afraid-of-grandma-land.webp",
+    "title": "Rain on Valkas Garden",
     "width": 1400,
     "height": 933,
-    "sky": "#8f8685",
-    "ground": "#9e5a2d",
-    "source": "stories/a-note-of-spite/art/landscapes/01-neroli-grove.png"
+    "sky": "#5d5c56",
+    "ground": "#414026",
+    "source": "stories/gods-afraid-of-grandma/art/landscapes/01-rain-on-valkas-garden.png"
    },
    "study": {
-    "src": "panorama/a-note-of-spite-study.webp",
-    "title": "Clorinda",
+    "src": "panorama/gods-afraid-of-grandma-study.webp",
+    "title": "Fennara",
     "width": 520,
     "height": 347,
-    "source": "stories/a-note-of-spite/art/characters/clorinda.webp"
+    "source": "stories/gods-afraid-of-grandma/art/characters/fennara.webp"
    }
   },
   {
-   "slug": "the-ten-thousand-year-queen",
-   "cover": "panorama/the-ten-thousand-year-queen-cover.webp",
+   "slug": "the-bride-who-came-back",
+   "cover": "panorama/the-bride-who-came-back-cover.webp",
    "landscape": {
-    "src": "panorama/the-ten-thousand-year-queen-land.webp",
-    "title": "The Nile Spine",
+    "src": "panorama/the-bride-who-came-back-land.webp",
+    "title": "Cyrak beyond the Pass",
     "width": 1400,
     "height": 933,
-    "sky": "#a39894",
-    "ground": "#73583d",
-    "source": "stories/the-ten-thousand-year-queen/art/landscapes/01-the-nile-spine.png"
+    "sky": "#7b6e6b",
+    "ground": "#656e79",
+    "source": "stories/the-bride-who-came-back/art/landscapes/02-cyrak-beyond-the-pass.png"
    },
    "study": {
-    "src": "panorama/the-ten-thousand-year-queen-study.webp",
-    "title": "Hatshepsut",
+    "src": "panorama/the-bride-who-came-back-study.webp",
+    "title": "Marzena",
     "width": 520,
     "height": 347,
-    "source": "stories/the-ten-thousand-year-queen/art/characters/hatshepsut.webp"
+    "source": "stories/the-bride-who-came-back/art/characters/marzena.webp"
    }
   },
   {
-   "slug": "the-healers-measure",
-   "cover": "panorama/the-healers-measure-cover.webp",
+   "slug": "the-room-that-waited",
+   "cover": "panorama/the-room-that-waited-cover.webp",
    "landscape": {
-    "src": "panorama/the-healers-measure-land.webp",
-    "title": "Autumn at Candlemere",
+    "src": "panorama/the-room-that-waited-land.webp",
+    "title": "The Dark Hatch in the Gully",
     "width": 1400,
     "height": 933,
-    "sky": "#a28c71",
-    "ground": "#7a5e44",
-    "source": "stories/the-healers-measure/art/landscapes/01-autumn-at-candlemere.png"
+    "sky": "#aaadb2",
+    "ground": "#a77d54",
+    "source": "stories/the-room-that-waited/art/landscapes/03-the-dark-hatch-in-the-gully.png"
    },
    "study": {
-    "src": "panorama/the-healers-measure-study.webp",
-    "title": "Demech",
+    "src": "panorama/the-room-that-waited-study.webp",
+    "title": "Kilta",
     "width": 520,
     "height": 347,
-    "source": "stories/the-healers-measure/art/characters/demech.webp"
+    "source": "stories/the-room-that-waited/art/characters/kilta.webp"
    }
   },
   {
-   "slug": "the-kill-she-wouldnt-take",
-   "cover": "panorama/the-kill-she-wouldnt-take-cover.webp",
+   "slug": "the-lions-last-constellation",
+   "cover": "panorama/the-lions-last-constellation-cover.webp",
    "landscape": {
-    "src": "panorama/the-kill-she-wouldnt-take-land.webp",
-    "title": "Grandfall under Cyan Sky",
+    "src": "panorama/the-lions-last-constellation-land.webp",
+    "title": "Nemea Orchard Terraces",
     "width": 1400,
     "height": 933,
-    "sky": "#4d607f",
-    "ground": "#505260",
-    "source": "stories/the-kill-she-wouldnt-take/art/landscapes/01-grandfall-under-cyan-sky.png"
+    "sky": "#4b4e69",
+    "ground": "#6c4c39",
+    "source": "stories/the-lions-last-constellation/art/landscapes/01-nemea-orchard-terraces.png"
    },
    "study": {
-    "src": "panorama/the-kill-she-wouldnt-take-study.webp",
-    "title": "Caro Blythe",
+    "src": "panorama/the-lions-last-constellation-study.webp",
+    "title": "Kletho",
     "width": 520,
     "height": 347,
-    "source": "stories/the-kill-she-wouldnt-take/art/characters/caro-blythe.webp"
+    "source": "stories/the-lions-last-constellation/art/characters/kletho.webp"
    }
   },
   {
-   "slug": "the-unfixed-face",
-   "cover": "panorama/the-unfixed-face-cover.webp",
+   "slug": "what-turned-eighteen",
+   "cover": "panorama/what-turned-eighteen-cover.webp",
    "landscape": {
-    "src": "panorama/the-unfixed-face-land.webp",
-    "title": "Mirrorglass House Exterior",
+    "src": "panorama/what-turned-eighteen-land.webp",
+    "title": "Sheets Around the Roof",
     "width": 1400,
     "height": 933,
-    "sky": "#72798d",
-    "ground": "#62565e",
-    "source": "stories/the-unfixed-face/art/landscapes/01-mirrorglass-house-exterior.png"
+    "sky": "#918382",
+    "ground": "#7b523e",
+    "source": "stories/what-turned-eighteen/art/landscapes/02-sheets-around-the-roof.png"
    },
    "study": {
-    "src": "panorama/the-unfixed-face-study.webp",
-    "title": "Erisel Malk",
+    "src": "panorama/what-turned-eighteen-study.webp",
+    "title": "Aluna",
     "width": 520,
     "height": 347,
-    "source": "stories/the-unfixed-face/art/characters/erisel-malk.webp"
+    "source": "stories/what-turned-eighteen/art/characters/aluna.webp"
    }
   },
   {
-   "slug": "the-walls-are-thick-enough",
-   "cover": "panorama/the-walls-are-thick-enough-cover.webp",
+   "slug": "the-mercy-circuit",
+   "cover": "panorama/the-mercy-circuit-cover.webp",
    "landscape": {
-    "src": "panorama/the-walls-are-thick-enough-land.webp",
-    "title": "The Gilded Garden at Sunset",
+    "src": "panorama/the-mercy-circuit-land.webp",
+    "title": "Gantline at Gatefall",
     "width": 1400,
     "height": 933,
-    "sky": "#9b7858",
-    "ground": "#5b4d38",
-    "source": "stories/the-walls-are-thick-enough/art/landscapes/01-the-gilded-garden-at-sunset.png"
+    "sky": "#6f6184",
+    "ground": "#524349",
+    "source": "stories/the-mercy-circuit/art/landscapes/01-gantline-at-gatefall.png"
    },
    "study": {
-    "src": "panorama/the-walls-are-thick-enough-study.webp",
-    "title": "Emperor Belisar",
+    "src": "panorama/the-mercy-circuit-study.webp",
+    "title": "Bevro",
     "width": 520,
     "height": 347,
-    "source": "stories/the-walls-are-thick-enough/art/characters/emperor-belisar.webp"
+    "source": "stories/the-mercy-circuit/art/characters/bevro.webp"
    }
   },
   {
-   "slug": "the-door-knows-home",
-   "cover": "panorama/the-door-knows-home-cover.webp",
+   "slug": "the-first-kingdom-was-late-on-taxes",
+   "cover": "panorama/the-first-kingdom-was-late-on-taxes-cover.webp",
    "landscape": {
-    "src": "panorama/the-door-knows-home-land.webp",
-    "title": "The Workshop Lane",
+    "src": "panorama/the-first-kingdom-was-late-on-taxes-land.webp",
+    "title": "Aurora above Kettlebridge",
     "width": 1400,
     "height": 933,
-    "sky": "#afaaa5",
-    "ground": "#907545",
-    "source": "stories/the-door-knows-home/art/landscapes/01-the-workshop-lane.png"
+    "sky": "#254f70",
+    "ground": "#2f3637",
+    "source": "stories/the-first-kingdom-was-late-on-taxes/art/landscapes/01-aurora-above-kettlebridge.png"
    },
    "study": {
-    "src": "panorama/the-door-knows-home-study.webp",
-    "title": "Fendric",
+    "src": "panorama/the-first-kingdom-was-late-on-taxes-study.webp",
+    "title": "Aruz",
     "width": 520,
     "height": 347,
-    "source": "stories/the-door-knows-home/art/characters/fendric.webp"
+    "source": "stories/the-first-kingdom-was-late-on-taxes/art/characters/aruz.webp"
    }
   },
   {
-   "slug": "his-infernal-majesty-says-no",
-   "cover": "panorama/his-infernal-majesty-says-no-cover.webp",
+   "slug": "blood-types-of-immortality",
+   "cover": "panorama/blood-types-of-immortality-cover.webp",
    "landscape": {
-    "src": "panorama/his-infernal-majesty-says-no-land.webp",
-    "title": "Night Staff Lights",
+    "src": "panorama/blood-types-of-immortality-land.webp",
+    "title": "Clouds Swallowing the Pass",
     "width": 1400,
     "height": 933,
-    "sky": "#232c41",
-    "ground": "#3b372e",
-    "source": "stories/his-infernal-majesty-says-no/art/landscapes/05-night-staff-lights.png"
+    "sky": "#9d9c9c",
+    "ground": "#594535",
+    "source": "stories/blood-types-of-immortality/art/landscapes/01-clouds-swallowing-the-pass.png"
    },
    "study": {
-    "src": "panorama/his-infernal-majesty-says-no-study.webp",
-    "title": "Arlisse Penrow",
+    "src": "panorama/blood-types-of-immortality-study.webp",
+    "title": "Fenessa",
     "width": 520,
     "height": 347,
-    "source": "stories/his-infernal-majesty-says-no/art/characters/arlisse-penrow.webp"
+    "source": "stories/blood-types-of-immortality/art/characters/fenessa.webp"
    }
   },
   {
-   "slug": "captive-couples",
-   "cover": "panorama/captive-couples-cover.webp",
+   "slug": "save-that-dragon",
+   "cover": "panorama/save-that-dragon-cover.webp",
    "landscape": {
-    "src": "panorama/captive-couples-land.webp",
-    "title": "Clinic Lights in the Heat",
+    "src": "panorama/save-that-dragon-land.webp",
+    "title": "The Flooded Lower Lane",
     "width": 1400,
     "height": 933,
-    "sky": "#574157",
-    "ground": "#573d39",
-    "source": "stories/captive-couples/art/landscapes/03-clinic-lights-in-the-heat.png"
+    "sky": "#6e747d",
+    "ground": "#795d3e",
+    "source": "stories/save-that-dragon/art/landscapes/02-the-flooded-lower-lane.png"
    },
    "study": {
-    "src": "panorama/captive-couples-study.webp",
-    "title": "Jonas",
+    "src": "panorama/save-that-dragon-study.webp",
+    "title": "Daziel",
     "width": 520,
     "height": 347,
-    "source": "stories/captive-couples/art/characters/jonas.webp"
+    "source": "stories/save-that-dragon/art/characters/daziel.webp"
    }
   },
   {
-   "slug": "by-tooth-and-threshold",
-   "cover": "panorama/by-tooth-and-threshold-cover.webp",
+   "slug": "the-cat-who-had-enough",
+   "cover": "panorama/the-cat-who-had-enough-cover.webp",
    "landscape": {
-    "src": "panorama/by-tooth-and-threshold-land.webp",
-    "title": "The Wet Lane at Dusk",
+    "src": "panorama/the-cat-who-had-enough-land.webp",
+    "title": "A Chilly Tuesday Morning",
     "width": 1400,
     "height": 933,
-    "sky": "#58647f",
-    "ground": "#4c4b49",
-    "source": "stories/by-tooth-and-threshold/art/landscapes/01-the-wet-lane-at-dusk.png"
+    "sky": "#878888",
+    "ground": "#766c64",
+    "source": "stories/the-cat-who-had-enough/art/landscapes/01-a-chilly-tuesday-morning.png"
    },
    "study": {
-    "src": "panorama/by-tooth-and-threshold-study.webp",
-    "title": "Audra Liske",
+    "src": "panorama/the-cat-who-had-enough-study.webp",
+    "title": "Delma",
     "width": 520,
     "height": 347,
-    "source": "stories/by-tooth-and-threshold/art/characters/audra-liske.webp"
+    "source": "stories/the-cat-who-had-enough/art/characters/delma.webp"
    }
   },
   {
-   "slug": "the-name-the-water-took",
-   "cover": "panorama/the-name-the-water-took-cover.webp",
+   "slug": "a-crown-for-the-endless-fire",
+   "cover": "panorama/a-crown-for-the-endless-fire-cover.webp",
    "landscape": {
-    "src": "panorama/the-name-the-water-took-land.webp",
-    "title": "Green Roof above the Pool",
+    "src": "panorama/a-crown-for-the-endless-fire-land.webp",
+    "title": "Summer Mountain Vents",
     "width": 1400,
     "height": 933,
-    "sky": "#60653c",
-    "ground": "#5c5f3c",
-    "source": "stories/the-name-the-water-took/art/landscapes/01-green-roof-above-the-pool.png"
+    "sky": "#b5a38b",
+    "ground": "#98784d",
+    "source": "stories/a-crown-for-the-endless-fire/art/landscapes/01-summer-mountain-vents.png"
    },
    "study": {
-    "src": "panorama/the-name-the-water-took-study.webp",
-    "title": "Braska",
+    "src": "panorama/a-crown-for-the-endless-fire-study.webp",
+    "title": "Lemra",
     "width": 520,
     "height": 347,
-    "source": "stories/the-name-the-water-took/art/characters/braska.webp"
+    "source": "stories/a-crown-for-the-endless-fire/art/characters/lemra.webp"
    }
   },
   {
-   "slug": "the-ninety-year-barrier",
-   "cover": "panorama/the-ninety-year-barrier-cover.webp",
+   "slug": "deaths-patron",
+   "cover": "panorama/deaths-patron-cover.webp",
    "landscape": {
-    "src": "panorama/the-ninety-year-barrier-land.webp",
-    "title": "The Witch's Forest House",
+    "src": "panorama/deaths-patron-land.webp",
+    "title": "Reservoir above the District",
     "width": 1400,
     "height": 933,
-    "sky": "#515643",
-    "ground": "#3b3c23",
-    "source": "stories/the-ninety-year-barrier/art/landscapes/01-the-witchs-forest-house.png"
+    "sky": "#868178",
+    "ground": "#645b4e",
+    "source": "stories/deaths-patron/art/landscapes/01-reservoir-above-the-district.png"
    },
    "study": {
-    "src": "panorama/the-ninety-year-barrier-study.webp",
-    "title": "Lethrissa",
+    "src": "panorama/deaths-patron-study.webp",
+    "title": "Derva",
     "width": 520,
     "height": 347,
-    "source": "stories/the-ninety-year-barrier/art/characters/lethrissa.webp"
+    "source": "stories/deaths-patron/art/characters/derva.webp"
    }
   },
   {
-   "slug": "a-darkness-written-under-skin",
-   "cover": "panorama/a-darkness-written-under-skin-cover.webp",
+   "slug": "a-throne-neither-wanted",
+   "cover": "panorama/a-throne-neither-wanted-cover.webp",
    "landscape": {
-    "src": "panorama/a-darkness-written-under-skin-land.webp",
-    "title": "Dye House at Gray Morning",
+    "src": "panorama/a-throne-neither-wanted-land.webp",
+    "title": "Western Survey Coast",
     "width": 1400,
     "height": 933,
-    "sky": "#989594",
-    "ground": "#524638",
-    "source": "stories/a-darkness-written-under-skin/art/landscapes/01-dye-house-at-gray-morning.png"
+    "sky": "#bdbab8",
+    "ground": "#78633c",
+    "source": "stories/a-throne-neither-wanted/art/landscapes/01-western-survey-coast.png"
    },
    "study": {
-    "src": "panorama/a-darkness-written-under-skin-study.webp",
-    "title": "Brennet Sloane",
+    "src": "panorama/a-throne-neither-wanted-study.webp",
+    "title": "Edelis",
     "width": 520,
     "height": 347,
-    "source": "stories/a-darkness-written-under-skin/art/characters/brennet-sloane.webp"
+    "source": "stories/a-throne-neither-wanted/art/characters/edelis.webp"
    }
   },
   {
