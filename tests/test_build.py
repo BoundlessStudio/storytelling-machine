@@ -13,7 +13,8 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 
 from scripts.build import (CONTENT, ICON_VERSION, STATIC, asset_url, build, load_media_index, make_art,
-                           prompt_markup, prose_markup, validate_media_index)
+                           library_scene_data, prompt_markup, prose_markup, published_media_assets,
+                           validate_media_index)
 from scripts.sync_ratings import source_rating
 from scripts.sync_panorama import choose_pool
 
@@ -27,11 +28,11 @@ class SiteBuildTests(unittest.TestCase):
     def test_index_drives_every_cover_and_gallery_image(self) -> None:
         assets = validate_media_index(self.index)
         art, covers = make_art(self.index, self.stories, "/storytelling-machine/")
-        self.assertEqual(len(assets), 2807)
-        self.assertEqual(len(art), 2769)
+        self.assertEqual(len(assets), 2806)
+        self.assertEqual(len(art), 2768)
         self.assertEqual(len(covers), len(self.stories))
         self.assertEqual(dict(Counter(item["type"] for item in art)), {
-            "Covers": 328, "Characters": 1153, "Locations": 1288,
+            "Covers": 328, "Characters": 1153, "Locations": 1287,
         })
         self.assertTrue(all(item["id"].startswith("stories/") for item in art))
         self.assertTrue(any(item["type"] == "Locations" and item["thumbnail"] != item["full"]
@@ -88,6 +89,21 @@ class SiteBuildTests(unittest.TestCase):
         self.assertEqual({item["slug"] for item in art}, published)
         self.assertEqual(set(covers), published)
 
+    def test_removed_image_stays_excluded_when_upstream_restores_the_path(self) -> None:
+        path = "stories/the-town-beneath-the-dance/art/interiors/hetts-shop-and-upper-room.webp"
+        index = copy.deepcopy(self.index)
+        item = next(item.copy() for item in index["assets"]
+                    if item["path"] == "stories/the-town-beneath-the-dance/art/characters/hett.webp")
+        item.update(path=path, key=f"assets/{item['sha256']}/hetts-shop-and-upper-room.webp",
+                    url=asset_url(path, item["sha256"], index["baseUrl"]))
+        index["assets"].append(item)
+        self.assertNotIn(path, published_media_assets(index))
+        art, _ = make_art(index, self.stories, "/")
+        self.assertNotIn(path, {image["id"] for image in art})
+        scene = library_scene_data(self.stories, art, "/")
+        self.assertFalse(any("hetts-shop-and-upper-room" in reference["full"]
+                             for story in scene["stories"] for reference in story["references"]))
+
     def test_gallery_shows_finished_locations_without_version_labels(self) -> None:
         art, _ = make_art(self.index, self.stories, "/")
         locations = [item for item in art if item["type"] == "Locations"]
@@ -111,7 +127,7 @@ class SiteBuildTests(unittest.TestCase):
             output = Path(temporary) / "site"
             build(output, "/storytelling-machine/", "https://example.org", self.index)
             gallery = json.loads((output / "art.json").read_text(encoding="utf-8"))
-            self.assertEqual(len(gallery), 2769)
+            self.assertEqual(len(gallery), 2768)
             self.assertEqual(set(item["type"] for item in gallery), {
                 "Covers", "Characters", "Locations",
             })
@@ -359,7 +375,7 @@ class SiteBuildTests(unittest.TestCase):
         with patch("scripts.build.urlopen", side_effect=error):
             index, source = load_media_index("https://art.example.org/index.json")
         self.assertEqual(source, "snapshot")
-        self.assertEqual(len(index["assets"]), 2807)
+        self.assertEqual(len(index["assets"]), 2806)
 
     def test_homepage_uses_selected_location_corrections(self) -> None:
         expected = {

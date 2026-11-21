@@ -12,7 +12,7 @@ from hashlib import sha256
 import json
 from pathlib import Path
 
-from scripts.build import CONTENT, ROOT, validate_media_index
+from scripts.build import CONTENT, ROOT, excluded_art_paths, published_media_assets
 from scripts.sync_panorama import art_path_order, band_colour, fetch, place_title, to_webp
 
 
@@ -23,9 +23,11 @@ def main() -> None:
 
     stories = json.loads((CONTENT / "catalog.json").read_text(encoding="utf-8"))["stories"]
     media_index = json.loads((CONTENT / "media-index.json").read_text(encoding="utf-8"))
-    assets = validate_media_index(media_index)
+    assets = published_media_assets(media_index)
+    excluded = excluded_art_paths()
     panorama = json.loads((CONTENT / "panorama.json").read_text(encoding="utf-8"))
-    prepared = {stop["slug"]: stop["landscape"] for stop in panorama["stops"]}
+    prepared = {stop["slug"]: stop["landscape"] for stop in panorama["stops"]
+                if stop["landscape"].get("source") not in excluded}
     prepared_covers = {stop["slug"]: stop["cover"] for stop in panorama["stops"]} | panorama.get("covers", {})
     output = ROOT / "static" / "story-locations"
     output.mkdir(parents=True, exist_ok=True)
@@ -54,7 +56,8 @@ def main() -> None:
             for prefix in prefixes:
                 directory = args.repository / prefix
                 candidates = sorted((path for path in directory.glob("*")
-                                     if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}),
+                                     if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}
+                                     and path.relative_to(args.repository).as_posix() not in excluded),
                                     key=lambda path: art_path_order(path.as_posix()))
                 if candidates:
                     local_source = candidates[0]

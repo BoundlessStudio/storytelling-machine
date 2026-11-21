@@ -26,11 +26,11 @@ from urllib.request import Request, urlopen
 from PIL import Image, ImageOps, ImageStat
 
 try:
-    from scripts.build import CONTENT, ROOT, friendly_name, validate_media_index
+    from scripts.build import CONTENT, ROOT, friendly_name, published_media_assets
 except ModuleNotFoundError:  # executed as a file
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from scripts.build import CONTENT, ROOT, friendly_name, validate_media_index
+    from scripts.build import CONTENT, ROOT, friendly_name, published_media_assets
 
 OUTPUT = ROOT / "static" / "panorama"
 CACHE = ROOT / ".cache" / "panorama-originals"
@@ -156,7 +156,7 @@ def main() -> None:
     args = parser.parse_args()
 
     index = json.loads((CONTENT / "media-index.json").read_text(encoding="utf-8"))
-    assets = validate_media_index(index)
+    assets = published_media_assets(index)
     stories = json.loads((CONTENT / "catalog.json").read_text(encoding="utf-8"))["stories"]
     selection = choose_pool(stories, assets, args.pool, args.newest)
 

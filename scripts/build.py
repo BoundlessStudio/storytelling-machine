@@ -99,6 +99,17 @@ def load_media_index(url: str = DEFAULT_INDEX_URL, *, offline: bool = False) -> 
     return index, "snapshot"
 
 
+def excluded_art_paths() -> set[str]:
+    return set(read_json("art-exclusions.json")["paths"])
+
+
+def published_media_assets(index: dict) -> dict[str, dict]:
+    """Keep removed art out of publication even when an upstream index retains it."""
+    assets = validate_media_index(index)
+    excluded = excluded_art_paths()
+    return {path: item for path, item in assets.items() if path not in excluded}
+
+
 def esc(value: object) -> str:
     return html.escape(str(value), quote=True)
 
@@ -195,7 +206,7 @@ def old_art_metadata(media_origin: str) -> dict[tuple[str, str, str], dict]:
 
 
 def make_art(index: dict, stories: list[dict], base: str) -> tuple[list[dict], dict[str, str]]:
-    assets = validate_media_index(index)
+    assets = published_media_assets(index)
     story_by_slug = {story["slug"]: story for story in stories}
     order = {story["slug"]: position for position, story in enumerate(stories)}
     old_meta = old_art_metadata(index["baseUrl"])
@@ -275,6 +286,7 @@ def library_scene_data(stories: list[dict], art: list[dict], base: str) -> dict:
     panorama = read_json("panorama.json")
     location_manifest = read_json("story-locations.json")
     locations = location_manifest["locations"]
+    excluded = excluded_art_paths()
     by_slug = {story["slug"]: story for story in stories}
     references = defaultdict(list)
     for item in art:
@@ -292,6 +304,8 @@ def library_scene_data(stories: list[dict], art: list[dict], base: str) -> dict:
         raise ValueError(f"Missing living library art: {', '.join(sorted(missing))}")
     for slug in by_slug:
         source = locations[slug].get("source")
+        if source in excluded:
+            raise ValueError(f"Removed location art for {slug}; rebuild story locations")
         if source is not None and not source.startswith(f"stories/{slug}/art/"):
             raise ValueError(f"Location for {slug} belongs to another story: {source}")
     atlas = panorama["atlas"]
