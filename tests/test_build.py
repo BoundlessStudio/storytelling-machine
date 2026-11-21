@@ -27,11 +27,11 @@ class SiteBuildTests(unittest.TestCase):
     def test_index_drives_every_cover_and_gallery_image(self) -> None:
         assets = validate_media_index(self.index)
         art, covers = make_art(self.index, self.stories, "/storytelling-machine/")
-        self.assertEqual(len(assets), 2774)
-        self.assertEqual(len(art), 2736)
+        self.assertEqual(len(assets), 2807)
+        self.assertEqual(len(art), 2769)
         self.assertEqual(len(covers), len(self.stories))
         self.assertEqual(dict(Counter(item["type"] for item in art)), {
-            "Covers": 324, "Characters": 1138, "Locations": 1274,
+            "Covers": 328, "Characters": 1153, "Locations": 1288,
         })
         self.assertTrue(all(item["id"].startswith("stories/") for item in art))
         self.assertTrue(any(item["type"] == "Locations" and item["thumbnail"] != item["full"]
@@ -111,7 +111,7 @@ class SiteBuildTests(unittest.TestCase):
             output = Path(temporary) / "site"
             build(output, "/storytelling-machine/", "https://example.org", self.index)
             gallery = json.loads((output / "art.json").read_text(encoding="utf-8"))
-            self.assertEqual(len(gallery), 2736)
+            self.assertEqual(len(gallery), 2769)
             self.assertEqual(set(item["type"] for item in gallery), {
                 "Covers", "Characters", "Locations",
             })
@@ -184,7 +184,15 @@ class SiteBuildTests(unittest.TestCase):
             guide_catalog = json.loads((output / "guide-catalog.json").read_text(encoding="utf-8"))
             self.assertEqual(len(guide_catalog), len(self.stories))
             self.assertEqual(guide_catalog[0]["prompt"], self.stories[0]["prompt"])
-            self.assertEqual([(story["slug"], story["title"]) for story in guide_catalog[:8]], [
+            self.assertEqual([(story["slug"], story["title"]) for story in guide_catalog[:4]], [
+                ("scarlet-tower", "Scarlet Tower"),
+                ("pine-hollow-warning", "The Smile in the Window"),
+                ("dead-mans-entry", "Dead Man's Entry"),
+                ("gallery-of-hours", "House Time"),
+            ])
+            self.assertEqual([story["rating"] for story in guide_catalog[:4]],
+                             ["Teen", "Teen", "Teen", "Mature"])
+            self.assertEqual([(story["slug"], story["title"]) for story in guide_catalog[4:12]], [
                 ("the-first-broken-oath", "The Machine at Her Back"),
                 ("the-white-marble", "The White Marble"),
                 ("last-stormweaver", "The Last Stormweaver"),
@@ -194,9 +202,9 @@ class SiteBuildTests(unittest.TestCase):
                 ("the-back-row", "The Back Row"),
                 ("the-blue-fires-of-bittermouth", "The Blue Fires of Bittermouth"),
             ])
-            self.assertEqual([story["rating"] for story in guide_catalog[:8]],
+            self.assertEqual([story["rating"] for story in guide_catalog[4:12]],
                              ["Teen", "General", "Teen", "Teen", "General", "Teen", "General", "Mature"])
-            self.assertEqual([(story["slug"], story["title"]) for story in guide_catalog[8:17]], [
+            self.assertEqual([(story["slug"], story["title"]) for story in guide_catalog[12:21]], [
                 ("eleven-hours-at-the-gates", "The Weight of the Gate"),
                 ("young-immortals", "The Rattlejaw"),
                 ("silver-armor-archivist", "What Won’t Take the Light"),
@@ -207,16 +215,16 @@ class SiteBuildTests(unittest.TestCase):
                 ("sophies-yellow-jeep", "The Two-Day Repair"),
                 ("festival-of-lights", "A Turn at Tallow Gate"),
             ])
-            self.assertEqual([story["rating"] for story in guide_catalog[8:22]],
+            self.assertEqual([story["rating"] for story in guide_catalog[12:26]],
                              ["General", "Teen", "Teen"] + ["General"] * 11)
-            self.assertEqual([story["slug"] for story in guide_catalog[17:22]], [
+            self.assertEqual([story["slug"] for story in guide_catalog[21:26]], [
                 "new-eden-moon", "angels-at-fashion-week",
                 "magic-v-steel", "retired-magical-girl", "a-penny-to-boo",
             ])
-            self.assertEqual([story["title"] for story in guide_catalog[17:19]], [
+            self.assertEqual([story["title"] for story in guide_catalog[21:23]], [
                 "An Unreasonable Moon", "Hold for the Photograph",
             ])
-            prior_imports = guide_catalog[22:]
+            prior_imports = guide_catalog[26:]
             self.assertEqual([story["slug"] for story in prior_imports[:7]], [
                 "where-the-sun-is-afraid", "monsters-in-the-sewer", "exchange-program", "the-devourers-table",
                 "where-the-paint-runs-out", "letters-to-my-shadow", "human-assimilation",
@@ -321,7 +329,7 @@ class SiteBuildTests(unittest.TestCase):
         source = json.loads((CONTENT / "ratings-source.json").read_text(encoding="utf-8"))
         self.assertEqual(len(self.stories), source["stories"])
         self.assertEqual(dict(Counter(story["rating"] for story in self.stories)), source["counts"])
-        self.assertEqual(source["counts"], {"General": 192, "Teen": 112, "Mature": 12, "Explicit": 8})
+        self.assertEqual(source["counts"], {"General": 192, "Teen": 115, "Mature": 13, "Explicit": 8})
         self.assertEqual(source["localOverrides"], {"onyx-peace": "General"})
         for story in self.stories[:15]:
             self.assertEqual(story["body"].splitlines().count(f"# {story['title']}"), 1)
@@ -351,7 +359,7 @@ class SiteBuildTests(unittest.TestCase):
         with patch("scripts.build.urlopen", side_effect=error):
             index, source = load_media_index("https://art.example.org/index.json")
         self.assertEqual(source, "snapshot")
-        self.assertEqual(len(index["assets"]), 2774)
+        self.assertEqual(len(index["assets"]), 2807)
 
     def test_homepage_uses_selected_location_corrections(self) -> None:
         expected = {
