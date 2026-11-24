@@ -39,7 +39,12 @@ ATLAS_COLS, ATLAS_ROWS, TILE_W, TILE_H = 25, 14, 80, 142
 
 
 def fetch(item: dict, repository: Path | None) -> bytes:
-    """Return verified bytes for a media-index entry (local source, cache, then R2)."""
+    """Read a presentation original, or resolve a historical source via checkout, cache or R2."""
+    if "local_file" in item:
+        data = item["local_file"].read_bytes()
+        if sha256(data).hexdigest() != item["sha256"]:
+            raise ValueError(f"Artwork changed during preparation: {item['path']}")
+        return data
     candidates = []
     if repository:
         candidates.append(repository / item["path"])
@@ -93,14 +98,15 @@ def band_colour(image: Image.Image, top: float, bottom: float) -> str:
 
 
 def build_atlas(stories: list[dict], assets: dict[str, dict], extras: list[tuple[str, str, Image.Image]],
-                repository: Path | None) -> dict:
+                repository: Path | None, output: Path = OUTPUT) -> dict:
     """Pack every cover (plus pool sketches and landscape slices) into one mosaic texture."""
-    atlas = Image.new("RGB", (ATLAS_COLS * TILE_W, ATLAS_ROWS * TILE_H), (20, 16, 12))
+    rows = max(ATLAS_ROWS, (len(stories) + ATLAS_COLS - 1) // ATLAS_COLS)
+    atlas = Image.new("RGB", (ATLAS_COLS * TILE_W, rows * TILE_H), (20, 16, 12))
     tiles = []
 
     def place(image: Image.Image, slug: str, kind: str) -> None:
         index = len(tiles)
-        if index >= ATLAS_COLS * ATLAS_ROWS:
+        if index >= ATLAS_COLS * rows:
             return
         tile = ImageOps.fit(image.convert("RGB"), (TILE_W, TILE_H), Image.LANCZOS, centering=(.5, .42))
         atlas.paste(tile, ((index % ATLAS_COLS) * TILE_W, (index // ATLAS_COLS) * TILE_H))
@@ -113,8 +119,8 @@ def build_atlas(stories: list[dict], assets: dict[str, dict], extras: list[tuple
         place(image, slug, kind)
     buffer = io.BytesIO()
     atlas.save(buffer, "WEBP", quality=72, method=6)
-    (OUTPUT / "atlas.webp").write_bytes(buffer.getvalue())
-    return {"src": "panorama/atlas.webp", "cols": ATLAS_COLS, "rows": ATLAS_ROWS,
+    (output / "atlas.webp").write_bytes(buffer.getvalue())
+    return {"src": "panorama/atlas.webp", "cols": ATLAS_COLS, "rows": rows,
             "width": atlas.width, "height": atlas.height, "tiles": tiles}
 
 
@@ -153,14 +159,18 @@ def main() -> None:
     parser.add_argument("--pool", type=int, default=40, help="Stories to prepare (default 40)")
     parser.add_argument("--newest", type=int, default=6, help="Newest stories always included (default 6)")
     parser.add_argument("--repository", type=Path, help="Optional local story-computing-machine checkout")
+    parser.add_argument("--output-root", type=Path, default=ROOT,
+                        help="Read the candidate catalog and write generated derivatives under this directory")
     args = parser.parse_args()
 
     index = json.loads((CONTENT / "media-index.json").read_text(encoding="utf-8"))
     assets = published_media_assets(index)
-    stories = json.loads((CONTENT / "catalog.json").read_text(encoding="utf-8"))["stories"]
+    content = args.output_root / "content"
+    output = args.output_root / "static" / "panorama"
+    stories = json.loads((content / "catalog.json").read_text(encoding="utf-8"))["stories"]
     selection = choose_pool(stories, assets, args.pool, args.newest)
 
-    OUTPUT.mkdir(parents=True, exist_ok=True)
+    output.mkdir(parents=True, exist_ok=True)
     keep, entries, total, extras = {"atlas.webp"}, [], 0, []
     for position, chosen in enumerate(selection, 1):
         story = chosen["story"]
@@ -191,7 +201,7 @@ def main() -> None:
                               "source": chosen["study"]}
         extras.append((slug, "place", land_image.crop((land_image.width // 3, 0, land_image.width * 2 // 3, land_image.height))))
         for name, data in files.values():
-            (OUTPUT / name).write_bytes(data)
+            (output / name).write_bytes(data)
             keep.add(name)
             total += len(data)
         entries.append(entry)
@@ -203,18 +213,18 @@ def main() -> None:
             continue
         name = f"{story['slug']}-cover.webp"
         data, _ = to_webp(fetch(assets[f"stories/{story['slug']}/title-image.jpg"], args.repository), COVER_WIDTH, 70)
-        (OUTPUT / name).write_bytes(data)
+        (output / name).write_bytes(data)
         keep.add(name)
         total += len(data)
         extra_covers[story["slug"]] = f"panorama/{name}"
-    atlas = build_atlas(stories, assets, extras, args.repository)
-    for stale in OUTPUT.glob("*.webp"):
+    atlas = build_atlas(stories, assets, extras, args.repository, output)
+    for stale in output.glob("*.webp"):
         if stale.name not in keep:
             stale.unlink()
-    (CONTENT / "panorama.json").write_text(json.dumps({
+    (content / "panorama.json").write_text(json.dumps({
         "schemaVersion": 1, "sourceCommit": index["sourceCommit"], "atlas": atlas, "covers": extra_covers, "stops": entries,
     }, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    print(f"Prepared {len(entries)} stops ({total / 1e6:.1f} MB) in {OUTPUT.relative_to(ROOT)}")
+    print(f"Prepared {len(entries)} stops ({total / 1e6:.1f} MB) in {output}")
 
 
 if __name__ == "__main__":

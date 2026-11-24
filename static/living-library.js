@@ -107,6 +107,7 @@ function showStory(nextIndex, announce = true) {
   $('ll-story-title').textContent = story.title;
   $('ll-story-meta').textContent = `${story.rating} · Original fiction`;
   $('ll-prompt-text').textContent = story.prompt;
+  $('ll-prompt-heading').textContent = story.cardLabel;
   fitPromptText();
   $('ll-read').href = $('ll-book-fallback').href = story.url;
   $('ll-read').setAttribute('aria-label', `Read ${story.title}`);

@@ -10,11 +10,17 @@ import json
 from pathlib import Path, PurePosixPath
 import re
 import shutil
+from textwrap import shorten
 from urllib.error import URLError
 from urllib.parse import quote, urlsplit
 from urllib.request import Request, urlopen
 
 import markdown
+
+if __package__:
+    from .story_art import local_artwork
+else:
+    from story_art import local_artwork
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -103,9 +109,10 @@ def excluded_art_paths() -> set[str]:
     return set(read_json("art-exclusions.json")["paths"])
 
 
-def published_media_assets(index: dict) -> dict[str, dict]:
+def published_media_assets(index: dict, base: str = "/") -> dict[str, dict]:
     """Keep removed art out of publication even when an upstream index retains it."""
     assets = validate_media_index(index)
+    assets.update(local_artwork(STATIC, base))
     excluded = excluded_art_paths()
     return {path: item for path, item in assets.items() if path not in excluded}
 
@@ -138,6 +145,8 @@ def shell(title: str, description: str, body: str, active: str, base: str,
     canonical = site_url.rstrip("/") + base + page_path
     page_title = f"{title} · Story Computing Machine"
     preview_image = image or site_url.rstrip("/") + base + "social-card.jpg"
+    if image and image.startswith("/"):
+        preview_image = site_url.rstrip("/") + image
     preview_alt = (f"Cover art for {title}" if image else
                    "An open book unfolding into worlds from the Story Computing Machine")
     page_type = "article" if page_path.startswith("stories/") else "website"
@@ -205,8 +214,10 @@ def old_art_metadata(media_origin: str) -> dict[tuple[str, str, str], dict]:
     return result
 
 
-def make_art(index: dict, stories: list[dict], base: str) -> tuple[list[dict], dict[str, str]]:
-    assets = published_media_assets(index)
+def make_art(index: dict, stories: list[dict], base: str,
+             assets: dict[str, dict] | None = None) -> tuple[list[dict], dict[str, str]]:
+    if assets is None:
+        assets = published_media_assets(index, base)
     story_by_slug = {story["slug"]: story for story in stories}
     order = {story["slug"]: position for position, story in enumerate(stories)}
     old_meta = old_art_metadata(index["baseUrl"])
@@ -236,7 +247,7 @@ def make_art(index: dict, stories: list[dict], base: str) -> tuple[list[dict], d
         story = story_by_slug.get(slug)
         story_title = story["title"] if story else friendly_name(slug)
         title = f"{story_title} cover" if source_kind == "Covers" else friendly_name(path)
-        previous = old_meta.get((slug, source_kind, item["sha256"]))
+        previous = old_meta.get((slug, source_kind, item["sha256"])) if "local_file" not in item else None
         if previous:
             title = previous["title"]
         if kind == "Locations":
@@ -251,18 +262,28 @@ def make_art(index: dict, stories: list[dict], base: str) -> tuple[list[dict], d
                         "reader": reader})
     missing = [story["slug"] for story in stories if story["slug"] not in covers]
     if missing:
-        raise ValueError("Published stories lack R2 covers: " + ", ".join(missing))
+        raise ValueError("Add a presentation cover at static/story-art/<slug>/title-image.jpg for: " + ", ".join(missing))
     gallery.sort(key=lambda art: (order.get(art["slug"], len(order)), ART_TYPES.index(art["type"]), art["title"]))
     return gallery, covers
+
+
+def opening_excerpt(story: dict) -> str:
+    first = next((line.strip() for line in story["body"].splitlines()
+                  if line.strip() and not line.lstrip().startswith("#")), "")
+    return shorten(first, width=240, placeholder="…")
 
 
 def story_card(story: dict, cover: str, base: str) -> str:
     search = (story["title"] + " " + story["prompt"]).casefold()
     url = base + "stories/" + quote(story["slug"]) + "/"
     hidden = " hidden" if story["rating"] == "Explicit" else ""
+    description = story["prompt"] or opening_excerpt(story)
+    toggle = (f'<button class="prompt-toggle" type="button" aria-haspopup="dialog" aria-controls="prompt-dialog" '
+              f'aria-label="Read full prompt for {esc(story["title"])}" hidden>Read full prompt</button>'
+              if story["prompt"] else "")
     return f"""<article class="story-card" data-story-card data-search="{esc(search)}" data-rating="{esc(story['rating'])}"{hidden}>
 <a class="story-cover" href="{url}"><img src="{esc(cover)}" alt="Cover for {esc(story['title'])}" loading="lazy" decoding="async"></a>
-<div class="card-copy"><p class="eyebrow">{esc(story['created'])} · {esc(story['rating'])}</p><h2><a href="{url}">{esc(story['title'])}</a></h2><p class="story-prompt">{esc(story['prompt'])}</p><button class="prompt-toggle" type="button" aria-haspopup="dialog" aria-controls="prompt-dialog" aria-label="Read full prompt for {esc(story['title'])}" hidden>Read full prompt</button></div></article>"""
+<div class="card-copy"><p class="eyebrow">{esc(story['created'])} · {esc(story['rating'])}</p><h2><a href="{url}">{esc(story['title'])}</a></h2><p class="story-prompt">{esc(description)}</p>{toggle}</div></article>"""
 
 
 def build_index(stories: list[dict], covers: dict[str, str], base: str, site_url: str, *, artwork_count: int) -> str:
@@ -295,7 +316,8 @@ def library_scene_data(stories: list[dict], art: list[dict], base: str) -> dict:
 
     def story_fields(story: dict) -> dict:
         return {"slug": story["slug"], "title": story["title"], "rating": story["rating"],
-                "prompt": " ".join(story["prompt"].split()), "created": story["created"],
+                "prompt": " ".join(story["prompt"].split()) or opening_excerpt(story),
+                "cardLabel": "[WP]" if story["prompt"] else "Opening", "created": story["created"],
                 "createdAt": story["createdAt"], "url": base + "stories/" + quote(story["slug"]) + "/"}
 
     prepared = location_manifest["covers"]
@@ -389,7 +411,7 @@ body:not(.is-library-loading) .ll-loading{opacity:0;visibility:hidden;pointer-ev
 <div class="ll-desk-content" id="ll-desk-content">
 <div class="ll-references" id="ll-references" aria-label="Reference images for the selected story"></div>
 <aside class="ll-prompt" id="ll-prompt" aria-labelledby="ll-prompt-heading"><div class="ll-prompt-copy"><p id="ll-prompt-text">{esc(first['prompt'])}</p></div><div class="ll-story" id="ll-story"><p class="ll-story-meta" id="ll-story-meta">{esc(first['rating'])} · Original fiction</p><h3 id="ll-story-title">{esc(first['title'])}</h3></div></aside>
-<h2 class="ll-prompt-label" id="ll-prompt-heading">[WP]</h2>
+<h2 class="ll-prompt-label" id="ll-prompt-heading">{esc(first["cardLabel"])}</h2>
 <a class="ll-book-link" id="ll-read" href="{first['url']}" aria-label="Read {esc(first['title'])}"><span class="ll-announcement">Read this story</span></a>
 <a class="ll-art-link" id="ll-art-link" href="{first['art']}">Reference studies <span aria-hidden="true">↗</span></a>
 <p class="ll-scroll-hint" id="ll-scroll-hint"><span class="ll-mouse" aria-hidden="true"></span><span>Scroll to Discover</span></p>
@@ -431,8 +453,10 @@ def build_story(story: dict, stories: list[dict], covers: dict[str, str], art: l
         if neighbor:
             neighbors.append(f'<a href="{base}stories/{quote(neighbor["slug"])}/"><span>{label} story</span><strong>{esc(neighbor["title"])}</strong></a>')
     art_link = f'<a href="{base}art/?story={quote(slug)}">View {len(art)} artwork items ↗</a>' if art else ""
-    body = f"""<div class="reader wrap"><p><a class="back-link" href="{base}library/">← Library</a></p><header class="reader-header"><div><p class="eyebrow">{esc(story['created'])} · {esc(story['rating'])}</p><h1>{esc(story['title'])}</h1><div class="reader-links">{art_link}</div></div><img src="{esc(covers[slug])}" alt="Cover for {esc(story['title'])}"></header><div class="reader-content"><aside class="prompt"><h2>Writing prompt</h2>{prompt_markup(story['prompt'])}</aside><article class="prose">{prose_markup(story['body'], story['title'])}</article></div><nav class="reader-neighbors" aria-label="More stories">{''.join(neighbors)}</nav></div>"""
-    return shell(story["title"], " ".join(story["prompt"].split())[:200], body,
+    prompt = (f'<aside class="prompt"><h2>Writing prompt</h2>{prompt_markup(story["prompt"])}</aside>'
+              if story["prompt"] else "")
+    body = f"""<div class="reader wrap"><p><a class="back-link" href="{base}library/">← Library</a></p><header class="reader-header"><div><p class="eyebrow">{esc(story['created'])} · {esc(story['rating'])}</p><h1>{esc(story['title'])}</h1><div class="reader-links">{art_link}</div></div><img src="{esc(covers[slug])}" alt="Cover for {esc(story['title'])}"></header><div class="reader-content">{prompt}<article class="prose">{prose_markup(story['body'], story['title'])}</article></div><nav class="reader-neighbors" aria-label="More stories">{''.join(neighbors)}</nav></div>"""
+    return shell(story["title"], (" ".join(story["prompt"].split()) or opening_excerpt(story))[:200], body,
                  "Library", base, site_url, f"stories/{slug}/", covers[slug],
                  story_count=len(stories), artwork_count=artwork_count)
 
@@ -473,7 +497,8 @@ def build(output: Path, base: str, site_url: str, media_index: dict | None = Non
     stories = read_json("catalog.json")["stories"]
     if not stories:
         raise ValueError("The story catalog is empty")
-    art, covers = make_art(media_index, stories, base)
+    assets = published_media_assets(media_index, base)
+    art, covers = make_art(media_index, stories, base, assets)
     artwork_count = len(art)
     art_by_story = defaultdict(list)
     for item in art:
@@ -484,6 +509,13 @@ def build(output: Path, base: str, site_url: str, media_index: dict | None = Non
     (output / "art").mkdir(parents=True)
     (output / "library").mkdir()
     (output / "stories").mkdir()
+    public_urls = {entry[field] for entry in art for field in ("full", "thumbnail")}
+    for item in assets.values():
+        if "local_file" in item and item["url"] in public_urls:
+            original = item["local_file"]
+            destination = output / original.relative_to(STATIC)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(original, destination)
     for filename in ("styles.css", "app.js", "living-library.js", "living-library.css", "library-performance.js", "favicon.svg", "favicon-32.png",
                      "apple-touch-icon.png", "social-card.jpg",
                      "location-fallback.webp"):

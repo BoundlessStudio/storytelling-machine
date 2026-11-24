@@ -88,7 +88,7 @@ class SourceSyncTests(unittest.TestCase):
             if command == "rev-parse":
                 return commit + "\n"
             if command == "ls-tree":
-                return "\n".join(files) + "\n"
+                return "\0".join(files) + "\0"
             if command == "show":
                 return files[args[4].split(":", 1)[1]]
             if command == "log":
