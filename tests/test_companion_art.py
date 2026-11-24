@@ -57,6 +57,9 @@ def fake_codex():
     title = re.search(r"^title: (?:new-story|late-story)$", request, re.MULTILINE)
     images = [Path(sys.argv[i + 1]) for i, flag in enumerate(sys.argv) if flag in ("-i", "--image")]
     references = {p.name: sha256(p.read_bytes()).hexdigest() for p in images}
+    observations = [{"id": path.stem, "visible": "ILLUSTRATION_TEST_HIDDEN_INPUT" not in os.environ,
+                     "observation": "The private square is uniformly dark.",
+                     "use": "I used the square to check the clerk's coat."} for path in images]
     log = Path(os.environ["ILLUSTRATION_TEST_LOG"])
     # A successful process exit with an incomplete declared output must still fail the import.
     incomplete = "ILLUSTRATION_TEST_PARTIAL" in os.environ and log.exists()
@@ -80,7 +83,7 @@ def fake_codex():
     report.write_text(json.dumps({
         "cover": str(cover_png), "characters": [{"subject": "Clerk", "path": clerk, "generated": str(clerk_png)}],
         "locations": [{"subject": "Reading room", "path": room, "generated": str(room_png)}],
-        "review": "Fixture reviewed all declared assets.",
+        "inputReviews": observations, "review": "Fixture reviewed all declared assets.",
     }))
 
 
@@ -117,7 +120,7 @@ class CompanionArtTests(unittest.TestCase):
                 (package / "ratings.md").write_text("# Rating\n\n- **Rating:** Teen\n")
                 if slug in ("reillustrated", "historical"):
                     legacy[slug] = save_image(package / "title-image.jpg", "red")
-            source_ref = source / "stories/new-story/art/references/private.png"
+            source_ref = source / "stories/new-story/art/references/private, approved.png"
             approved_bytes = save_image(source_ref, "black")
             save_image(source_ref.with_name("unapproved.png"), "yellow")
             run(source, "git", "add", "stories")
@@ -149,13 +152,19 @@ class CompanionArtTests(unittest.TestCase):
             save_image(originals / "unpublished/title-image.jpg", "black")
             python = (sys.executable, "-B", "-m")
             importer = [*python, "scripts.sync_ratings", "--repository", str(source), "--revision", "HEAD",
-                        "--reference", "new-story/private.png"]
+                        "--reference", "new-story/private, approved.png"]
             for slug in slugs:
                 importer.extend(("--add-story", slug))
             env = install_codex_double(site / "bin")
             before = {p.name: p.read_bytes() for p in content.iterdir()}
             self.assertFalse((originals / "new-story").exists())
             self.assertFalse((originals / "late-story").exists())
+            hidden = env | {"ILLUSTRATION_TEST_HIDDEN_INPUT": "1",
+                            "ILLUSTRATION_TEST_LOG": str(site / "bin" / "hidden.jsonl")}
+            run(site, *importer, env=hidden, success=False)
+            self.assertFalse((originals / "new-story").exists())
+            self.assertFalse((originals / "late-story").exists())
+            self.assertEqual(before, {p.name: p.read_bytes() for p in content.iterdir()})
             run(site, *importer, env=env | {"ILLUSTRATION_TEST_PARTIAL": "1"}, success=False)
             self.assertEqual(before, {p.name: p.read_bytes() for p in content.iterdir()})
             log = Path(env["ILLUSTRATION_TEST_LOG"])
@@ -171,7 +180,7 @@ class CompanionArtTests(unittest.TestCase):
                 self.assertIn("story_title_illustrator", call["request"])
                 self.assertEqual(call["sandbox"], "read-only")
                 if "title: new-story" in call["story"]:
-                    self.assertEqual(call["references"], {"private.png": sha256(approved_bytes).hexdigest()})
+                    self.assertEqual(call["references"], {"ref-001.png": sha256(approved_bytes).hexdigest()})
                 else:
                     self.assertIn("title: late-story", call["story"])
                     self.assertEqual(call["references"], {})
@@ -182,6 +191,10 @@ class CompanionArtTests(unittest.TestCase):
                               "historical": "The rain has an opinion."})
             covers = json.loads((content / "covers.json").read_text())
             new = (originals / "new-story/title-image.jpg").read_bytes()
+            receipt = json.loads((originals / "new-story/illustrations.json").read_text())
+            self.assertEqual(receipt["referenceCount"], 1)
+            self.assertNotIn("inputReviews", receipt)
+            self.assertNotIn("private, approved", json.dumps(receipt))
             late = (originals / "late-story/title-image.jpg").read_bytes()
             room = (originals / "new-story/art/interiors/reading-room.webp").read_bytes()
             for slug, data in zip(slugs, [new, late, revised, legacy["historical"]]):

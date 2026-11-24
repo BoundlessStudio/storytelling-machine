@@ -32,7 +32,7 @@ For a new prose-only package the command starts the [illustrator agent](.codex/a
 
 Run `npm run build:site:offline` for the static preview. Check the reader, gallery, library card and Living Library desk. Include the accepted art, derivatives, and manifests in the publication change. The reading site can display the opening of a story supplied without a public prompt. Tagged writing prompts retain their existing presentation. To publish an untagged original request intentionally, add `--include-prompt`. Existing entries keep their published prompts.
 
-The illustrator uses the signed-in Codex CLI and its configured model. To choose a different model for illustration, set `STORY_ILLUSTRATOR_MODEL` to a model available to that account. A failed import reports a private log path under `tmp/`.
+The illustrator uses the signed-in Codex CLI. If the service rejects the configured default model before generating any image, the import retries once with the account's highest-priority visible model. To select an available model explicitly, set `STORY_ILLUSTRATOR_MODEL`. The illustrator must inspect every approved input and retained study. An incomplete review leaves the catalog in place. Logs and detailed input observations stay under `tmp/`.
 
 The site gives its own artwork precedence at the matching story path. It serves these images alongside the site. For historical artwork it uses the verified R2 index and its checked-in snapshot. The derivative scripts can read matching legacy originals from the supplied writing checkout or fetch verified bytes. The site import supports both current `story.md` and historical `05-story.md` packages.
 

@@ -27,6 +27,10 @@ class AcceptedArtRecoveryTests(unittest.TestCase):
 
         def render(job, slug, commit):
             accepted = job / "accepted"
+            prior = sorted(p for p in accepted.rglob("*") if p.is_file())
+            ids = ["ref-001"] + [f"accepted-{i:03}" for i in range(1, len(prior) + 1)]
+            inspected = [{"id": item, "visible": True, "observation": "The dominant region is a flat colour.",
+                          "use": "I compared its value to the reading room."} for item in ids]
             if not (accepted / "title-image.jpg").exists():
                 Image.new("RGB", (864, 1536), "blue").save(accepted / "title-image.jpg")
             (accepted / study).parent.mkdir(parents=True, exist_ok=True)
@@ -34,7 +38,7 @@ class AcceptedArtRecoveryTests(unittest.TestCase):
             (accepted / "illustrations.json").write_text(json.dumps({
                 "locations": [{"subject": "Reading room", "path": study}],
                 "characters": [], "no_characters": "The story inhabits an empty room.",
-                "review": "Reviewed the cover and the room study.",
+                "inputReviews": inspected, "review": "Reviewed the cover and the room study.",
             }))
 
         with tempfile.TemporaryDirectory() as scratch, patch(

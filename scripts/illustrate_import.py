@@ -21,6 +21,7 @@ MANIFEST = "illustrations.json"
 COVER = "title-image.jpg"
 ROLE = Path(".codex/agents/story-title-illustrator.toml")
 SKILL = Path(".agents/skills/story-illustrate/SKILL.md")
+RECEIPT_VERSION = 2
 
 
 def checked_path(root: Path, relative: str | Path) -> Path:
@@ -135,6 +136,40 @@ def account_model(executable: str, job: Path, env: dict) -> str:
     return min(visible, key=lambda m: m["priority"])["slug"]
 
 
+def attachment_ids(originals: int, accepted: int) -> list[str]:
+    return [f"{kind}-{number:03d}" for kind, count in (("ref", originals), ("accepted", accepted))
+            for number in range(1, count + 1)]
+
+
+def attachment_alias(job: Path, identity: str, source: Path) -> str:
+    # The CLI splits -i on commas, including commas in parent directory names.
+    directory = job / "images"
+    directory.mkdir(exist_ok=True)
+    with Image.open(source) as image:
+        if getattr(image, "n_frames", 1) != 1:
+            raise ValueError(f"Illustration requires a single still image for {identity}")
+        extensions = {"JPEG": ".jpg", "PNG": ".png", "WEBP": ".webp"}
+        alias = directory / (identity + extensions.get(image.format, ".png"))
+        if image.format in extensions:
+            shutil.copyfile(source, alias)
+        else:
+            ImageOps.exif_transpose(image).convert("RGBA").save(alias, "PNG")
+    return alias.relative_to(job).as_posix()
+
+
+def check_input_reviews(report: dict, expected: list[str]) -> None:
+    reviews = report.get("inputReviews")
+    if not isinstance(reviews, list) or len(reviews) != len(expected):
+        raise ValueError("The illustrator must inspect every attached image")
+    for identity, entry in zip(expected, reviews):
+        if not isinstance(entry, dict) or entry.get("id") != identity or entry.get("visible") is not True:
+            raise ValueError(f"The illustrator could not inspect attachment {identity}")
+        for key in ("observation", "use"):
+            detail = entry.get(key)
+            if not isinstance(detail, str) or not detail.strip():
+                raise ValueError(f"Missing visual {key} for attachment {identity}")
+
+
 def collect_outputs(job: Path, report: dict, session_dir: Path | None, private_inputs: list[Path]) -> None:
     """Only freshly generated outputs from this CLI session may supply new public images."""
     accepted = job / "accepted"
@@ -192,8 +227,11 @@ def run_illustrator(job: Path, slug: str, commit: str) -> None:
     inputs, accepted = job / "input", job / "accepted"
     private_inputs = sorted((inputs / "references").iterdir())
     existing = sorted(path for path in accepted.rglob("*") if path.is_file())
-    attachments = [f"Private reference: {p.name}" for p in private_inputs]
-    attachments += [f"Keep accepted image: {p.relative_to(accepted).as_posix()}" for p in existing]
+    identities = attachment_ids(len(private_inputs), len(existing))
+    names = [p.name for p in private_inputs] + [p.relative_to(accepted).as_posix() for p in existing]
+    attachments = [{"id": identity, "name": name} for identity, name in zip(identities, names)]
+    aliases = [attachment_alias(job, identity, path)
+               for identity, path in zip(identities, private_inputs + existing)]
     brief = f"""You are the story_title_illustrator for {slug} at reviewed revision {commit}.
 Perform the illustration directly with built-in image generation. All inputs are in
 this message and its image attachments. Use this role and skill for visual decisions:
@@ -206,6 +244,17 @@ For this import the caller handles every file operation. Do not open files, run 
 shell, delegate, or publish. Complete the image work in this session. Read the prose
 and rating below as source material. Inspect the attached inputs in order:
 {json.dumps(attachments, ensure_ascii=False)}
+
+Check every attachment visually before your first image generation call. ref- IDs
+identify approved private originals. accepted- IDs identify finished public art to
+preserve. If any image is missing, unreadable, or visible only as a filename,
+stop now and return {{"error":"attachment unavailable","id":"..."}}. Never infer its
+appearance from its name or the story. For every ID return a private inputReviews
+entry in the displayed order: {{"id":"...","visible":true,"observation":"describe
+specific visible forms, colors, spatial relations and any legible markings or text",
+"use":"describe a concrete visual decision or consistency check this informs"}}.
+Return inputReviews: [] when there were no attachments. Keep private names and
+observations out of the general review and public subject names.
 
 Inventory the principal characters and distinct important places. Generate each
 missing character sheet and setting painting with the built-in image generation
@@ -221,7 +270,7 @@ filename within this session) for each new image. Use null for an attached accep
 image. For an empty category add no_characters or no_locations explaining why.
 Use lower-case hyphenated ASCII filenames in the logical study paths. Inspect every
 generated image, and record what you saw in the review. Use this shape:
-{{"cover":"<tool output path or null>","characters":[{{"subject":"...","path":"art/characters/name.webp","generated":"<tool output path or null>"}}],"locations":[{{"subject":"...","path":"art/interiors/place.webp","generated":"<tool output path or null>"}}],"review":"..."}}
+{{"inputReviews":[...],"cover":"<tool output path or null>","characters":[{{"subject":"...","path":"art/characters/name.webp","generated":"<tool output path or null>"}}],"locations":[{{"subject":"...","path":"art/interiors/place.webp","generated":"<tool output path or null>"}}],"review":"..."}}
 Exterior studies belong under art/landscapes/. If generation fails, return an
 error object containing the reason. Never invent an image path.
 
@@ -240,8 +289,8 @@ Reviewed rating:
     output = job / "report-output.json"
     command = [executable, "exec", "--cd", str(job), "--sandbox", "read-only", "--ephemeral",
                "--disable", "multi_agent", "--disable", "shell_tool", "--json", "-o", str(output)]
-    for path in private_inputs + existing:
-        command.extend(["-i", str(path)])
+    for alias in aliases:
+        command.extend(["-i", alias])
     model = env.get("STORY_ILLUSTRATOR_MODEL")
     for attempt in range(2):
         log = job / ("illustrator.log" if attempt == 0 else "illustrator-retry.log")
@@ -259,6 +308,7 @@ Reviewed rating:
             report = json.loads(output.read_text(encoding="utf-8-sig"))
             if not isinstance(report, dict) or "error" in report:
                 raise ValueError(f"Incomplete illustration for {slug}; see {output}")
+            check_input_reviews(report, identities)
             collect_outputs(job, report, session_dir, private_inputs)
             return
         if model or attempt or not model_missing or (session_dir and any(session_dir.iterdir())):
@@ -292,6 +342,9 @@ def ensure_illustrations(root: Path, repository: Path, commit: str, slug: str, s
     if prior_bytes is not None:
         prior = json.loads(prior_bytes)
         prior_hashes = prior["sha256"]
+        reference_count = prior.get("referenceCount")
+        verified = (prior.get("schemaVersion") == RECEIPT_VERSION and type(reference_count) is int
+                    and reference_count >= 0)
         missing = False
         for relative, digest in prior_hashes.items():
             if relative != COVER and not re.fullmatch(rf"art/(?:characters|landscapes|interiors)/{SLUG}\.webp", relative):
@@ -301,10 +354,11 @@ def ensure_illustrations(root: Path, repository: Path, commit: str, slug: str, s
                 missing = True
             elif hashlib.sha256(path.read_bytes()).hexdigest() != digest:
                 raise ValueError(f"Accepted illustration changed since review: {path}")
-        if missing and prior.get("sourceCommit") == commit and prior.get("referenceSet") != reference_set:
-            raise ValueError(f"Repairing {slug} requires the original edition's approved --reference arguments")
-        if (not missing and prior.get("sourceCommit") == commit
-                and (not references or reference_set == prior.get("referenceSet"))):
+        if ((missing or not verified) and prior.get("sourceCommit") == commit
+                and prior.get("referenceSet") != reference_set):
+            raise ValueError(f"Reviewing {slug} requires the original edition's approved --reference arguments")
+        if (verified and not missing and prior.get("sourceCommit") == commit and (not references or
+                (len(references) == reference_count and reference_set == prior.get("referenceSet")))):
             _, hashes = review_bundle(destination)
             if hashes != prior_hashes:
                 raise ValueError(f"Accepted illustration changed since review for {slug}; review the changed work")
@@ -332,7 +386,13 @@ def ensure_illustrations(root: Path, repository: Path, commit: str, slug: str, s
         raise ValueError(f"Illustration would change existing accepted art for {slug}; inspect {job}")
     if originals.intersection(hashes.values()):
         raise ValueError(f"Private reference copied as public artwork for {slug}")
-    report.update(sourceCommit=commit, referenceSet=reference_set, sha256=hashes)
+    # The detailed observations and raw review stay in the private job. Store public subjects and edition evidence.
+    report["review"] = "The illustrator inspected this edition's complete artwork."
+    for category in ("characters", "locations"):
+        if not report[category]:
+            report[f"no_{category}"] = f"The illustrator found no {category} that required a separate study."
+    report.update(schemaVersion=RECEIPT_VERSION, sourceCommit=commit, referenceCount=len(references),
+                  referenceSet=reference_set, sha256=hashes)
     # Build a clean tree from the allowlisted images. Never copy arbitrary agent outputs.
     bundle = job / "validated"
     bundle.mkdir()
