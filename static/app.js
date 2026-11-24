@@ -59,6 +59,7 @@
       const promptText = document.getElementById('prompt-dialog-text');
       cards.forEach(card => {
         const button = card.querySelector('.prompt-toggle');
+        if (!button) return;
         button.hidden = false;
         button.addEventListener('click', () => {
           const storyLink = card.querySelector('h2 a');

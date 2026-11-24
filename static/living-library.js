@@ -107,6 +107,7 @@ function showStory(nextIndex, announce = true) {
   $('ll-story-title').textContent = story.title;
   $('ll-story-meta').textContent = `${story.rating} · Original fiction`;
   $('ll-prompt-text').textContent = story.prompt;
+  $('ll-prompt-heading').textContent = story.cardLabel;
   fitPromptText();
   $('ll-read').href = $('ll-book-fallback').href = story.url;
   $('ll-read').setAttribute('aria-label', `Read ${story.title}`);
@@ -114,7 +115,10 @@ function showStory(nextIndex, announce = true) {
   $('ll-book-fallback').setAttribute('aria-label', `Read ${story.title}`);
   $('ll-fallback-cover').src = story.cover;
   $('ll-fallback-cover').alt = `Cover of ${story.title}`;
-  $('ll-art-link').href = story.art;
+  const galleryLink = $('ll-art-link');
+  galleryLink.hidden = !story.art;
+  if (story.art) galleryLink.href = story.art;
+  else galleryLink.removeAttribute('href');
   photos = story.references;
   const container = $('ll-references');
   container.replaceChildren();
