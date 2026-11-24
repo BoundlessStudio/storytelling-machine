@@ -65,6 +65,31 @@ class SourceSyncTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "Missing writing prompt for familiar"):
                     writing_prompt(source, "familiar")
 
+    def test_explicit_import_rejects_invalid_or_repeated_flags(self) -> None:
+        cases = (
+            (["Bad Slug"], [], "Invalid --add-story slug"),
+            (["current", "current"], [], "Duplicate --add-story slug"),
+            (["current"], ["current/ref.png", "current/ref.png"], "Duplicate --reference filename"),
+            (["current"], ["other/ref.png"], "Expected --reference SLUG/FILENAME"),
+            (["current"], ["current/missing.png"], "Approved reference is missing"),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "content").mkdir()
+            catalog = root / "content/catalog.json"
+            published = '{"stories":[{"slug":"current"}]}'
+            catalog.write_text(published, encoding="utf-8")
+            for slugs, references, message in cases:
+                with self.subTest(slugs=slugs, references=references):
+                    with (
+                        patch("scripts.sync_ratings.ROOT", root),
+                        patch("scripts.sync_ratings.subprocess.check_output",
+                              side_effect=["a" * 40, "stories/current/art/references/ref.png\0"]),
+                        self.assertRaisesRegex(ValueError, message),
+                    ):
+                        sync(Path("source"), "HEAD", slugs, references=references)
+                    self.assertEqual(catalog.read_text(encoding="utf-8"), published)
+
     def test_sync_refreshes_existing_current_and_historical_prose(self) -> None:
         commit = "a" * 40
         originals = [{

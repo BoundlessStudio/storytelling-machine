@@ -17,6 +17,7 @@ from PIL import Image, ImageOps
 
 PROJECT = Path(__file__).resolve().parents[1]
 SLUG = r"[a-z0-9]+(?:-[a-z0-9]+)*"
+STUDY = re.compile(rf"art/(?:characters|landscapes|interiors)/{SLUG}\.webp")
 MANIFEST = "illustrations.json"
 COVER = "title-image.jpg"
 ROLE = Path(".codex/agents/story-title-illustrator.toml")
@@ -233,7 +234,7 @@ def collect_outputs(job: Path, report: dict, session_dir: Path | None, private_i
     (accepted / MANIFEST).write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
 
 
-def run_illustrator(job: Path, slug: str, commit: str) -> None:
+def run_illustrator(job: Path, slug: str, commit: str, *, restore_paths: tuple[str, ...] = ()) -> None:
     executable = shutil.which("codex")
     if not executable:
         raise RuntimeError("Illustration requires the signed-in Codex CLI with built-in image generation")
@@ -290,6 +291,8 @@ observations out of the general review and public subject names.
 Inventory the principal characters and distinct important places. Generate each
 missing character sheet and setting painting with the built-in image generation
 tool. Inspect its returned images. {cover_task}
+Previously reviewed images missing from this edition must be restored at these
+exact output paths: {json.dumps(restore_paths)}.
 Preserve each attached accepted image unchanged. Report a conflict if one cannot be
 used with this edition. Never substitute a private reference for a generated study.
 
@@ -351,8 +354,10 @@ def ensure_illustrations(root: Path, repository: Path, commit: str, slug: str, s
     """Generate missing artwork while the caller holds the site's import lock."""
     if not re.fullmatch(SLUG, slug) or not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", commit):
         raise ValueError("Illustration requires a valid story slug and full pinned commit")
+    destination = checked_path(root, Path("static/story-art") / slug)
+    receipt = checked_path(root, Path("static/story-art") / slug / MANIFEST)
     historical = f"stories/{slug}/{COVER}"
-    if historical in source_paths:
+    if historical in source_paths and not receipt.is_file():
         index = json.loads((root / "content/media-index.json").read_text(encoding="utf-8"))
         digest = hashlib.sha256(source_bytes(repository, commit, historical)).hexdigest()
         if any(item["path"] == historical and item["sha256"] == digest for item in index["assets"]):
@@ -364,23 +369,22 @@ def ensure_illustrations(root: Path, repository: Path, commit: str, slug: str, s
             raise ValueError(f"Expected a single reference filename: {name}")
     if len({name.casefold() for name in references}) != len(references):
         raise ValueError("Approved reference filenames must be distinct on this filesystem")
-    destination = checked_path(root, Path("static/story-art") / slug)
-    receipt = checked_path(root, Path("static/story-art") / slug / MANIFEST)
     reference_set = hashlib.sha256(json.dumps(references).encode("utf-8")).hexdigest()
     prior_bytes = receipt.read_bytes() if receipt.is_file() else None
+    restore_paths = ()
     if prior_bytes is not None:
         prior = json.loads(prior_bytes)
         prior_hashes = prior["sha256"]
         reference_count = prior.get("referenceCount")
         verified = (prior.get("schemaVersion") == RECEIPT_VERSION and type(reference_count) is int
                     and reference_count >= 0)
-        missing = False
+        missing = []
         for relative, digest in prior_hashes.items():
-            if relative != COVER and not re.fullmatch(rf"art/(?:characters|landscapes|interiors)/{SLUG}\.webp", relative):
+            if relative != COVER and not STUDY.fullmatch(relative):
                 raise ValueError(f"Unexpected asset path in {receipt}: {relative}")
             path = checked_path(destination, relative)
             if not path.exists():
-                missing = True
+                missing.append(relative)
             elif hashlib.sha256(path.read_bytes()).hexdigest() != digest:
                 raise ValueError(f"Accepted illustration changed since review: {path}")
         if ((missing or not verified) and prior.get("sourceCommit") == commit
@@ -392,6 +396,8 @@ def ensure_illustrations(root: Path, repository: Path, commit: str, slug: str, s
             if hashes != prior_hashes:
                 raise ValueError(f"Accepted illustration changed since review for {slug}; review the changed work")
             return
+        if prior.get("sourceCommit") == commit:
+            restore_paths = tuple(sorted(missing))
     scratch = checked_path(root, "tmp")
     scratch.mkdir(exist_ok=True)
     job = Path(tempfile.mkdtemp(prefix=f"illustrate-{slug}-", dir=scratch))
@@ -403,14 +409,20 @@ def ensure_illustrations(root: Path, repository: Path, commit: str, slug: str, s
     if destination.is_dir():
         for path in destination.rglob("*"):
             relative = path.relative_to(destination).as_posix()
+            if relative != COVER and not STUDY.fullmatch(relative):
+                continue
+            if prior_bytes is not None and relative not in prior_hashes:
+                continue
             checked_path(destination, relative)
-            if path.is_file() and (relative == COVER or relative.startswith("art/")):
+            if path.is_file():
                 existing[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
                 (accepted / relative).parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(path, accepted / relative)
-    run_illustrator(job, slug, commit)
+    run_illustrator(job, slug, commit, restore_paths=restore_paths)
     checked_path(job, "accepted")
     report, hashes = review_bundle(accepted)
+    if not set(restore_paths).issubset(hashes):
+        raise ValueError(f"Illustration did not restore the edition's missing artwork for {slug}; inspect {job}")
     if any(hashes.get(path) != digest for path, digest in existing.items()):
         raise ValueError(f"Illustration would change existing accepted art for {slug}; inspect {job}")
     if originals.intersection(hashes.values()):

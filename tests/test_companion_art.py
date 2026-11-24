@@ -57,32 +57,38 @@ def fake_codex():
     title = re.search(r"^title: (?:new-story|late-story)$", request, re.MULTILINE)
     images = [Path(sys.argv[i + 1]) for i, flag in enumerate(sys.argv) if flag in ("-i", "--image")]
     references = {p.name: sha256(p.read_bytes()).hexdigest() for p in images}
+    attachments = json.loads(request.split("Inspect the attached inputs in order:\n", 1)[1].splitlines()[0])
+    retained = {item["name"] for item in attachments if item["id"].startswith("accepted-")}
     observations = [{"id": path.stem, "visible": "ILLUSTRATION_TEST_HIDDEN_INPUT" not in os.environ,
                      "observation": "The private square is uniformly dark.",
                      "use": "I used the square to check the clerk's coat."} for path in images]
     log = Path(os.environ["ILLUSTRATION_TEST_LOG"])
     # A successful process exit with an incomplete declared output must still fail the import.
     incomplete = "ILLUSTRATION_TEST_PARTIAL" in os.environ and log.exists()
-    with log.open("a", encoding="utf-8") as stream:
-        stream.write(json.dumps({"story": title.group(), "rating": "Teen" if "Teen" in request else "",
-                                 "references": references, "request": request,
-                                 "sandbox": sys.argv[sys.argv.index("--sandbox") + 1]}) + "\n")
     thread_id = str(uuid4())
     print(json.dumps({"type": "thread.started", "thread_id": thread_id}), flush=True)
     generated = Path(os.environ["CODEX_HOME"]) / "generated_images" / thread_id
-    cover_png = generated / ("ig_" + uuid4().hex + ".png")
-    clerk_png = generated / ("ig_" + uuid4().hex + ".png")
-    room_png = generated / ("ig_" + uuid4().hex + ".png")
-    save_image(cover_png, "blue", (864, 1536))
+    cover = "title-image.jpg"
     room = "art/interiors/reading-room.webp"
     clerk = "art/characters/clerk.webp"
-    save_image(room_png, "gold")
-    if not incomplete:
-        save_image(clerk_png, "white")
+    outputs = {}
+    for name, colour in ((cover, "blue"), (room, "gold"), (clerk, "white")):
+        if name in retained:
+            outputs[name] = None
+        else:
+            path = generated / ("ig_" + uuid4().hex + ".png")
+            if name != clerk or not incomplete:
+                save_image(path, colour, (864, 1536) if name == cover else (64, 96))
+            outputs[name] = str(path)
+    with log.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps({"story": title.group(), "rating": "Teen" if "Teen" in request else "",
+                                 "references": references, "request": request,
+                                 "requestedImages": [name for name, path in outputs.items() if path],
+                                 "sandbox": sys.argv[sys.argv.index("--sandbox") + 1]}) + "\n")
     report = Path(sys.argv[sys.argv.index("-o") + 1])
     report.write_text(json.dumps({
-        "cover": str(cover_png), "characters": [{"subject": "Clerk", "path": clerk, "generated": str(clerk_png)}],
-        "locations": [{"subject": "Reading room", "path": room, "generated": str(room_png)}],
+        "cover": outputs[cover], "characters": [{"subject": "Clerk", "path": clerk, "generated": outputs[clerk]}],
+        "locations": [{"subject": "Reading room", "path": room, "generated": outputs[room]}],
         "inputReviews": observations, "review": "Fixture reviewed all declared assets.",
     }))
 
@@ -151,8 +157,9 @@ class CompanionArtTests(unittest.TestCase):
             save_image(originals / "reillustrated/drafts/rejected.jpg", "black")
             save_image(originals / "unpublished/title-image.jpg", "black")
             python = (sys.executable, "-B", "-m")
-            importer = [*python, "scripts.sync_ratings", "--repository", str(source), "--revision", "HEAD",
-                        "--reference", "new-story/private, approved.png"]
+            import_command = [sys.executable, "-B", "scripts/sync_ratings.py", "--repository", str(source),
+                              "--revision", "HEAD"]
+            importer = [*import_command, "--reference", "new-story/private, approved.png"]
             for slug in slugs:
                 importer.extend(("--add-story", slug))
             env = install_codex_double(site / "bin")
@@ -202,8 +209,36 @@ class CompanionArtTests(unittest.TestCase):
 
             output = site / "_site"
             base = "/library-preview/"
-            run(site, *python, "scripts.build", "--offline", "--base-path", base,
-                "--site-url", "https://site.example", "--output", str(output))
+            build = [*python, "scripts.build", "--offline", "--base-path", base,
+                     "--site-url", "https://site.example", "--output", str(output)]
+            run(site, *build)
+
+            def published_files():
+                return {path.relative_to(site): sha256(path.read_bytes()).hexdigest()
+                        for directory in (content, static, output) for path in directory.rglob("*") if path.is_file()}
+
+            first_publication = published_files()
+            illustrator_log = log.read_bytes()
+            run(site, *importer, env=env)
+            run(site, *build)
+            self.assertEqual(log.read_bytes(), illustrator_log)
+            self.assertEqual(published_files(), first_publication)
+
+            retry = [*import_command, "--add-story", "new-story"]
+            run(site, *retry, "--include-prompt", env=env)
+            self.assertEqual(log.read_bytes(), illustrator_log)
+            self.assertEqual(published_files(), first_publication)
+            missing = "art/characters/clerk.webp"
+            (originals / "new-story" / missing).unlink()
+            refused = run(site, *retry, env=env, success=False)
+            self.assertIn("--reference", refused.stderr)
+            self.assertEqual(log.read_bytes(), illustrator_log)
+            run(site, *retry, "--reference", "new-story/private, approved.png", env=env)
+            repaired = [json.loads(line) for line in log.read_text().splitlines()[len(calls):]]
+            self.assertEqual([call["requestedImages"] for call in repaired], [[missing]])
+            private = {name: digest for name, digest in repaired[0]["references"].items() if name.startswith("ref-")}
+            self.assertEqual(private, {"ref-001.png": sha256(approved_bytes).hexdigest()})
+            self.assertEqual(published_files(), first_publication)
 
             gallery = json.loads((output / "art.json").read_text(encoding="utf-8"))
             urls = {item["id"]: item["full"] for item in gallery}
@@ -243,6 +278,23 @@ class CompanionArtTests(unittest.TestCase):
             with Image.open(output / locations["covers"]["new-story"]) as cover:
                 r, g, b = cover.convert("RGB").getpixel((5, 5))
                 self.assertGreater(b, max(r, g) + 100)
+
+            package = source / "stories/new-story"
+            with (package / "story.md").open("a", encoding="utf-8") as prose:
+                prose.write("\nA revised ending.\n")
+            (package / "prompt.md").write_text("# Prompt\n\nPrivate editorial request.\n", encoding="utf-8")
+            run(source, "git", "add", "stories/new-story/story.md", "stories/new-story/prompt.md")
+            run(source, "git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.org",
+                "-c", "commit.gpgsign=false", "-c", "core.hooksPath=.git/no-hooks", "commit", "-qm", "Revise prose")
+            run(site, *retry, "--include-prompt", "--reference", "new-story/private, approved.png", env=env)
+            updated = json.loads((content / "catalog.json").read_text(encoding="utf-8"))["stories"]
+            self.assertEqual([s["slug"] for s in updated], [s["slug"] for s in catalog["stories"]])
+            story = next(s for s in updated if s["slug"] == "new-story")
+            self.assertIn("A revised ending.", story["body"])
+            self.assertEqual(story["prompt"], "")
+            revision_calls = [json.loads(line) for line in log.read_text().splitlines()[len(calls) + len(repaired):]]
+            self.assertEqual([call["requestedImages"] for call in revision_calls], [[]])
+            self.assertEqual(revision_calls[0]["references"]["ref-001.png"], sha256(approved_bytes).hexdigest())
 
 
 if __name__ == "__main__" and sys.argv[1:2] == ["--fake-codex"]:

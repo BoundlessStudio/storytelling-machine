@@ -11,11 +11,11 @@ from collections import Counter
 from pathlib import Path
 
 if __package__:
-    from .illustrate_import import ensure_illustrations
+    from .illustrate_import import SLUG, ensure_illustrations
     from .import_snapshot import import_lock, install_snapshot
     from .story_art import local_file
 else:
-    from illustrate_import import ensure_illustrations
+    from illustrate_import import SLUG, ensure_illustrations
     from import_snapshot import import_lock, install_snapshot
     from story_art import local_file
 
@@ -191,15 +191,25 @@ def _sync(repository: Path, revision: str, add_stories: list[str],
         ["git", "-C", str(repository), "ls-tree", "-rz", "--name-only", commit, "stories"],
         encoding="utf-8"
     ).split("\0"))
-    approved = {slug: [] for slug in add_stories}
+    approved: dict[str, list[str]] = {}
+    for slug in add_stories:
+        if not re.fullmatch(SLUG, slug):
+            raise ValueError(f"Invalid --add-story slug: {slug}")
+        if slug in approved:
+            raise ValueError(f"Duplicate --add-story slug: {slug}")
+        approved[slug] = []
     for entry in references:
         slug, slash, filename = entry.partition("/")
         if not slash or slug not in approved or not filename or "/" in filename or "\\" in filename:
             raise ValueError(f"Expected --reference SLUG/FILENAME for a story in this import: {entry}")
+        if any(filename.casefold() == name.casefold() for name in approved[slug]):
+            raise ValueError(f"Duplicate --reference filename: {entry}")
+        if f"stories/{slug}/art/references/{filename}" not in paths:
+            raise ValueError(f"Approved reference is missing from the pinned revision: {entry}")
         approved[slug].append(filename)
     for add_story in add_stories:
-        if add_story in slugs or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", add_story):
-            raise ValueError("Invalid or duplicate new story slug")
+        if add_story in slugs:
+            continue
         prefix = f"stories/{add_story}/"
         prompt_path = next((prefix + name for name in ("prompt.md", "00-prompt.md") if prefix + name in paths),
                            prefix + "prompt.md")
@@ -208,7 +218,6 @@ def _sync(repository: Path, revision: str, add_stories: list[str],
             prompt = writing_prompt(git_text(repository, commit, prompt_path), add_story,
                                    tagged_only=not include_prompt)
         stories.insert(0, new_story(repository, commit, add_story, prompt=prompt, path=source_prose_path(add_story, paths)))
-        slugs.add(add_story)
     stories[:] = [refresh_story(repository, commit, story, paths) for story in stories]
     for story in stories:
         story["rating"] = source_rating(repository, commit, story["slug"])
@@ -244,7 +253,7 @@ if __name__ == "__main__":
     parser.add_argument("--repository", type=Path, required=True)
     parser.add_argument("--revision", default="origin/main")
     parser.add_argument("--add-story", action="append", dest="add_stories", default=[],
-                        help="Import a newly published story; repeat for multiple stories, oldest first")
+                        help="Import or retry a published story. List new stories oldest first.")
     parser.add_argument("--include-prompt", action="store_true",
                         help="Also publish the untagged opening request from prompt.md on new stories")
     parser.add_argument("--reference", action="append", default=[], metavar="SLUG/FILENAME",
