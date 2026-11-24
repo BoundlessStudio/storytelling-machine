@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from scripts.import_snapshot import install_snapshot
 from scripts.sync_ratings import refresh_story, sync, writing_prompt
 
 
@@ -152,6 +153,126 @@ class SourceSyncTests(unittest.TestCase):
         with patch("scripts.sync_ratings.git_text", return_value="---\ntitle: Empty\n---\n\n"):
             with self.assertRaisesRegex(ValueError, "Missing story prose"):
                 refresh_story(Path("source"), "commit", {"slug": "empty"}, {"stories/empty/story.md"})
+
+
+class RetainedEditionTests(unittest.TestCase):
+    def setUp(self) -> None:
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.root = Path(directory.name)
+        self.content = self.root / "content"
+        self.content.mkdir()
+        self.published = {
+            "slug": "archived", "title": "Archived", "body": "# Archived\n\nPublished prose.",
+            "created": "2025-01-15", "createdAt": "2025-01-15T15:00:00Z", "edited": "2025-04-08",
+            "rating": "Mature", "canon": True, "status": "reviewed", "prompt": "An old request.",
+            "cover": "covers/archived.jpg",
+        }
+        self.digest = sha256(b"published cover").hexdigest()
+        self.indexed_cover = {"path": "stories/archived/title-image.jpg", "sha256": self.digest}
+        self.write("catalog", {"stories": [self.published]})
+        self.write("source", {"commit": "a" * 40})
+        self.write("covers", {"covers/archived.jpg": self.digest})
+        self.write("media-index", {"assets": [self.indexed_cover]})
+        self.write("rating-overrides", {})
+        self.files = {
+            "stories/current/story.md": b"---\ntitle: Current\ncreated: 2026-01-15\n---\nCurrent prose.\n",
+            "stories/current/ratings.md": b"# Rating\n\nTeen\n",
+            "stories/current/title-image.jpg": b"current cover",
+        }
+        self.enterContext(patch("scripts.sync_ratings.ROOT", self.root))
+        self.enterContext(patch("scripts.sync_ratings.subprocess.check_output", side_effect=self.git))
+        self.illustrate = self.enterContext(patch("scripts.sync_ratings.ensure_illustrations"))
+        self.enterContext(patch("scripts.sync_ratings.install_snapshot", side_effect=self.install))
+
+    def write(self, name, document):
+        (self.content / f"{name}.json").write_text(json.dumps(document), encoding="utf-8")
+
+    def read(self, name):
+        return json.loads((self.content / f"{name}.json").read_text(encoding="utf-8"))
+
+    def git(self, args, **kwargs):
+        command = args[3]
+        if command == "rev-parse":
+            return args[4].removesuffix("^{commit}") + "\n"
+        if command == "ls-tree":
+            return "\0".join(self.files) + "\0"
+        if command == "show":
+            return self.files[args[4].split(":", 1)[1]]
+        if command == "log":
+            return "2026-01-15\n"
+        self.fail(f"Unexpected git command: {args}")
+
+    def install(self, root, repository, documents, *, prepare_art):
+        install_snapshot(root, repository, documents, prepare_art=False)
+
+    def test_explicit_import_retains_edition_until_its_source_returns(self) -> None:
+        for revision in ("b" * 40, "c" * 40):
+            sync(Path("source"), revision, ["current"])
+            stories = self.read("catalog")["stories"]
+            self.assertEqual([story["slug"] for story in stories], ["current", "archived"])
+            self.assertEqual(stories[1], self.published)
+            self.assertEqual(self.read("covers")["covers/archived.jpg"], self.digest)
+            for document in ("source", "ratings-source"):
+                manifest = self.read(document)
+                self.assertEqual(manifest["commit"], revision)
+                self.assertEqual(manifest["retainedStoryCommits"], {"archived": "a" * 40})
+            self.assertEqual(self.read("ratings-source")["counts"], {"Teen": 1, "Mature": 1})
+            self.assertEqual(self.illustrate.call_args.args[3], "current")
+
+        self.files.update({
+            "stories/archived/05-story.md": b"---\ntitle: Returned\n---\nRevised upstream prose.\n",
+            "stories/archived/ratings.md": b"# Rating\n\nGeneral\n",
+            "stories/archived/title-image.jpg": b"returned cover",
+        })
+        sync(Path("source"), "d" * 40, ["current"])
+        restored = self.read("catalog")["stories"][1]
+        self.assertEqual(restored["body"], "# Returned\n\nRevised upstream prose.")
+        self.assertEqual(restored["rating"], "General")
+        self.assertEqual(self.read("covers")["covers/archived.jpg"], sha256(b"returned cover").hexdigest())
+        for document in ("source", "ratings-source"):
+            self.assertNotIn("retainedStoryCommits", self.read(document))
+
+    def test_site_owned_cover_is_verified_before_indexed_art(self) -> None:
+        cover = self.root / "static/story-art/archived/title-image.jpg"
+        cover.parent.mkdir(parents=True)
+        cover.write_bytes(b"published cover")
+        (self.content / "media-index.json").unlink()
+        sync(Path("source"), "b" * 40, ["current"])
+        self.assertEqual(self.read("covers")["covers/archived.jpg"], self.digest)
+        self.write("media-index", {"assets": [self.indexed_cover]})
+        cover.write_bytes(b"changed local cover")
+        with self.assertRaisesRegex(ValueError, "Cannot verify approved cover digest for archived"):
+            sync(Path("source"), "c" * 40, ["current"])
+        self.assertEqual(self.read("source")["commit"], "b" * 40)
+
+    def test_missing_selected_partial_and_bulk_packages_remain_errors(self) -> None:
+        for selected, missing in (([], "archived"), (["archived"], "archived"), (["unknown"], "unknown")):
+            with self.subTest(selected=selected), self.assertRaisesRegex(ValueError, f"Missing source prose for {missing}"):
+                sync(Path("source"), "b" * 40, selected)
+        self.files["stories/archived/ratings.md"] = b"# Rating\n\nTeen\n"
+        with self.assertRaisesRegex(ValueError, "Missing source prose for archived"):
+            sync(Path("source"), "b" * 40, ["current"])
+        self.assertEqual(self.read("catalog"), {"stories": [self.published]})
+        self.assertEqual(self.read("source"), {"commit": "a" * 40})
+        self.illustrate.assert_not_called()
+
+    def test_retention_requires_approved_digest_and_matching_edition_cover(self) -> None:
+        for covers, assets, reason in (
+            ({}, [self.indexed_cover], "Missing or invalid"),
+            ({"covers/archived.jpg": "bad"}, [self.indexed_cover], "Missing or invalid"),
+            ({"covers/archived.jpg": self.digest}, [], "Cannot verify"),
+            ({"covers/archived.jpg": self.digest}, [dict(self.indexed_cover, sha256="f" * 64)], "Cannot verify"),
+            ({"covers/archived.jpg": self.digest}, [dict(self.indexed_cover, path="stories/other/title-image.jpg")],
+             "Cannot verify"),
+        ):
+            with self.subTest(covers=covers, assets=assets):
+                self.write("covers", covers)
+                self.write("media-index", {"assets": assets})
+                with self.assertRaisesRegex(ValueError, f"{reason} approved cover digest for archived"):
+                    sync(Path("source"), "b" * 40, ["current"])
+                self.assertEqual(self.read("catalog"), {"stories": [self.published]})
+                self.illustrate.assert_not_called()
 
 
 if __name__ == "__main__":

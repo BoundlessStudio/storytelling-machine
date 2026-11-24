@@ -169,6 +169,40 @@ def refresh_story(repository: Path, commit: str, story: dict, paths: set[str]) -
     return updated
 
 
+def retained_editions(stories: list[dict]) -> tuple[dict[str, str], dict[str, str]]:
+    """Carry forward published editions whose entire source package is absent."""
+    content = ROOT / "content"
+    static = ROOT / "static"
+    source = json.loads((content / "source.json").read_text(encoding="utf-8"))
+    previous_covers = json.loads((content / "covers.json").read_text(encoding="utf-8"))
+    indexed_assets = None
+    commits, covers = {}, {}
+    for story in stories:
+        slug = story["slug"]
+        commit = source.get("retainedStoryCommits", {}).get(slug, source.get("commit"))
+        if not isinstance(commit, str) or not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", commit):
+            raise ValueError(f"Missing or invalid previous source commit for {slug}")
+        if story["rating"] not in RATINGS:
+            raise ValueError(f"Missing or unsupported published rating for {slug}")
+        digest = previous_covers.get(story["cover"])
+        if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+            raise ValueError(f"Missing or invalid approved cover digest for {slug}")
+        cover = static / "story-art" / slug / "title-image.jpg"
+        if local_file(cover, static):
+            matches = hashlib.sha256(cover.read_bytes()).hexdigest() == digest
+        else:
+            if indexed_assets is None:
+                index = content / "media-index.json"
+                indexed_assets = json.loads(index.read_text(encoding="utf-8"))["assets"] if index.is_file() else []
+            path = f"stories/{slug}/title-image.jpg"
+            matches = [item["sha256"] for item in indexed_assets if item["path"] == path] == [digest]
+        if not matches:
+            raise ValueError(f"Cannot verify approved cover digest for {slug}")
+        commits[slug] = commit
+        covers[story["cover"]] = digest
+    return commits, covers
+
+
 def sync(repository: Path, revision: str, add_stories: list[str] | None = None,
          *, include_prompt: bool = False, references: list[str] | None = None) -> None:
     with import_lock(ROOT):
@@ -207,9 +241,17 @@ def _sync(repository: Path, revision: str, add_stories: list[str],
         if f"stories/{slug}/art/references/{filename}" not in paths:
             raise ValueError(f"Approved reference is missing from the pinned revision: {entry}")
         approved[slug].append(filename)
+    retained_commits: dict[str, str] = {}
+    covers: dict[str, str] = {}
+    if add_stories:
+        packages = {path.split("/", 2)[1] for path in paths if path.startswith("stories/")}
+        absent = slugs - packages - approved.keys()
+        if absent:
+            retained_commits, covers = retained_editions([story for story in stories if story["slug"] in absent])
     for add_story in add_stories:
         if add_story in slugs:
             continue
+        prose_path = source_prose_path(add_story, paths)
         prefix = f"stories/{add_story}/"
         prompt_path = next((prefix + name for name in ("prompt.md", "00-prompt.md") if prefix + name in paths),
                            prefix + "prompt.md")
@@ -217,15 +259,19 @@ def _sync(repository: Path, revision: str, add_stories: list[str],
         if include_prompt or prompt_path in paths:
             prompt = writing_prompt(git_text(repository, commit, prompt_path), add_story,
                                    tagged_only=not include_prompt)
-        stories.insert(0, new_story(repository, commit, add_story, prompt=prompt, path=source_prose_path(add_story, paths)))
-    stories[:] = [refresh_story(repository, commit, story, paths) for story in stories]
-    for story in stories:
-        story["rating"] = source_rating(repository, commit, story["slug"])
+        stories.insert(0, new_story(repository, commit, add_story, prompt=prompt, path=prose_path))
+    for position, story in enumerate(stories):
+        slug = story["slug"]
+        if slug not in retained_commits:
+            refreshed = refresh_story(repository, commit, story, paths)
+            refreshed["rating"] = source_rating(repository, commit, slug)
+            stories[position] = refreshed
     for slug in add_stories:
         ensure_illustrations(ROOT, repository, commit, slug, paths, approved_references=approved[slug])
-    covers = {}
     for story in stories:
         slug = story["slug"]
+        if slug in retained_commits:
+            continue
         cover = ROOT / "static" / "story-art" / slug / "title-image.jpg"
         historical = f"stories/{slug}/title-image.jpg"
         if local_file(cover, ROOT / "static"):
@@ -236,6 +282,8 @@ def _sync(repository: Path, revision: str, add_stories: list[str],
             raise ValueError(f"Missing accepted cover for {slug}")
         covers[story["cover"]] = hashlib.sha256(data).hexdigest()
     source = {"repository": "BoundlessStudio/story-computing-machine", "commit": commit}
+    if retained_commits:
+        source["retainedStoryCommits"] = dict(sorted(retained_commits.items()))
     ratings = dict(source, stories=len(stories), counts=dict(sorted(Counter(s["rating"] for s in stories).items())),
                    localOverrides=json.loads((ROOT / "content" / "rating-overrides.json").read_text(encoding="utf-8")))
     documents = {
@@ -245,7 +293,9 @@ def _sync(repository: Path, revision: str, add_stories: list[str],
         "catalog.json": json.dumps(catalog, ensure_ascii=False, separators=(",", ":")) + "\n",
     }
     install_snapshot(ROOT, repository, documents, prepare_art=bool(add_stories))
-    print(f"Refreshed {len(stories)} stories and ratings from {commit[:12]}")
+    print(f"Refreshed {len(stories) - len(retained_commits)} stories and ratings from {commit[:12]}")
+    for slug, retained_commit in retained_commits.items():
+        print(f"Retained published edition of {slug} from {retained_commit[:12]}")
 
 
 if __name__ == "__main__":

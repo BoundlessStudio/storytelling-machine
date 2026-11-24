@@ -26,11 +26,11 @@ from urllib.request import Request, urlopen
 from PIL import Image, ImageOps, ImageStat
 
 try:
-    from scripts.build import CONTENT, ROOT, friendly_name, published_media_assets
+    from scripts.build import CONTENT, ROOT, excluded_art_paths, friendly_name, published_media_assets
 except ModuleNotFoundError:  # executed as a file
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from scripts.build import CONTENT, ROOT, friendly_name, published_media_assets
+    from scripts.build import CONTENT, ROOT, excluded_art_paths, friendly_name, published_media_assets
 
 OUTPUT = ROOT / "static" / "panorama"
 CACHE = ROOT / ".cache" / "panorama-originals"
@@ -38,8 +38,60 @@ LANDSCAPE_WIDTH, COVER_WIDTH, STUDY_WIDTH = 1400, 540, 520
 ATLAS_COLS, ATLAS_ROWS, TILE_W, TILE_H = 25, 14, 80, 142
 
 
+def preparation_assets(index: dict, content: Path) -> tuple[dict, set[str]]:
+    """Use only existing site derivatives for editions retained at an earlier writing revision."""
+    assets = published_media_assets(index)
+    source = content / "source.json"
+    pins = json.loads(source.read_text(encoding="utf-8")) if source.is_file() else {}
+    retained = set(pins.get("retainedStoryCommits", {}))
+    if not retained:
+        return assets, retained
+    retained_prefixes = tuple(f"stories/{slug}/" for slug in retained)
+    assets = {path: item for path, item in assets.items() if not path.startswith(retained_prefixes)}
+    locations = json.loads((CONTENT / "story-locations.json").read_text(encoding="utf-8"))
+    panorama = json.loads((CONTENT / "panorama.json").read_text(encoding="utf-8"))
+    stops = {stop["slug"]: stop for stop in panorama["stops"]}
+    excluded = excluded_art_paths()
+    static = ROOT / "static"
+
+    def add(logical: str, relative: str, allowed: tuple[str, ...], metadata: dict) -> None:
+        if logical in excluded:
+            return
+        path = static / relative
+        if relative not in allowed or path.resolve() != static.resolve() / relative or not path.is_file():
+            raise ValueError(f"Missing or unsafe retained derivative for {logical}: {relative}")
+        assets[logical] = {"path": logical, "contentType": "image/webp", "prepared_file": path,
+                           "metadata": {key: value for key, value in metadata.items() if key != "src"}}
+
+    for slug in retained:
+        if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", slug):
+            raise ValueError(f"Invalid retained story slug: {slug}")
+        cover = f"stories/{slug}/title-image.jpg"
+        if cover in excluded:
+            raise ValueError(f"Retained cover is excluded: {cover}")
+        add(cover, locations["covers"][slug],
+            (f"panorama/{slug}-cover.webp", f"story-covers/{slug}.webp"), {})
+        place = locations["locations"][slug]
+        source_path = place["source"]
+        if source_path is None:
+            if place["src"] != "location-fallback.webp":
+                raise ValueError(f"Invalid retained location fallback for {slug}: {place['src']}")
+        else:
+            if not re.fullmatch(rf"stories/{slug}/art/(?:landscapes|interiors)/[^/\\]+", source_path):
+                raise ValueError(f"Invalid retained location source for {slug}: {source_path}")
+            add(source_path, place["src"], (f"panorama/{slug}-land.webp", f"story-locations/{slug}.webp"), place)
+        study = stops.get(slug, {}).get("study")
+        if study:
+            if not re.fullmatch(rf"stories/{slug}/art/characters/[^/\\]+", study["source"]):
+                raise ValueError(f"Invalid retained character source for {slug}: {study['source']}")
+            add(study["source"], study["src"], (f"panorama/{slug}-study.webp",), study)
+    return assets, retained
+
+
 def fetch(item: dict, repository: Path | None) -> bytes:
     """Read a presentation original, or resolve a historical source via checkout, cache or R2."""
+    if "prepared_file" in item:
+        return item["prepared_file"].read_bytes()
     if "local_file" in item:
         data = item["local_file"].read_bytes()
         if sha256(data).hexdigest() != item["sha256"]:
@@ -89,6 +141,16 @@ def to_webp(data: bytes, width: int, quality: int) -> tuple[bytes, Image.Image]:
     buffer = io.BytesIO()
     image.save(buffer, "WEBP", quality=quality, method=6)
     return buffer.getvalue(), image
+
+
+def prepare_image(item: dict, repository: Path | None, width: int, quality: int) -> tuple[bytes, Image.Image]:
+    data = fetch(item, repository)
+    if "prepared_file" in item:
+        with Image.open(io.BytesIO(data)) as image:
+            if image.format != "WEBP":
+                raise ValueError(f"Invalid retained WebP: {item['prepared_file']}")
+            return data, image.convert("RGB")
+    return to_webp(data, width, quality)
 
 
 def band_colour(image: Image.Image, top: float, bottom: float) -> str:
@@ -164,8 +226,8 @@ def main() -> None:
     args = parser.parse_args()
 
     index = json.loads((CONTENT / "media-index.json").read_text(encoding="utf-8"))
-    assets = published_media_assets(index)
     content = args.output_root / "content"
+    assets, retained = preparation_assets(index, content)
     output = args.output_root / "static" / "panorama"
     stories = json.loads((content / "catalog.json").read_text(encoding="utf-8"))["stories"]
     selection = choose_pool(stories, assets, args.pool, args.newest)
@@ -177,8 +239,8 @@ def main() -> None:
         slug = story["slug"]
         cover_item = assets[f"stories/{slug}/title-image.jpg"]
         land_item = assets[chosen["landscape"]]
-        cover_bytes, _ = to_webp(fetch(cover_item, args.repository), COVER_WIDTH, 70)
-        land_bytes, land_image = to_webp(fetch(land_item, args.repository), LANDSCAPE_WIDTH, 60)
+        cover_bytes, _ = prepare_image(cover_item, args.repository, COVER_WIDTH, 70)
+        land_bytes, land_image = prepare_image(land_item, args.repository, LANDSCAPE_WIDTH, 60)
         files = {"cover": (f"{slug}-cover.webp", cover_bytes), "landscape": (f"{slug}-land.webp", land_bytes)}
         entry = {
             "slug": slug,
@@ -190,15 +252,17 @@ def main() -> None:
                 "sky": band_colour(land_image, 0, .3),
                 "ground": band_colour(land_image, .72, 1),
                 "source": chosen["landscape"],
+                **land_item.get("metadata", {}),
             },
         }
         if chosen["study"]:
-            study_bytes, study_image = to_webp(fetch(assets[chosen["study"]], args.repository), STUDY_WIDTH, 66)
+            study_item = assets[chosen["study"]]
+            study_bytes, study_image = prepare_image(study_item, args.repository, STUDY_WIDTH, 66)
             extras.append((slug, "study", study_image))
             files["study"] = (f"{slug}-study.webp", study_bytes)
             entry["study"] = {"src": f"panorama/{slug}-study.webp", "title": friendly_name(chosen["study"]),
                               "width": study_image.width, "height": study_image.height,
-                              "source": chosen["study"]}
+                              "source": chosen["study"], **study_item.get("metadata", {})}
         extras.append((slug, "place", land_image.crop((land_image.width // 3, 0, land_image.width * 2 // 3, land_image.height))))
         for name, data in files.values():
             (output / name).write_bytes(data)
@@ -212,12 +276,16 @@ def main() -> None:
         if story["slug"] in pooled:
             continue
         name = f"{story['slug']}-cover.webp"
-        data, _ = to_webp(fetch(assets[f"stories/{story['slug']}/title-image.jpg"], args.repository), COVER_WIDTH, 70)
+        data, _ = prepare_image(assets[f"stories/{story['slug']}/title-image.jpg"], args.repository, COVER_WIDTH, 70)
         (output / name).write_bytes(data)
         keep.add(name)
         total += len(data)
         extra_covers[story["slug"]] = f"panorama/{name}"
     atlas = build_atlas(stories, assets, extras, args.repository, output)
+    # Standalone in-place preparation must leave previous inputs readable for sync_story_locations.
+    if retained and args.output_root.resolve() == ROOT.resolve():
+        keep.update(item["prepared_file"].name for item in assets.values()
+                    if "prepared_file" in item and item["prepared_file"].parent.resolve() == output.resolve())
     for stale in output.glob("*.webp"):
         if stale.name not in keep:
             stale.unlink()

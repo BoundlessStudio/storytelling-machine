@@ -12,8 +12,8 @@ from hashlib import sha256
 import json
 from pathlib import Path
 
-from scripts.build import CONTENT, ROOT, excluded_art_paths, published_media_assets
-from scripts.sync_panorama import art_path_order, band_colour, fetch, place_title, to_webp
+from scripts.build import CONTENT, ROOT, excluded_art_paths
+from scripts.sync_panorama import art_path_order, band_colour, place_title, preparation_assets, prepare_image, to_webp
 
 
 def main() -> None:
@@ -26,7 +26,7 @@ def main() -> None:
     content = args.output_root / "content"
     stories = json.loads((content / "catalog.json").read_text(encoding="utf-8"))["stories"]
     media_index = json.loads((CONTENT / "media-index.json").read_text(encoding="utf-8"))
-    assets = published_media_assets(media_index)
+    assets, retained = preparation_assets(media_index, content)
     excluded = excluded_art_paths()
     panorama = json.loads((content / "panorama.json").read_text(encoding="utf-8"))
     prepared = {stop["slug"]: stop["landscape"] for stop in panorama["stops"]
@@ -40,25 +40,28 @@ def main() -> None:
     covers = {}
     local_sources = {}
     previous = CONTENT / "story-locations.json"
-    approved_hashes = (json.loads(previous.read_text(encoding="utf-8")).get("localSourceHashes", {})
-                       if previous.is_file() else {})
+    last = json.loads(previous.read_text(encoding="utf-8")) if previous.is_file() else {}
+    approved_hashes = last.get("localSourceHashes", {})
     for story in stories:
         slug = story["slug"]
         if slug in prepared_covers:
             covers[slug] = prepared_covers[slug]
         else:
             name = f"{slug}.webp"
-            data, _ = to_webp(fetch(assets[f"stories/{slug}/title-image.jpg"], args.repository), 540, 70)
+            data, _ = prepare_image(assets[f"stories/{slug}/title-image.jpg"], args.repository, 540, 70)
             (cover_output / name).write_bytes(data)
             covers[slug] = f"story-covers/{name}"
         if slug in prepared:
             entries[slug] = prepared[slug]
+            source = prepared[slug]["source"]
+            if slug in retained and source in approved_hashes:
+                local_sources[source] = approved_hashes[source]
             continue
         prefixes = [f"stories/{slug}/art/{kind}/" for kind in ("landscapes", "interiors")]
         source = next((path for prefix in prefixes for path in sorted(assets, key=art_path_order)
                        if path.startswith(prefix) and assets[path]["contentType"].startswith("image/")), None)
         local_original = None
-        if source is None and args.repository:
+        if source is None and args.repository and slug not in retained:
             # Only a previously pinned historical painting may come from the writing checkout.
             for candidate in sorted(approved_hashes, key=art_path_order):
                 if candidate in excluded or candidate.count("/") != 4 or not candidate.startswith(tuple(prefixes)):
@@ -71,16 +74,23 @@ def main() -> None:
                         local_sources[source] = approved_hashes[source]
                         break
         if source is None:
-            entries[slug] = {"src": "location-fallback.webp", "title": "A place beyond the page",
-                             "sky": "#53617c", "ground": "#393835", "source": None}
+            if slug in retained and last["locations"][slug]["source"] is None:
+                entries[slug] = last["locations"][slug]
+            else:
+                entries[slug] = {"src": "location-fallback.webp", "title": "A place beyond the page",
+                                 "sky": "#53617c", "ground": "#393835", "source": None}
             continue
         name = f"{slug}.webp"
-        original = local_original if local_original is not None else fetch(assets[source], args.repository)
-        data, image = to_webp(original, 1400, 60)
+        if local_original is not None:
+            data, image = to_webp(local_original, 1400, 60)
+        else:
+            data, image = prepare_image(assets[source], args.repository, 1400, 60)
+        if slug in retained and source in approved_hashes:
+            local_sources[source] = approved_hashes[source]
         (output / name).write_bytes(data)
         entries[slug] = {"src": f"story-locations/{name}", "title": place_title(source),
                          "sky": band_colour(image, 0, .3), "ground": band_colour(image, .72, 1),
-                         "source": source}
+                         "source": source, **assets.get(source, {}).get("metadata", {})}
 
     manifest = {"schemaVersion": 1, "sourceCommit": media_index["sourceCommit"], "locations": entries,
                 "covers": covers, "localSourceHashes": local_sources}
