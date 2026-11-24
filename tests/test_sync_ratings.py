@@ -194,6 +194,7 @@ class PublishedImportTests(unittest.TestCase):
         self.write("source", {"commit": "a" * 40})
         self.write("covers", {"covers/archived.jpg": self.digest})
         self.write("media-index", {"assets": [self.indexed_cover]})
+        self.write("art-exclusions", {"paths": []})
         self.write("rating-overrides", {})
         self.files = {
             "stories/current/story.md": b"---\ntitle: Current\ncreated: 2026-01-15\n---\nCurrent prose.\n",
@@ -279,6 +280,24 @@ class PublishedImportTests(unittest.TestCase):
         self.write("media-index", {"assets": [self.indexed_cover]})
         cover.write_bytes(b"changed local cover")
         with self.assertRaisesRegex(ValueError, "Cannot verify approved cover digest for archived"):
+            sync(Path("source"), "c" * 40, ["current"])
+        self.assertEqual(self.read("source")["commit"], "b" * 40)
+
+    def test_archived_edition_survives_an_index_refresh_and_rejects_a_damaged_texture(self) -> None:
+        relative = "panorama/archived-cover.webp"
+        texture = self.root / "static" / relative
+        texture.parent.mkdir(parents=True)
+        texture.write_bytes(b"published derivative")
+        self.write("story-locations", {"covers": {"archived": relative}})
+        self.write("art-exclusions", {"paths": [], "archivedEditions": {"archived": {
+            "withdrawnOriginals": {"title-image.jpg": self.digest},
+            "preparedCoverSha256": sha256(texture.read_bytes()).hexdigest()}}})
+        self.write("media-index", {"assets": []})
+        sync(Path("source"), "b" * 40, ["current"])
+        self.assertEqual(self.read("covers")["covers/archived.jpg"], self.digest)
+        self.assertEqual(self.read("catalog")["stories"][1], self.published)
+        texture.write_bytes(b"changed derivative")
+        with self.assertRaisesRegex(ValueError, "Cannot verify archived reader cover"):
             sync(Path("source"), "c" * 40, ["current"])
         self.assertEqual(self.read("source")["commit"], "b" * 40)
 

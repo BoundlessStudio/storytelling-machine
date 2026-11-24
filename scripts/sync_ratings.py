@@ -13,11 +13,11 @@ from pathlib import Path
 if __package__:
     from .illustrate_import import SLUG, ensure_illustrations
     from .import_snapshot import import_lock, install_snapshot
-    from .story_art import local_file
+    from .story_art import local_file, verified_archived_cover
 else:
     from illustrate_import import SLUG, ensure_illustrations
     from import_snapshot import import_lock, install_snapshot
-    from story_art import local_file
+    from story_art import local_file, verified_archived_cover
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -188,6 +188,7 @@ def retained_editions(stories: list[dict]) -> tuple[dict[str, str], dict[str, st
     static = ROOT / "static"
     source = json.loads((content / "source.json").read_text(encoding="utf-8"))
     previous_covers = json.loads((content / "covers.json").read_text(encoding="utf-8"))
+    exclusions = json.loads((content / "art-exclusions.json").read_text(encoding="utf-8"))
     indexed_assets = None
     commits, covers = {}, {}
     for story in stories:
@@ -201,8 +202,15 @@ def retained_editions(stories: list[dict]) -> tuple[dict[str, str], dict[str, st
         if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
             raise ValueError(f"Missing or invalid approved cover digest for {slug}")
         cover = static / "story-art" / slug / "title-image.jpg"
+        edition = exclusions.get("archivedEditions", {}).get(slug)
         if local_file(cover, static):
             matches = hashlib.sha256(cover.read_bytes()).hexdigest() == digest
+        elif edition and edition["withdrawnOriginals"]["title-image.jpg"] == digest:
+            if f"stories/{slug}/title-image.jpg" in exclusions["paths"]:
+                raise ValueError(f"Retained cover is excluded: {slug}")
+            prepared = json.loads((content / "story-locations.json").read_text(encoding="utf-8"))["covers"]
+            verified_archived_cover(static, slug, edition, digest, prepared)
+            matches = True
         else:
             if indexed_assets is None:
                 index = content / "media-index.json"

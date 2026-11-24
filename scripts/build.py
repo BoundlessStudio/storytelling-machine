@@ -18,9 +18,9 @@ from urllib.request import Request, urlopen
 import markdown
 
 if __package__:
-    from .story_art import local_artwork
+    from .story_art import local_artwork, verified_archived_cover
 else:
-    from story_art import local_artwork
+    from story_art import local_artwork, verified_archived_cover
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -112,8 +112,14 @@ def excluded_art_paths() -> set[str]:
 def published_media_assets(index: dict, base: str = "/") -> dict[str, dict]:
     """Keep removed art out of publication even when an upstream index retains it."""
     assets = validate_media_index(index)
+    exclusions = read_json("art-exclusions.json")
+    for slug, edition in exclusions.get("archivedEditions", {}).items():
+        for relative, digest in edition["withdrawnOriginals"].items():
+            path = f"stories/{slug}/{relative}"
+            if path in assets and assets[path]["sha256"] == digest:
+                del assets[path]
     assets.update(local_artwork(STATIC, base))
-    excluded = excluded_art_paths()
+    excluded = set(exclusions["paths"])
     return {path: item for path, item in assets.items() if path not in excluded}
 
 
@@ -260,9 +266,20 @@ def make_art(index: dict, stories: list[dict], base: str,
                         "slug": slug, "type": kind, "full": item["url"],
                         "thumbnail": previous["thumbnail"] if previous else alternate_thumbnails.get(path, item["url"]),
                         "reader": reader})
-    missing = [story["slug"] for story in stories if story["slug"] not in covers]
+    exclusions = read_json("art-exclusions.json")
+    editions = exclusions.get("archivedEditions", {})
+    archived = (story_by_slug.keys() - covers.keys()) & editions.keys()
+    if archived:
+        approved = read_json("covers.json")
+        prepared = read_json("story-locations.json")["covers"]
+        for slug in archived:
+            if f"stories/{slug}/title-image.jpg" not in exclusions["paths"]:
+                digest = approved.get(story_by_slug[slug]["cover"])
+                path = verified_archived_cover(STATIC, slug, editions[slug], digest, prepared)
+                covers[slug] = base + path.relative_to(STATIC).as_posix()
+    missing = story_by_slug.keys() - covers.keys()
     if missing:
-        raise ValueError("Add a presentation cover at static/story-art/<slug>/title-image.jpg for: " + ", ".join(missing))
+        raise ValueError("Add a presentation cover at static/story-art/<slug>/title-image.jpg for: " + ", ".join(sorted(missing)))
     gallery.sort(key=lambda art: (order.get(art["slug"], len(order)), ART_TYPES.index(art["type"]), art["title"]))
     return gallery, covers
 
@@ -309,6 +326,7 @@ def library_scene_data(stories: list[dict], art: list[dict], base: str) -> dict:
     locations = location_manifest["locations"]
     excluded = excluded_art_paths()
     by_slug = {story["slug"]: story for story in stories}
+    gallery_slugs = {item["slug"] for item in art}
     references = defaultdict(list)
     for item in art:
         if item["type"] != "Covers" and item["slug"] in by_slug:
@@ -356,7 +374,7 @@ def library_scene_data(stories: list[dict], art: list[dict], base: str) -> dict:
                 break
         books.append(story_fields(story) | {"cover": base + prepared[slug],
                      "slot": cover_slots[slug], "references": studies,
-                     "art": base + "art/?story=" + quote(slug)})
+                     "art": base + "art/?story=" + quote(slug) if slug in gallery_slugs else None})
     return {"base": base, "total": len(books), "stories": books,
             "atlasSrc": base + atlas["src"], "atlas": {"cols": atlas["cols"], "rows": atlas["rows"]}}
 
@@ -364,6 +382,7 @@ def library_scene_data(stories: list[dict], art: list[dict], base: str) -> dict:
 def build_living_library(base: str, site_url: str, stories: list[dict], art: list[dict]) -> str:
     scene = library_scene_data(stories, art, base)
     first = scene["stories"][0]
+    gallery_link = f'href="{esc(first["art"])}"' if first["art"] else "hidden"
     data = json.dumps(scene, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     # Keep the loading gate in the document so delayed CSS or modules cannot
     # expose unpositioned paper and controls before the first rendered frame.
@@ -413,7 +432,7 @@ body:not(.is-library-loading) .ll-loading{opacity:0;visibility:hidden;pointer-ev
 <aside class="ll-prompt" id="ll-prompt" aria-labelledby="ll-prompt-heading"><div class="ll-prompt-copy"><p id="ll-prompt-text">{esc(first['prompt'])}</p></div><div class="ll-story" id="ll-story"><p class="ll-story-meta" id="ll-story-meta">{esc(first['rating'])} · Original fiction</p><h3 id="ll-story-title">{esc(first['title'])}</h3></div></aside>
 <h2 class="ll-prompt-label" id="ll-prompt-heading">{esc(first["cardLabel"])}</h2>
 <a class="ll-book-link" id="ll-read" href="{first['url']}" aria-label="Read {esc(first['title'])}"><span class="ll-announcement">Read this story</span></a>
-<a class="ll-art-link" id="ll-art-link" href="{first['art']}">Reference studies <span aria-hidden="true">↗</span></a>
+<a class="ll-art-link" id="ll-art-link" {gallery_link}>Reference studies <span aria-hidden="true">↗</span></a>
 <p class="ll-scroll-hint" id="ll-scroll-hint"><span class="ll-mouse" aria-hidden="true"></span><span>Scroll to Discover</span></p>
 </div>
 <a class="ll-book-fallback" id="ll-book-fallback" href="{first['url']}" aria-label="Read {esc(first['title'])}"><img id="ll-fallback-cover" src="{first['cover']}" alt="Cover of {esc(first['title'])}"></a>

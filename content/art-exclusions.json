@@ -1,5 +1,21 @@
 {
   "paths": [
     "stories/the-town-beneath-the-dance/art/interiors/hetts-shop-and-upper-room.webp"
-  ]
+  ],
+  "archivedEditions": {
+    "the-box": {
+      "preparedCoverSha256": "46335d9f687f5832125f1eafc130bae29ba4959534c513beb1f1576fdfe837f7",
+      "withdrawnOriginals": {
+        "title-image.jpg": "8e9a1cd52134b8dd76bbc09b12e3f25d34d23fb1081ccaea656a5ef27f076946",
+        "art/characters/ivari.webp": "ef67653bf9e13c91de9ca19ab990a9f9308a43b38fcee6ad452a15b3f77db0f4",
+        "art/characters/mevrit.webp": "e68074fdf4f48a33e971f89b9009255dc01d030317943630fdbbb9ebe1c801e1",
+        "art/characters/sali.webp": "5fec51d220779e0ef4c9b28e21812bb918efb32dac2f3d23512ea4463dd90659",
+        "art/characters/temra-vosen.webp": "e40abc2b0a15ae43b9fba616e5ee6a7bf0c4248c0915cb63f5fe312e98c0794f",
+        "art/landscapes/kelm-quay.webp": "d764cedddc912311965055f6b1361d30befd8a5ea6759971997b187f3ee514e4",
+        "art/landscapes/lipstone-freight-apron.webp": "6966e9dee1599947c421539251091389d0160fb2f0b52aebac7d8be01abe64ee",
+        "art/landscapes/lirven-court-square.webp": "67664cf36cd40c66e03dd45e771549f1e30e7e70e60097ed6b0e4dae9b084b39",
+        "art/landscapes/shale-crown-ridge.webp": "219a78689508254fc18bfcb16ca36a619ca76e72ba49e81a72ac225465bb5b22"
+      }
+    }
+  }
 }

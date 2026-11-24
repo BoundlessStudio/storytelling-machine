@@ -11,6 +11,23 @@ STUDIES = ("characters", "landscapes", "interiors")
 FORMATS = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}
 
 
+def verified_archived_cover(static: Path, slug: str, edition: dict, original_digest: str | None,
+                            prepared: dict[str, str]) -> Path:
+    """Resolve the published texture only for its recorded original cover."""
+    if (not isinstance(original_digest, str) or not re.fullmatch(r"[a-f0-9]{64}", original_digest)
+            or edition["withdrawnOriginals"]["title-image.jpg"] != original_digest):
+        raise ValueError(f"Archived reader cover does not match the approved original for {slug}")
+    relative = prepared.get(slug)
+    if (not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", slug)
+            or relative not in (f"panorama/{slug}-cover.webp", f"story-covers/{slug}.webp")):
+        raise ValueError(f"Invalid archived reader cover path for {slug}: {relative}")
+    path = static / relative
+    if (path.resolve() != static.resolve() / relative or not path.is_file()
+            or sha256(path.read_bytes()).hexdigest() != edition["preparedCoverSha256"]):
+        raise ValueError(f"Cannot verify archived reader cover for {slug}: {relative}")
+    return path
+
+
 def local_file(path: Path, root: Path) -> bool:
     if not path.is_file():
         return False

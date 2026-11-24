@@ -26,11 +26,13 @@ from urllib.request import Request, urlopen
 from PIL import Image, ImageOps, ImageStat
 
 try:
-    from scripts.build import CONTENT, ROOT, excluded_art_paths, friendly_name, published_media_assets
+    from scripts.build import CONTENT, ROOT, friendly_name, published_media_assets
+    from scripts.story_art import verified_archived_cover
 except ModuleNotFoundError:  # executed as a file
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from scripts.build import CONTENT, ROOT, excluded_art_paths, friendly_name, published_media_assets
+    from scripts.build import CONTENT, ROOT, friendly_name, published_media_assets
+    from scripts.story_art import verified_archived_cover
 
 OUTPUT = ROOT / "static" / "panorama"
 CACHE = ROOT / ".cache" / "panorama-originals"
@@ -39,23 +41,36 @@ ATLAS_COLS, ATLAS_ROWS, TILE_W, TILE_H = 25, 14, 80, 142
 
 
 def preparation_assets(index: dict, content: Path) -> tuple[dict, set[str]]:
-    """Use only existing site derivatives for editions retained at an earlier writing revision."""
+    """Reuse site derivatives when an edition's original sources are unavailable."""
     assets = published_media_assets(index)
     source = content / "source.json"
     pins = json.loads(source.read_text(encoding="utf-8")) if source.is_file() else {}
     retained = set(pins.get("retainedStoryCommits", {}))
+    exclusions = json.loads((CONTENT / "art-exclusions.json").read_text(encoding="utf-8"))
+    editions = exclusions.get("archivedEditions", {})
+    archived = {}
+    if editions:
+        stories = json.loads((content / "catalog.json").read_text(encoding="utf-8"))["stories"]
+        archived = {story["slug"]: story for story in stories if story["slug"] in editions
+                    and f"stories/{story['slug']}/title-image.jpg" not in assets}
+        retained.update(archived)
     if not retained:
         return assets, retained
     retained_prefixes = tuple(f"stories/{slug}/" for slug in retained)
-    assets = {path: item for path, item in assets.items() if not path.startswith(retained_prefixes)}
+    assets = {path: item for path, item in assets.items() if not path.startswith(retained_prefixes)
+              or ("local_file" in item and path.split("/")[1] in editions)}
     locations = json.loads((CONTENT / "story-locations.json").read_text(encoding="utf-8"))
     panorama = json.loads((CONTENT / "panorama.json").read_text(encoding="utf-8"))
     stops = {stop["slug"]: stop for stop in panorama["stops"]}
-    excluded = excluded_art_paths()
+    excluded = set(exclusions["paths"])
     static = ROOT / "static"
+    if archived:
+        approved = json.loads((content / "covers.json").read_text(encoding="utf-8"))
+        for slug, story in archived.items():
+            verified_archived_cover(static, slug, editions[slug], approved.get(story["cover"]), locations["covers"])
 
     def add(logical: str, relative: str, allowed: tuple[str, ...], metadata: dict) -> None:
-        if logical in excluded:
+        if logical in excluded or logical in assets:
             return
         path = static / relative
         if relative not in allowed or path.resolve() != static.resolve() / relative or not path.is_file():

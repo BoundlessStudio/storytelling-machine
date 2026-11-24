@@ -15,7 +15,7 @@ from urllib.parse import urljoin
 
 from scripts.build import (CONTENT, ICON_VERSION, STATIC, asset_url, build, load_media_index, make_art,
                            library_scene_data, prompt_markup, prose_markup, published_media_assets,
-                           validate_media_index)
+                           read_json, validate_media_index)
 from scripts.sync_ratings import source_rating
 from scripts.sync_panorama import choose_pool
 
@@ -32,10 +32,10 @@ class SiteBuildTests(unittest.TestCase):
         art, covers = make_art(self.index, self.stories, base)
         self.assertEqual(set(covers), {story["slug"] for story in self.stories})
         counts = Counter(item["type"] for item in art)
-        self.assertEqual(counts["Covers"], len(self.stories))
+        self.assertEqual(counts["Covers"], len(self.stories) - 1)
         # These studies were already public when the illustration workflow moved.
-        self.assertGreaterEqual(counts["Characters"], 1184)
-        self.assertGreaterEqual(counts["Locations"], 1306)
+        self.assertGreaterEqual(counts["Characters"], 1180)
+        self.assertGreaterEqual(counts["Locations"], 1302)
         self.assertTrue(all(item["id"].startswith("stories/") for item in art))
         self.assertTrue(any(item["type"] == "Locations" and item["thumbnail"] != item["full"]
                             for item in art))
@@ -88,7 +88,7 @@ class SiteBuildTests(unittest.TestCase):
         stories = self.stories[1:]
         published = {story["slug"] for story in stories}
         art, covers = make_art(self.index, stories, "/")
-        self.assertEqual({item["slug"] for item in art}, published)
+        self.assertEqual({item["slug"] for item in art}, published - {"the-box"})
         self.assertEqual(set(covers), published)
 
     def test_removed_image_stays_excluded_when_upstream_restores_the_path(self) -> None:
@@ -130,7 +130,7 @@ class SiteBuildTests(unittest.TestCase):
             build(output, "/storytelling-machine/", "https://example.org", self.index)
             gallery = json.loads((output / "art.json").read_text(encoding="utf-8"))
             self.assertEqual({item["slug"] for item in gallery if item["type"] == "Covers"},
-                             {story["slug"] for story in self.stories})
+                             {story["slug"] for story in self.stories} - {"the-box"})
             self.assertEqual(set(item["type"] for item in gallery), {
                 "Covers", "Characters", "Locations",
             })
@@ -175,7 +175,8 @@ class SiteBuildTests(unittest.TestCase):
                 slug = story["slug"]
                 self.assertEqual(atlas["tiles"][story["slot"]], [slug, "cover"])
                 self.assertTrue(story["url"].startswith("/storytelling-machine/stories/"))
-                self.assertEqual(story["art"], f"/storytelling-machine/art/?story={slug}")
+                has_gallery = any(item["slug"] == slug for item in gallery)
+                self.assertEqual(story["art"], f"/storytelling-machine/art/?story={slug}" if has_gallery else None)
                 source = location_manifest[slug]["source"]
                 available = sum(item["slug"] == slug and item["type"] != "Covers" and item["id"] != source
                                 for item in gallery)
@@ -380,6 +381,7 @@ class SiteBuildTests(unittest.TestCase):
         covers = json.loads((CONTENT / "covers.json").read_text(encoding="utf-8"))
         source = json.loads((CONTENT / "source.json").read_text(encoding="utf-8"))
         assets = published_media_assets(self.index)
+        archived = read_json("art-exclusions.json")["archivedEditions"]
         self.assertRegex(source["commit"], r"^[a-f0-9]{40}$")
         self.assertRegex(self.index["sourceCommit"], r"^[a-f0-9]{40}$")
         self.assertEqual(source["commit"], json.loads(
@@ -387,8 +389,87 @@ class SiteBuildTests(unittest.TestCase):
         )["commit"])
         self.assertEqual(len(covers), len(self.stories))
         for story in self.stories:
-            self.assertEqual(covers[story["cover"]],
-                             assets[f"stories/{story['slug']}/title-image.jpg"]["sha256"])
+            slug = story["slug"]
+            original = assets.get(f"stories/{slug}/title-image.jpg")
+            digest = original["sha256"] if original else archived[slug]["withdrawnOriginals"]["title-image.jpg"]
+            self.assertEqual(covers[story["cover"]], digest)
+
+    def test_archived_reader_uses_verified_same_story_cover_with_live_and_stale_indexes(self) -> None:
+        slug = "the-box"
+        story = next(story for story in self.stories if story["slug"] == slug)
+        prefix = f"stories/{slug}/"
+        retired = [item for item in self.index["assets"] if item["path"].startswith(prefix)]
+        self.assertEqual(len(retired), 9)
+        live = dict(self.index, assets=[item for item in self.index["assets"] if not item["path"].startswith(prefix)])
+        relative = "panorama/the-box-cover.webp"
+        origin = "https://example.org"
+        for base, index in (("/", self.index), ("/preview/", live)):
+            with self.subTest(base=base), tempfile.TemporaryDirectory() as directory:
+                output = Path(directory) / "site"
+                # Render a single reader through the normal build and index loader.
+                def single_story(name):
+                    return {"stories": [story]} if name == "catalog.json" else read_json(name)
+                with patch("scripts.build.read_json", side_effect=single_story), patch(
+                        "scripts.build.urlopen", return_value=io.BytesIO(json.dumps(index).encode())):
+                    build(output, base, origin, offline=index is self.index)
+                cover = base + relative
+                self.assertEqual((output / relative).read_bytes(), (STATIC / relative).read_bytes())
+                reader = (output / prefix / "index.html").read_text(encoding="utf-8")
+                library = (output / "library/index.html").read_text(encoding="utf-8")
+                for page in (reader, library):
+                    self.assertIn(f'<img src="{cover}" alt="Cover for {story["title"]}"', page)
+                self.assertIn(f'property="og:image" content="{origin}{cover}"', reader)
+                self.assertIn(f'name="twitter:image" content="{origin}{cover}"', reader)
+                self.assertNotIn("art/?story=", reader)
+                for filename in ("cover-feed.json", "guide-catalog.json"):
+                    self.assertEqual(json.loads((output / filename).read_text(encoding="utf-8"))[0]["cover"], cover)
+                self.assertEqual(json.loads((output / "art.json").read_text(encoding="utf-8")), [])
+                scene = (output / "index.html").read_text(encoding="utf-8")
+                for item in retired:
+                    self.assertNotIn(item["url"], scene)
+
+    def test_archived_cover_rejects_damaged_bytes_cross_story_paths_and_excluded_originals(self) -> None:
+        story = next(story for story in self.stories if story["slug"] == "the-box")
+        relative = "panorama/the-box-cover.webp"
+        exclusions = read_json("art-exclusions.json")
+        for data, path, original, excluded, error in (
+            (b"damaged", relative, True, False, "Cannot verify archived reader cover"),
+            (None, relative, True, False, "Cannot verify archived reader cover"),
+            (b"", "panorama/the-box-at-the-hangar-cover.webp", True, False, "Invalid archived reader cover path"),
+            (b"", relative, False, False, "does not match the approved original"),
+            (b"", relative, True, True, "Add a presentation cover"),
+        ):
+            with self.subTest(error=error, data=data), tempfile.TemporaryDirectory() as directory:
+                static = Path(directory)
+                if data is not None:
+                    (static / path).parent.mkdir()
+                    (static / path).write_bytes(data)
+                manifests = {"story-locations.json": {"covers": {"the-box": path}},
+                             "covers.json": read_json("covers.json") if original else {story["cover"]: "0" * 64},
+                             "art-exclusions.json": dict(exclusions, paths=["stories/the-box/title-image.jpg"])
+                             if excluded else exclusions}
+                with patch("scripts.build.STATIC", static), patch("scripts.build.read_json",
+                        side_effect=lambda name: manifests[name] if name in manifests else read_json(name)):
+                    with self.assertRaisesRegex(ValueError, error):
+                        make_art(self.index, [story], "/")
+        with self.assertRaisesRegex(ValueError, "Add a presentation cover.*unrelated"):
+            make_art(self.index, [{"slug": "unrelated"}], "/")
+
+    def test_site_owned_cover_takes_precedence_for_archived_story(self) -> None:
+        story = next(story for story in self.stories if story["slug"] == "the-box")
+        with tempfile.TemporaryDirectory() as directory:
+            static = Path(directory)
+            root = static / "story-art/the-box"
+            root.mkdir(parents=True)
+            cover = root / "title-image.jpg"
+            cover.write_bytes(b"accepted site cover")
+            digest = sha256(cover.read_bytes()).hexdigest()
+            (root / "illustrations.json").write_text(json.dumps({"sha256": {"title-image.jpg": digest}}))
+            with patch("scripts.build.STATIC", static):
+                gallery, covers = make_art(self.index, [story], "/preview/")
+            expected = f"/preview/story-art/the-box/title-image.jpg?v={digest[:12]}"
+            self.assertEqual([item["full"] for item in gallery], [expected])
+            self.assertEqual(covers, {"the-box": expected})
 
     def test_source_rating_accepts_both_published_formats(self) -> None:
         with patch("scripts.sync_ratings.git_text", return_value="# Content rating\n\n- **Rating:** Mature\n"):

@@ -123,3 +123,28 @@ class RetainedDerivativesTest(unittest.TestCase):
                 self.write(self.content / "story-locations.json", self.previous)
                 with self.assertRaisesRegex(ValueError, "Missing or unsafe retained derivative"):
                     sync_panorama.preparation_assets(self.index, self.stage / "content")
+
+    def test_archived_edition_prepares_from_published_bytes_before_source_pin_changes(self):
+        content = self.stage / "content"
+        pins = json.loads((content / "source.json").read_text())
+        del pins["retainedStoryCommits"]["pier"]
+        self.write(content / "source.json", pins)
+        catalog = json.loads((content / "catalog.json").read_text())
+        next(s for s in catalog["stories"] if s["slug"] == "pier")["cover"] = "covers/pier.jpg"
+        self.write(content / "catalog.json", catalog)
+        originals = {i["path"].removeprefix("stories/pier/"): i["sha256"] for i in self.index["assets"]
+                     if i["path"].startswith("stories/pier/")}
+        self.write(content / "covers.json", {"covers/pier.jpg": originals["title-image.jpg"]})
+        expected = (self.static / self.previous["covers"]["pier"]).read_bytes()
+        exclusions = json.loads((self.content / "art-exclusions.json").read_text())
+        exclusions["archivedEditions"] = {"pier": {"withdrawnOriginals": originals,
+                                                  "preparedCoverSha256": sha256(expected).hexdigest()}}
+        self.write(self.content / "art-exclusions.json", exclusions)
+        for pool in (1, 2):
+            _, locations = self.prepare(pool)
+            cover = self.stage / "static" / locations["covers"]["pier"]
+            self.assertEqual(cover.read_bytes(), expected)
+            self.assertEqual(locations["locations"]["pier"]["source"], self.previous["locations"]["pier"]["source"])
+            # A refreshed index with all retired originals removed must produce the same result.
+            self.index["assets"] = [i for i in self.index["assets"] if not i["path"].startswith("stories/pier/")]
+            self.write(self.content / "media-index.json", self.index)
