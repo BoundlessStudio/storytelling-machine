@@ -129,7 +129,9 @@ class CompanionArtTests(unittest.TestCase):
                     legacy[slug] = save_image(package / "title-image.jpg", "red")
             source_ref = source / "stories/new-story/art/references/private, approved.png"
             approved_bytes = save_image(source_ref, "black")
-            save_image(source_ref.with_name("unapproved.png"), "yellow")
+            decoy = source_ref.with_name("draft.png")
+            decoy_bytes = save_image(decoy, "yellow")
+            save_image(source_ref.parent / "nested/earlier.png", "green")
             run(source, "git", "add", "stories")
             run(source, "git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.org",
                 "-c", "commit.gpgsign=false", "-c", "core.hooksPath=.git/no-hooks", "commit", "-qm", "Prose")
@@ -202,8 +204,11 @@ class CompanionArtTests(unittest.TestCase):
             new = (originals / "new-story/title-image.jpg").read_bytes()
             receipt = json.loads((originals / "new-story/illustrations.json").read_text())
             self.assertEqual(receipt["referenceCount"], 1)
+            self.assertEqual(receipt["referencePositions"], [1])
             self.assertNotIn("inputReviews", receipt)
-            self.assertNotIn("private, approved", json.dumps(receipt))
+            for name, data in ((source_ref.name, approved_bytes), (decoy.name, decoy_bytes)):
+                self.assertNotIn(name, json.dumps(receipt))
+                self.assertNotIn(sha256(data).hexdigest(), json.dumps(receipt))
             late = (originals / "late-story/title-image.jpg").read_bytes()
             room = (originals / "new-story/art/interiors/reading-room.webp").read_bytes()
             for slug, data in zip(slugs, [new, late, revised, legacy["historical"]]):
@@ -232,10 +237,10 @@ class CompanionArtTests(unittest.TestCase):
             self.assertEqual(published_files(), first_publication)
             missing = "art/characters/clerk.webp"
             (originals / "new-story" / missing).unlink()
-            refused = run(site, *retry, env=env, success=False)
+            refused = run(site, *retry, "--reference", "new-story/draft.png", env=env, success=False)
             self.assertIn("--reference", refused.stderr)
             self.assertEqual(log.read_bytes(), illustrator_log)
-            run(site, *retry, "--reference", "new-story/private, approved.png", env=env)
+            run(site, *retry, env=env)
             repaired = [json.loads(line) for line in log.read_text().splitlines()[len(calls):]]
             self.assertEqual([call["requestedImages"] for call in repaired], [[missing]])
             private = {name: digest for name, digest in repaired[0]["references"].items() if name.startswith("ref-")}
@@ -258,6 +263,9 @@ class CompanionArtTests(unittest.TestCase):
                 expected.extend(f"{slug}/{name}" for name in ("title-image.jpg", "art/characters/clerk.webp",
                                                               "art/interiors/reading-room.webp"))
             self.assertEqual(exposed, sorted(expected))
+            public_hashes = {sha256((output / "story-art" / path).read_bytes()).hexdigest() for path in exposed}
+            for data in (approved_bytes, decoy_bytes):
+                self.assertNotIn(sha256(data).hexdigest(), public_hashes)
             reader = (output / "stories/new-story/index.html").read_text(encoding="utf-8")
             self.assertIn("Reviewed new-story prose.", reader)
             self.assertIn("Teen", reader)

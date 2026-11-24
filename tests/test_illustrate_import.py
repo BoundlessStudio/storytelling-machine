@@ -64,7 +64,7 @@ class AcceptedArtRecoveryTests(unittest.TestCase):
         commit = "a" * 40
         reference = "Room.png"
         paths = {f"stories/{slug}/story.md", f"stories/{slug}/ratings.md",
-                 f"stories/{slug}/art/references/{reference}"}
+                 f"stories/{slug}/art/references/{reference}", f"stories/{slug}/art/references/Draft.png"}
         study = "art/interiors/room.webp"
         pixels = io.BytesIO()
         Image.new("RGB", (64, 32), "black").save(pixels, "PNG")
@@ -98,7 +98,13 @@ class AcceptedArtRecoveryTests(unittest.TestCase):
             work = root / "static" / "story-art" / slug
             args = (root, root / "source", commit, slug, paths)
             ensure_illustrations(*args, approved_references=[reference])
-            receipt = json.loads((work / "illustrations.json").read_text())
+            manifest = work / "illustrations.json"
+            receipt = json.loads(manifest.read_text())
+            legacy = receipt.copy()
+            del legacy["referencePositions"]
+            manifest.write_text(json.dumps(legacy))
+            ensure_illustrations(*args)
+            self.assertEqual(json.loads(manifest.read_text()), legacy)
             cover = (work / "title-image.jpg").read_bytes()
 
             historical = f"stories/{slug}/title-image.jpg"
@@ -112,10 +118,17 @@ class AcceptedArtRecoveryTests(unittest.TestCase):
                 local_only = work / relative
                 local_only.parent.mkdir(parents=True, exist_ok=True)
                 Image.new("RGB", (64, 32), "purple").save(local_only)
-            with self.assertRaises(ValueError):
+            with self.assertRaisesRegex(ValueError, "--reference"):
                 ensure_illustrations(*args)
+            for positions, count in (([], 1), ([True], 1), ([-1], 1), ([2], 1), ([1, 1], 2), ([0], 1)):
+                with self.subTest(positions=positions, count=count):
+                    manifest.write_text(json.dumps(dict(receipt, referencePositions=positions, referenceCount=count)))
+                    with self.assertRaisesRegex(ValueError, "--reference"):
+                        ensure_illustrations(*args)
             self.assertEqual(illustrator.call_count, 1)
+            manifest.write_text(json.dumps(legacy))
             ensure_illustrations(*args, approved_references=[reference])
+            self.assertEqual(json.loads(manifest.read_text()), receipt)
             self.assertEqual((work / "title-image.jpg").read_bytes(), cover)
             self.assertEqual(sha256((work / study).read_bytes()).hexdigest(), receipt["sha256"][study])
             self.assertEqual(illustrator.call_count, 2)

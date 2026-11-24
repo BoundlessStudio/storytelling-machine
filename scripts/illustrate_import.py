@@ -349,6 +349,26 @@ Reviewed rating:
         print(f"Configured model unavailable; retrying illustration with account model {model}", flush=True)
 
 
+def reference_digest(references: tuple[str, ...]) -> str:
+    for name in references:
+        if (not name or re.search(r'[<>:"/\\|?*\x00-\x1f]', name) or name.endswith((".", " "))
+                or re.match(r"^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)", name, re.I)):
+            raise ValueError(f"Expected a single reference filename: {name}")
+    if len({name.casefold() for name in references}) != len(references):
+        raise ValueError("Approved reference filenames must be distinct on this filesystem")
+    return hashlib.sha256(json.dumps(references).encode("utf-8")).hexdigest()
+
+
+def saved_references(prior: dict, candidates: list[str]) -> tuple[str, ...]:
+    positions = prior["referencePositions"]
+    count = prior.get("referenceCount")
+    if (type(count) is not int or not isinstance(positions, list) or len(positions) != count
+            or any(type(i) is not int or not 0 <= i < len(candidates) for i in positions)
+            or positions != sorted(set(positions))):
+        raise ValueError("Invalid saved reference selection. Supply the original --reference arguments.")
+    return tuple(candidates[i] for i in positions)
+
+
 def ensure_illustrations(root: Path, repository: Path, commit: str, slug: str, source_paths: set[str],
                          *, approved_references=()) -> None:
     """Generate missing artwork while the caller holds the site's import lock."""
@@ -363,13 +383,11 @@ def ensure_illustrations(root: Path, repository: Path, commit: str, slug: str, s
         if any(item["path"] == historical and item["sha256"] == digest for item in index["assets"]):
             return  # This exact historical cover is already available to the site.
     references = tuple(sorted(set(approved_references)))
-    for name in references:
-        if (not name or re.search(r'[<>:"/\\|?*\x00-\x1f]', name) or name.endswith((".", " "))
-                or re.match(r"^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)", name, re.I)):
-            raise ValueError(f"Expected a single reference filename: {name}")
-    if len({name.casefold() for name in references}) != len(references):
-        raise ValueError("Approved reference filenames must be distinct on this filesystem")
-    reference_set = hashlib.sha256(json.dumps(references).encode("utf-8")).hexdigest()
+    reference_set = reference_digest(references)
+    # Positions are stable only within this commit's directory and keep private filenames out of the receipt.
+    prefix = f"stories/{slug}/art/references/"
+    names = (path[len(prefix):] for path in source_paths if path.startswith(prefix))
+    candidates = sorted(name for name in names if "/" not in name)
     prior_bytes = receipt.read_bytes() if receipt.is_file() else None
     restore_paths = ()
     if prior_bytes is not None:
@@ -387,16 +405,19 @@ def ensure_illustrations(root: Path, repository: Path, commit: str, slug: str, s
                 missing.append(relative)
             elif hashlib.sha256(path.read_bytes()).hexdigest() != digest:
                 raise ValueError(f"Accepted illustration changed since review: {path}")
-        if ((missing or not verified) and prior.get("sourceCommit") == commit
-                and prior.get("referenceSet") != reference_set):
-            raise ValueError(f"Reviewing {slug} requires the original edition's approved --reference arguments")
-        if (verified and not missing and prior.get("sourceCommit") == commit and (not references or
-                (len(references) == reference_count and reference_set == prior.get("referenceSet")))):
-            _, hashes = review_bundle(destination)
-            if hashes != prior_hashes:
-                raise ValueError(f"Accepted illustration changed since review for {slug}; review the changed work")
-            return
         if prior.get("sourceCommit") == commit:
+            same_references = len(references) == reference_count and reference_set == prior.get("referenceSet")
+            if verified and not missing and (not references or same_references):
+                _, hashes = review_bundle(destination)
+                if hashes != prior_hashes:
+                    raise ValueError(f"Accepted illustration changed since review for {slug}; review the changed work")
+                return
+            if missing or not verified:
+                if not references and "referencePositions" in prior:
+                    references = saved_references(prior, candidates)
+                    reference_set = reference_digest(references)
+                if reference_set != prior.get("referenceSet") or (verified and len(references) != reference_count):
+                    raise ValueError(f"Reviewing {slug} requires the original edition's approved --reference arguments")
             restore_paths = tuple(sorted(missing))
     scratch = checked_path(root, "tmp")
     scratch.mkdir(exist_ok=True)
@@ -432,7 +453,9 @@ def ensure_illustrations(root: Path, repository: Path, commit: str, slug: str, s
     for category in ("characters", "locations"):
         if not report[category]:
             report[f"no_{category}"] = f"The illustrator found no {category} that required a separate study."
+    selected = set(references)
     report.update(schemaVersion=RECEIPT_VERSION, sourceCommit=commit, referenceCount=len(references),
+                  referencePositions=[i for i, name in enumerate(candidates) if name in selected],
                   referenceSet=reference_set, sha256=hashes)
     # Build a clean tree from the allowlisted images. Never copy arbitrary agent outputs.
     bundle = job / "validated"
