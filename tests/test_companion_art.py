@@ -119,10 +119,11 @@ class CompanionArtTests(unittest.TestCase):
                 (package / ("05-story.md" if slug == "historical" else "story.md")).write_text(
                     f"---\ntitle: {slug}\ncreated: 2026-03-15\ncanon: false\n---\nReviewed {slug} prose.\n")
                 if slug == "historical":
-                    (package / "00-prompt.md").write_text("# Prompt\n\n[WP] The rain has an opinion.\n")
+                    (package / "00-prompt.md").write_text("# Prompt contract\n\n## Verbatim writing prompt\n\n"
+                                                         "> [WP] The rain has an opinion.\n")
                     (package / "story.json").write_text('{"canon": true}')
-                elif slug == "reillustrated":
-                    (package / "prompt.md").write_text("# Prompt\n\nPrivate editorial instructions.\n")
+                elif slug == "new-story":
+                    (package / "prompt.md").write_text("# Prompt\n\n[WP] Private editorial instructions.\n")
                 (package / "ratings.md").write_text("# Rating\n\n- **Rating:** Teen\n")
                 if slug in ("reillustrated", "historical"):
                     legacy[slug] = save_image(package / "title-image.jpg", "red")
@@ -185,6 +186,7 @@ class CompanionArtTests(unittest.TestCase):
             for call in calls:
                 self.assertIn("Teen", call["rating"])
                 self.assertIn("story_title_illustrator", call["request"])
+                self.assertNotIn("Private editorial instructions", call["request"])
                 self.assertEqual(call["sandbox"], "read-only")
                 if "title: new-story" in call["story"]:
                     self.assertEqual(call["references"], {"ref-001.png": sha256(approved_bytes).hexdigest()})

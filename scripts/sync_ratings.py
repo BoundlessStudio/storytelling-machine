@@ -63,35 +63,48 @@ def source_rating(repository: Path, commit: str, slug: str) -> str:
 
 
 def writing_prompt(source: str, slug: str, *, tagged_only: bool = False) -> str:
-    """Read tagged prompts and the opening request in newer packages."""
+    """Extract a tagged opening or a recognized request section."""
     flags = re.IGNORECASE | re.MULTILINE | re.DOTALL
+    heading = r"^ {0,3}#{1,6}[ \t]+"
+    section_body = rf"(.*?)(?={heading}|\Z)"
     section = re.match(
-        r"\A\s*#[ \t]+(?:Prompt|Request|User request|Original request)[ \t]*\r?\n"
-        r"(.*?)(?=^#{1,6}[ \t]|\Z)",
+        r"\A\s*#[ \t]+(Prompt|Request|User request|Original request|Prompt contract)[ \t]*\r?\n" + section_body,
         source, flags,
     )
     request = None
+    opening = ""
+    nested_title = "My request:?"
     if section:
-        request = section.group(1)
+        if section.group(1).casefold() == "prompt contract":
+            nested_title = "Verbatim writing prompt"
+        else:
+            request = section.group(2)
         heading_start = section.end()
     else:
-        heading = re.search(r"^#{1,6}[ \t]+([^\r\n]*)", source, re.MULTILINE)
-        heading_start = heading.start() if heading else 0
-        if heading and heading.group(1).strip().casefold() == "supplied reference images":
-            request = source[:heading_start]
+        first_heading = re.search(heading + r"([^\r\n]*)", source, re.MULTILINE)
+        heading_start = first_heading.start() if first_heading else len(source)
+        opening = source[:heading_start]
+        if first_heading and first_heading.group(1).strip().casefold() == "supplied reference images":
+            request = opening
     nested = re.match(
-        r"#{2,6}[ \t]+My request:?[ \t]*\r?\n(.*?)(?=^#{1,6}[ \t]|\Z)",
+        r" {0,3}#{2,6}[ \t]+" + nested_title + r"[ \t]*\r?\n" + section_body,
         source[heading_start:], flags,
     )
     if nested:
         request = nested.group(1)
-    match = re.search(r"^\s*(?:>\s*)?\[?(?:WP|SP)\]\s*(.+)$",
-                      source if request is None else request, re.MULTILINE)
+    first_line = (opening if request is None else request).lstrip().partition("\n")[0].strip()
+    first_line = first_line.removeprefix(">").lstrip()
+    tag = r"\[?(?:WP|SP)\]"
+    if not tagged_only:
+        if first_line.startswith("**") and first_line.endswith("**"):
+            first_line = first_line[2:-2]
+        tag = r"(?:\\?\[)?(?:WP|SP)\\?\]"
+    match = re.match(tag + r"[ \t]*(.+)", first_line)
     if match:
         prompt = match.group(1).strip()
-        for opening, closing in (("“", "”"), ('"', '"')):
-            if (prompt.startswith(opening) and prompt.endswith(closing)
-                    and opening not in prompt[1:-1] and closing not in prompt[1:-1]):
+        for left_quote, right_quote in (("“", "”"), ('"', '"')):
+            if (prompt.startswith(left_quote) and prompt.endswith(right_quote)
+                    and left_quote not in prompt[1:-1] and right_quote not in prompt[1:-1]):
                 return prompt[1:-1]
         return prompt
     if tagged_only:
@@ -256,7 +269,7 @@ def _sync(repository: Path, revision: str, add_stories: list[str],
         prompt_path = next((prefix + name for name in ("prompt.md", "00-prompt.md") if prefix + name in paths),
                            prefix + "prompt.md")
         prompt = ""
-        if include_prompt or prompt_path in paths:
+        if include_prompt or (prose_path.endswith("/05-story.md") and prompt_path in paths):
             prompt = writing_prompt(git_text(repository, commit, prompt_path), add_story,
                                    tagged_only=not include_prompt)
         stories.insert(0, new_story(repository, commit, add_story, prompt=prompt, path=prose_path))
@@ -305,7 +318,7 @@ if __name__ == "__main__":
     parser.add_argument("--add-story", action="append", dest="add_stories", default=[],
                         help="Import or retry a published story. List new stories oldest first.")
     parser.add_argument("--include-prompt", action="store_true",
-                        help="Also publish the untagged opening request from prompt.md on new stories")
+                        help="Publish the opening writing request when adding a story to the catalog")
     parser.add_argument("--reference", action="append", default=[], metavar="SLUG/FILENAME",
                         help="An approved private visual input from the pinned story's art/references; repeat as needed")
     args = parser.parse_args()

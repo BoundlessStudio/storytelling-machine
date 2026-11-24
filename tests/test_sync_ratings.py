@@ -42,6 +42,26 @@ class SourceSyncTests(unittest.TestCase):
                   "## Later user direction\n\n[WP] Revise the cover.\n")
         self.assertEqual(writing_prompt(source, "fashion-week"), prompt)
 
+    def test_only_the_opening_request_can_supply_a_tag(self) -> None:
+        for source in ("# Content notes\n\n[WP] Private note.",
+                       "Unrecognized preamble.\n\n## Later direction\n\n[WP] Private note.",
+                       "Unrecognized preamble.\n\n[WP] Private note."):
+            with self.subTest(source=source):
+                self.assertEqual(writing_prompt(source, "familiar", tagged_only=True), "")
+                with self.assertRaisesRegex(ValueError, "Missing writing prompt for familiar"):
+                    writing_prompt(source, "familiar")
+
+    def test_tagged_openings_and_historical_prompt_contracts(self) -> None:
+        contract = "# Prompt contract\n\n> Status: reviewed.\n\n## Verbatim writing prompt\n\n"
+        for line, auto_prompt in (("> [WP] An old request.", "An old request."),
+                                  (r"> \[WP\] An old request.", ""),
+                                  ("> **[WP] An old request.**", "")):
+            for opening in ("", contract):
+                with self.subTest(line=line, opening=opening):
+                    source = f"{opening}{line}\n\n## Later direction\n\n[WP] Private note."
+                    self.assertEqual(writing_prompt(source, "familiar", tagged_only=True), auto_prompt)
+                    self.assertEqual(writing_prompt(source, "familiar"), "An old request.")
+
     def test_prompt_tags_and_dialogue_quotes_import_without_losing_text(self) -> None:
         cases = {
             '[SP] The woods are scary at night...': 'The woods are scary at night...',
@@ -155,7 +175,7 @@ class SourceSyncTests(unittest.TestCase):
                 refresh_story(Path("source"), "commit", {"slug": "empty"}, {"stories/empty/story.md"})
 
 
-class RetainedEditionTests(unittest.TestCase):
+class PublishedImportTests(unittest.TestCase):
     def setUp(self) -> None:
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
@@ -181,7 +201,7 @@ class RetainedEditionTests(unittest.TestCase):
             "stories/current/title-image.jpg": b"current cover",
         }
         self.enterContext(patch("scripts.sync_ratings.ROOT", self.root))
-        self.enterContext(patch("scripts.sync_ratings.subprocess.check_output", side_effect=self.git))
+        self.git_commands = self.enterContext(patch("scripts.sync_ratings.subprocess.check_output", side_effect=self.git))
         self.illustrate = self.enterContext(patch("scripts.sync_ratings.ensure_illustrations"))
         self.enterContext(patch("scripts.sync_ratings.install_snapshot", side_effect=self.install))
 
@@ -205,6 +225,22 @@ class RetainedEditionTests(unittest.TestCase):
 
     def install(self, root, repository, documents, *, prepare_art):
         install_snapshot(root, repository, documents, prepare_art=False)
+
+    def test_first_current_import_reads_the_original_request_only_on_opt_in(self) -> None:
+        for name in ("prompt.md", "00-prompt.md"):
+            path = f"stories/current/{name}"
+            self.files[path] = b"# Prompt\n\n[WP] Opening request.\n\n## Later direction\n\n[WP] Private note.\n"
+            for opt_in, expected in ((False, ""), (True, "Opening request.")):
+                with self.subTest(name=name, opt_in=opt_in):
+                    self.write("catalog", {"stories": [self.published]})
+                    self.git_commands.reset_mock()
+                    commit = "b" * 40
+                    sync(Path("source"), commit, ["current"], include_prompt=opt_in)
+                    story = self.read("catalog")["stories"][0]
+                    self.assertEqual(story["prompt"], expected)
+                    reads = [call.args[0][-1] for call in self.git_commands.call_args_list if call.args[0][3] == "show"]
+                    self.assertEqual(reads.count(f"{commit}:{path}"), int(opt_in))
+            del self.files[path]
 
     def test_explicit_import_retains_edition_until_its_source_returns(self) -> None:
         for revision in ("b" * 40, "c" * 40):
