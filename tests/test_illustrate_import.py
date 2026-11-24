@@ -2,16 +2,49 @@ from hashlib import sha256
 import io
 import json
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
 
 from PIL import Image
 
-from scripts.illustrate_import import ensure_illustrations, reference_measurements
+from scripts.illustrate_import import ensure_illustrations, reference_measurements, run_illustrator
 
 
 class AcceptedArtRecoveryTests(unittest.TestCase):
+    def test_brief_requests_a_review_only_for_an_already_illustrated_story(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            job = Path(scratch)
+            (job / "input/references").mkdir(parents=True)
+            for name in ("story.md", "ratings.md"):
+                (job / "input" / name).write_text("The room is empty.")
+            room = "art/interiors/empty-room.webp"
+            (job / "accepted" / room).parent.mkdir(parents=True)
+            Image.new("RGB", (64, 32), "green").save(job / "accepted" / room)
+            cover = job / "accepted/title-image.jpg"
+            Image.new("RGB", (32, 64), "blue").save(cover)
+            original = cover.read_bytes()
+
+            def review(args, **kwargs):
+                brief = kwargs["input"].decode()
+                self.assertIn('"cover":null', brief)
+                self.assertNotIn("This edition needs a cover", brief)
+                inspected = [{"id": f"accepted-{i:03}", "visible": True, "observation": "Flat field.",
+                              "use": "Checked the existing image."} for i in (1, 2)]
+                (job / "report-output.json").write_text(json.dumps({
+                    "inputReviews": inspected, "review": "Inspected the retained art.", "cover": None,
+                    "characters": [], "no_characters": "Unoccupied room.",
+                    "locations": [{"subject": "Room", "path": room, "generated": None}],
+                }))
+                return subprocess.CompletedProcess(args, 0)
+
+            with patch("scripts.illustrate_import.shutil.which", return_value="codex"), patch(
+                    "scripts.illustrate_import.subprocess.run", side_effect=review) as cli:
+                run_illustrator(job, "empty-room", "a" * 40)
+                cli.assert_called_once()
+            self.assertEqual(cover.read_bytes(), original)
+
     def test_private_palette_facts_preserve_size_and_every_flat_colour(self):
         with tempfile.TemporaryDirectory() as scratch:
             path = Path(scratch) / "palette.png"

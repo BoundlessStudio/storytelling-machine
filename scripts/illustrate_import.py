@@ -249,8 +249,19 @@ def run_illustrator(job: Path, slug: str, commit: str) -> None:
                for identity, path in zip(identities, private_inputs + existing)]
     for entry, alias in zip(attachments, aliases[:len(private_inputs)]):
         entry["measured"] = reference_measurements(job / alias)
+    has_cover = (accepted / COVER).is_file()
+    cover_task = (
+        "This edition ALREADY HAS its accepted title-image.jpg in the attachments. "
+        'Inspect it in place and return "cover": null. Do not generate a replacement, '
+        "alternate, or candidate cover. Generate only genuinely missing studies. "
+        "If the studies are also complete, return the review without calling image generation."
+        if has_cover else
+        "This edition needs a cover. Generate it last using the relevant accepted and newly "
+        "generated studies as image references. Make a portrait with the title and "
+        "principal subjects inside the central 9:16 area for the final library crop."
+    )
     brief = f"""You are the story_title_illustrator for {slug} at reviewed revision {commit}.
-Perform the illustration directly with built-in image generation. All inputs are in
+Inspect retained artwork and use built-in image generation only for missing artwork. All inputs are in
 this message and its image attachments. Use this role and skill for visual decisions:
 
 {instructions}
@@ -278,9 +289,7 @@ observations out of the general review and public subject names.
 
 Inventory the principal characters and distinct important places. Generate each
 missing character sheet and setting painting with the built-in image generation
-tool. Inspect its returned images. Generate the cover last using the relevant
-accepted/generated studies as image references. Make a portrait image with the title
-and principal subjects inside the central 9:16 area for the final library crop.
+tool. Inspect its returned images. {cover_task}
 Preserve each attached accepted image unchanged. Report a conflict if one cannot be
 used with this edition. Never substitute a private reference for a generated study.
 
@@ -290,7 +299,7 @@ filename within this session) for each new image. Use null for an attached accep
 image. For an empty category add no_characters or no_locations explaining why.
 Use lower-case hyphenated ASCII filenames in the logical study paths. Inspect every
 generated image, and record what you saw in the review. Use this shape:
-{{"inputReviews":[...],"cover":"<tool output path or null>","characters":[{{"subject":"...","path":"art/characters/name.webp","generated":"<tool output path or null>"}}],"locations":[{{"subject":"...","path":"art/interiors/place.webp","generated":"<tool output path or null>"}}],"review":"..."}}
+{{"inputReviews":[...],"cover":{'null' if has_cover else '"<tool output path>"'},"characters":[{{"subject":"...","path":"art/characters/name.webp","generated":"<tool output path or null>"}}],"locations":[{{"subject":"...","path":"art/interiors/place.webp","generated":"<tool output path or null>"}}],"review":"..."}}
 Exterior studies belong under art/landscapes/. If generation fails, return an
 error object containing the reason. Never invent an image path.
 
