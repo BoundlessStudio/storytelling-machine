@@ -8,10 +8,23 @@ from unittest.mock import patch
 
 from PIL import Image
 
-from scripts.illustrate_import import ensure_illustrations
+from scripts.illustrate_import import ensure_illustrations, reference_measurements
 
 
 class AcceptedArtRecoveryTests(unittest.TestCase):
+    def test_private_palette_facts_preserve_size_and_every_flat_colour(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            path = Path(scratch) / "palette.png"
+            colors = [(41, 75, 117), (33, 38, 46), (162, 166, 173)]
+            swatch = Image.new("RGB", (192, 64))
+            for index, color in enumerate(colors):
+                swatch.paste(color, (64 * index, 0, 64 * (index + 1), 64))
+            swatch.save(path)
+            facts = reference_measurements(path)
+            self.assertEqual((facts["widthPx"], facts["heightPx"]), (192, 64))
+            self.assertEqual({c["rgb"]: c["pixels"] for c in facts["flatColors"]},
+                             {"#294b75": 4096, "#21262e": 4096, "#a2a6ad": 4096})
+
     def test_missing_study_is_replaced_and_modified_art_is_preserved_for_review(self):
         slug = "reading-room"
         commit = "a" * 40

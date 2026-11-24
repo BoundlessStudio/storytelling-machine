@@ -157,6 +157,21 @@ def attachment_alias(job: Path, identity: str, source: Path) -> str:
     return alias.relative_to(job).as_posix()
 
 
+def reference_measurements(path: Path) -> dict:
+    """Give the illustrator facts about the displayed pixels of a private original."""
+    with Image.open(path) as source:
+        image = ImageOps.exif_transpose(source)
+        facts = {"widthPx": image.width, "heightPx": image.height}
+        rgba = image.convert("RGBA")
+        colors = rgba.getcolors(8)
+        if colors and all(alpha == 255 for _, (_, _, _, alpha) in colors):
+            facts["flatColors"] = [
+                {"rgb": f"#{red:02x}{green:02x}{blue:02x}", "pixels": count}
+                for count, (red, green, blue, _) in sorted(colors, reverse=True)
+            ]
+        return facts
+
+
 def check_input_reviews(report: dict, expected: list[str]) -> None:
     reviews = report.get("inputReviews")
     if not isinstance(reviews, list) or len(reviews) != len(expected):
@@ -232,6 +247,8 @@ def run_illustrator(job: Path, slug: str, commit: str) -> None:
     attachments = [{"id": identity, "name": name} for identity, name in zip(identities, names)]
     aliases = [attachment_alias(job, identity, path)
                for identity, path in zip(identities, private_inputs + existing)]
+    for entry, alias in zip(attachments, aliases[:len(private_inputs)]):
+        entry["measured"] = reference_measurements(job / alias)
     brief = f"""You are the story_title_illustrator for {slug} at reviewed revision {commit}.
 Perform the illustration directly with built-in image generation. All inputs are in
 this message and its image attachments. Use this role and skill for visual decisions:
@@ -249,7 +266,10 @@ Check every attachment visually before your first image generation call. ref- ID
 identify approved private originals. accepted- IDs identify finished public art to
 preserve. If any image is missing, unreadable, or visible only as a filename,
 stop now and return {{"error":"attachment unavailable","id":"..."}}. Never infer its
-appearance from its name or the story. For every ID return a private inputReviews
+appearance from its name or the story. Approved originals include measured display
+dimensions and, for small flat palettes, exact colors and pixel counts. Use those
+facts when judging shape and color. Look at the pixels to establish their arrangement
+and the other visual details. For every ID return a private inputReviews
 entry in the displayed order: {{"id":"...","visible":true,"observation":"describe
 specific visible forms, colors, spatial relations and any legible markings or text",
 "use":"describe a concrete visual decision or consistency check this informs"}}.
